@@ -37,7 +37,8 @@ export default function RootLayout({
           </nav>
         </header>
 
-        <main style={{ padding: "24px", maxWidth: 960, margin: "0 auto" }}>
+        {/* full-width, only vertical padding */}
+        <main style={{ padding: "24px 0" }}>
           {children}
         </main>
 

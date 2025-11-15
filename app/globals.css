@@ -1,6 +1,29 @@
 @import "tailwindcss";
 
 :root {
+  --eti-page-bg: ...light gradient...;
+  --eti-card-bg: rgba(255, 255, 255, 0.98);
+  --eti-border-subtle: #d4dbe3;
+  --eti-text-main: #0f172a;
+  --eti-text-muted: #475569;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --eti-page-bg: ...dark gradient...;
+    --eti-card-bg: rgba(15, 23, 42, 0.96);
+    --eti-border-subtle: #1f2937;
+    --eti-text-main: #e5e7eb;
+    --eti-text-muted: #9ca3af;
+  }
+
+  body {
+    background-color: #020617;
+    color: var(--eti-text-main);
+  }
+}
+
+:root {
   --background: #ffffff;
   --foreground: #171717;
 }
