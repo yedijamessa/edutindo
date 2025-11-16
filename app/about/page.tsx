@@ -86,6 +86,7 @@ function FounderDetail({ founder }: { founder: Founder }) {
   const { role, name, imageSrc, imageAlt, lines } = founder;
   return (
     <article
+      className="eti-card eti-hero-card"
       style={{
         borderRadius: 24,
         padding: "22px 26px 24px",
@@ -139,7 +140,7 @@ function FounderDetail({ founder }: { founder: Founder }) {
           <h3
             style={{
               margin: 0,
-              fontSize: "1.15rem",
+              fontSize: "1.18rem",
               fontWeight: 700,
               color: "#0f172a",
             }}
@@ -178,6 +179,7 @@ export default function AboutPage() {
 
   return (
     <div
+      className="eti-page"
       style={{
         padding: "32px 0 64px",
         background:
@@ -198,105 +200,217 @@ export default function AboutPage() {
       >
         {/* Vision / Intro */}
         <section
+          className="eti-section-soft eti-hero-section"
           style={{
             width: "100%",
             maxWidth: 1160,
             margin: "0 auto",
+            borderRadius: 28,
+            padding: "24px 22px 26px",
+            background:
+              "linear-gradient(135deg, #eff6ff 0%, #e0f2fe 45%, #f9fafb 100%)",
+            border: "1px solid rgba(148,163,184,0.35)",
           }}
         >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "4px 10px",
-              borderRadius: 999,
-              backgroundColor: "rgba(37, 99, 235, 0.06)",
-              border: "1px solid rgba(59, 130, 246, 0.2)",
-              marginBottom: 14,
-            }}
-          >
-            <span
+          <div className="eti-about-grid">
+            {/* Left: text */}
+            <div>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  backgroundColor: "rgba(37, 99, 235, 0.06)",
+                  border: "1px solid rgba(59, 130, 246, 0.2)",
+                  marginBottom: 14,
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background:
+                      "conic-gradient(from 180deg at 50% 50%, #0ea5e9, #22c55e, #f97316, #0ea5e9)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "#1d4ed8",
+                  }}
+                >
+                  About Edukasi Terang Indonesia
+                </span>
+              </div>
+
+              <h1
+                style={{
+                  fontSize: "2.4rem",
+                  lineHeight: 1.15,
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  margin: "0 0 10px",
+                }}
+              >
+                Shaping a generation of{" "}
+                <span style={{ color: "#2563eb" }}>
+                  bright Indonesian learners
+                </span>
+              </h1>
+
+              <p
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: 1.8,
+                  color: "#475569",
+                  margin: "0 0 18px",
+                }}
+              >
+                Edukasi Terang Indonesia exists to guide students to become{" "}
+                <strong>faith-driven, innovative, and resilient</strong>{" "}
+                learners. We want them to master STEAM knowledge, think
+                critically and creatively, collaborate with others, and live out{" "}
+                <strong>Christian values</strong> in every area of life—
+                becoming a light and a blessing to their communities.
+              </p>
+
+              <div
+                className="eti-about-vision"
+                style={{
+                  borderLeft: "4px solid #2563eb",
+                  paddingLeft: 16,
+                  backgroundColor: "#eff6ff",
+                  borderRadius: 14,
+                  paddingTop: 14,
+                  paddingBottom: 14,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "0.96rem",
+                    lineHeight: 1.8,
+                    color: "#1e293b",
+                    margin: 0,
+                  }}
+                >
+                  Our vision is to see Indonesian learners who combine{" "}
+                  <strong>academic excellence</strong> in STEAM,{" "}
+                  <strong>creative problem-solving</strong>, and{" "}
+                  <strong>Christ-like character</strong>—young people who can
+                  carry God’s light into classrooms, campuses, workplaces, and
+                  nations.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: visual hero card */}
+            <div
+              className="eti-card eti-hero-image-card"
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background:
-                  "conic-gradient(from 180deg at 50% 50%, #0ea5e9, #22c55e, #f97316, #0ea5e9)",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "0.78rem",
-                fontWeight: 600,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                color: "#1d4ed8",
+                borderRadius: 22,
+                padding: 16,
+                background: "rgba(255,255,255,0.98)",
+                boxShadow: "0 18px 40px rgba(15,23,42,0.14)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
               }}
             >
-              About Edukasi Terang Indonesia
-            </span>
-          </div>
+              <div
+                style={{
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  backgroundColor: "#0f172a",
+                  marginBottom: 4,
+                }}
+              >
+                {/* Suggestion: use a group/team photo or illustration here */}
+                <Image
+                  src="/homepage/eti-about-team.png"
+                  alt="Edukasi Terang Indonesia team collaborating"
+                  width={640}
+                  height={420}
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    objectFit: "cover",
+                  }}
+                />
+              </div>
+              <p
+                style={{
+                  fontSize: "0.86rem",
+                  lineHeight: 1.6,
+                  color: "#4b5563",
+                  margin: 0,
+                }}
+              >
+                A collaborative team of educators, church leaders, and
+                professionals who care deeply about the next generation of
+                Indonesian learners.
+              </p>
 
-          <h1
-            style={{
-              fontSize: "2.4rem",
-              lineHeight: 1.15,
-              fontWeight: 800,
-              color: "#0f172a",
-              margin: "0 0 10px",
-            }}
-          >
-            Shaping a generation of{" "}
-            <span style={{ color: "#2563eb" }}>bright Indonesian learners</span>
-          </h1>
-
-          <p
-            style={{
-              fontSize: "1rem",
-              lineHeight: 1.8,
-              color: "#475569",
-              margin: "0 0 18px",
-              maxWidth: 1160,
-            }}
-          >
-            Edukasi Terang Indonesia exists to guide students to become{" "}
-            <strong>faith-driven, innovative, and resilient</strong> learners.
-            We want them to master STEAM knowledge, think critically and
-            creatively, collaborate with others, and live out{" "}
-            <strong>Christian values</strong> in every area of life—becoming a
-            light and a blessing to their communities.
-          </p>
-
-          <div
-            style={{
-              borderLeft: "4px solid #2563eb",
-              paddingLeft: 16,
-              backgroundColor: "#eff6ff",
-              borderRadius: 14,
-              paddingTop: 14,
-              paddingBottom: 14,
-            }}
-          >
-            <p
-              style={{
-                fontSize: "0.96rem",
-                lineHeight: 1.8,
-                color: "#1e293b",
-                margin: 0,
-              }}
-            >
-              Our vision is to see Indonesian learners who combine{" "}
-              <strong>academic excellence</strong> in STEAM,{" "}
-              <strong>creative problem-solving</strong>, and{" "}
-              <strong>Christ-like character</strong>—young people who can carry
-              God’s light into classrooms, campuses, workplaces, and nations.
-            </p>
+              <div
+                className="eti-about-stats"
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 4,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    flex: "1 1 90px",
+                    minWidth: 90,
+                    borderRadius: 14,
+                    padding: "8px 10px",
+                    background:
+                      "linear-gradient(135deg,#dbeafe,#eff6ff,#e0f2fe)",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  6+ core leaders
+                  <br />
+                  <span style={{ fontWeight: 400 }}>
+                    across ministry, education, and business
+                  </span>
+                </div>
+                <div
+                  style={{
+                    flex: "1 1 90px",
+                    minWidth: 90,
+                    borderRadius: 14,
+                    padding: "8px 10px",
+                    background:
+                      "linear-gradient(135deg,#e0f2fe,#dcfce7,#fef9c3)",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  3 continents
+                  <br />
+                  <span style={{ fontWeight: 400 }}>
+                    experience in Indonesia, UK, and beyond
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Founders */}
         <section
+          className="eti-section-soft"
           style={{
             borderRadius: 26,
             padding: "28px 20px 32px",
@@ -364,10 +478,20 @@ export default function AboutPage() {
               >
                 {FOUNDERS.map((f, index) => {
                   const isActive = index === activeIndex;
+
+                  // Slight colour hint by role
+                  const roleLower = f.role.toLowerCase();
+                  const accentBorder = roleLower.includes("trustee")
+                    ? "#2563eb"
+                    : roleLower.includes("supervisor")
+                    ? "#0f766e"
+                    : "#f97316";
+
                   return (
                     <button
                       key={f.name}
                       type="button"
+                      className="etipill"
                       onClick={() => setActiveIndex(index)}
                       style={{
                         display: "flex",
@@ -376,7 +500,7 @@ export default function AboutPage() {
                         padding: "8px 14px",
                         borderRadius: 999,
                         border: isActive
-                          ? "2px solid #2563eb" // lebih tebal supaya nggak kelihatan putus
+                          ? `2px solid ${accentBorder}`
                           : "1px solid rgba(148, 163, 184, 0.6)",
                         backgroundColor: isActive
                           ? "linear-gradient(135deg, #dbeafe, #eff6ff)"
@@ -387,7 +511,6 @@ export default function AboutPage() {
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         flexShrink: 0,
-                        // tidak pakai minHeight & transform lagi supaya bentuknya bersih
                       }}
                     >
                       <div
@@ -446,12 +569,42 @@ export default function AboutPage() {
               </div>
             </div>
 
-
             {/* Single detail card */}
             <FounderDetail founder={activeFounder} />
           </div>
         </section>
       </div>
+
+      <style jsx>{`
+        .eti-about-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
+          gap: 24px;
+          align-items: center;
+        }
+
+        @media (max-width: 960px) {
+          .eti-about-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .eti-about-grid {
+            gap: 20px;
+          }
+
+          .eti-about-stats {
+            flex-direction: column;
+          }
+        }
+
+        @media (prefers-color-scheme: dark) {
+          .eti-about-vision {
+            background-color: rgba(15, 23, 42, 0.95) !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
