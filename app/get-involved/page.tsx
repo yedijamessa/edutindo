@@ -1,7 +1,12 @@
-// app/get-involved/page.tsx
 "use client";
 
 import { useState, FormEvent } from "react";
+import { Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Section } from "@/components/ui/section";
 
 const AREAS = [
   "Volunteer as a mentor / teacher",
@@ -12,9 +17,7 @@ const AREAS = [
 ];
 
 export default function GetInvolvedPage() {
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">(
-    "idle"
-  );
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -53,329 +56,106 @@ export default function GetInvolvedPage() {
       setStatus("error");
       setErrorMessage(err.message || "Something went wrong. Please try again.");
     } finally {
-      // small delay just so the UI doesn’t flicker
       setTimeout(() => {
         if (status !== "success") setStatus("idle");
-      }, 300);
+      }, 3000);
     }
   }
 
   return (
-    <div
-      style={{
-        padding: "32px 0 64px",
-        background: "var(--eti-page-bg)",
-        minHeight: "calc(100vh - 64px)",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 1120,
-          margin: "0 auto",
-          padding: "0 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 32,
-        }}
-      >
-        {/* Hero / Intro */}
-        <section
-          style={{
-            borderRadius: 24,
-            padding: "24px 20px 28px",
-            background: "var(--eti-card-bg)",
-            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
-            border: "1px solid var(--eti-border-subtle)",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "2rem",
-              lineHeight: 1.2,
-              fontWeight: 700,
-              color: "var(--eti-text-main)",
-              marginBottom: 8,
-            }}
-          >
-            Get Involved with Edutindo
-          </h1>
-          <p
-            style={{
-              fontSize: "0.98rem",
-              lineHeight: 1.7,
-              color: "var(--eti-text-muted)",
-              maxWidth: 720,
-              marginBottom: 16,
-            }}
-          >
-            There are many ways to serve with Edutindo. Whether you&apos;d like
-            to mentor students, help with events, support us in prayer, or
-            partner financially, we&apos;d love to hear from you. Share a few
-            details and our team will get back to you.
-          </p>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <Section>
+        <div className="max-w-3xl mx-auto space-y-8">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-extrabold tracking-tight">Get Involved with Edutindo</h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              There are many ways to serve. Whether you&apos;d like to mentor, help with events, pray, or partner financially, we&apos;d love to hear from you.
+            </p>
+          </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 16,
-              fontSize: "0.85rem",
-              color: "var(--eti-text-muted)",
-            }}
-          >
+          <Card className="border-none shadow-xl">
+            <CardContent className="p-6 md:p-8">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label htmlFor="name" className="text-sm font-medium">Name <span className="text-red-500">*</span></label>
+                    <Input id="name" name="name" required placeholder="Your full name" />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="email" className="text-sm font-medium">Email <span className="text-red-500">*</span></label>
+                    <Input id="email" name="email" type="email" required placeholder="you@example.com" />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label htmlFor="phone" className="text-sm font-medium">Phone / WhatsApp</label>
+                    <Input id="phone" name="phone" placeholder="+44 ..." />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="area" className="text-sm font-medium">I&apos;m interested in</label>
+                    <select
+                      id="area"
+                      name="area"
+                      defaultValue=""
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="" disabled>Choose an option</option>
+                      {AREAS.map((area) => (
+                        <option key={area} value={area}>{area}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label htmlFor="linkedin" className="text-sm font-medium">LinkedIn (optional)</label>
+                    <Input id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/..." />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="instagram" className="text-sm font-medium">Instagram (optional)</label>
+                    <Input id="instagram" name="instagram" placeholder="@username" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="message" className="text-sm font-medium">Tell us a bit more</label>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    rows={4}
+                    placeholder="Share how you’d like to get involved, your skills, availability, or any questions."
+                  />
+                </div>
+
+                {status === "success" && (
+                  <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Thank you! We&apos;ve received your details and will get in touch.
+                  </div>
+                )}
+
+                {status === "error" && (
+                  <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-center gap-2 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errorMessage || "Something went wrong. Please try again later."}
+                  </div>
+                )}
+
+                <Button type="submit" disabled={status === "submitting"} className="w-full" size="lg">
+                  {status === "submitting" ? "Sending..." : "Send my details"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <div className="text-center text-sm text-muted-foreground flex flex-wrap justify-center gap-4">
             <span>📞 Phone / WhatsApp: +44 (example)</span>
             <span>✉️ Email: hello@edutindo.org</span>
-            <span>📸 Instagram (optional): @edutindo</span>
           </div>
-        </section>
-
-        {/* Form */}
-        <section
-          style={{
-            borderRadius: 24,
-            padding: "24px 20px 28px",
-            background: "var(--eti-card-bg)",
-            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.04)",
-            border: "1px solid var(--eti-border-subtle)",
-          }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 20,
-            }}
-          >
-            {/* Name */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                htmlFor="name"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                Name <span style={{ color: "#f97316" }}>*</span>
-              </label>
-              <input
-                id="name"
-                name="name"
-                required
-                placeholder="Your full name"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Email */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                htmlFor="email"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                Email <span style={{ color: "#f97316" }}>*</span>
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Phone */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                htmlFor="phone"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                Phone / WhatsApp
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                placeholder="+44 ..."
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Area */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                htmlFor="area"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                I&apos;m interested in
-              </label>
-              <select id="area" name="area" defaultValue="" style={inputStyle}>
-                <option value="" disabled>
-                  Choose an option
-                </option>
-                {AREAS.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* LinkedIn */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                htmlFor="linkedin"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                LinkedIn (optional)
-              </label>
-              <input
-                id="linkedin"
-                name="linkedin"
-                placeholder="https://www.linkedin.com/in/username"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Instagram */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                htmlFor="instagram"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                Instagram (optional)
-              </label>
-              <input
-                id="instagram"
-                name="instagram"
-                placeholder="@username"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Message – full width */}
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-              }}
-            >
-              <label
-                htmlFor="message"
-                style={{
-                  fontSize: "0.86rem",
-                  fontWeight: 600,
-                  color: "var(--eti-text-main)",
-                }}
-              >
-                Tell us a bit more
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={4}
-                placeholder="Share how you’d like to get involved, your skills, availability, or any questions you have."
-                style={{
-                  ...inputStyle,
-                  resize: "vertical",
-                  minHeight: 120,
-                }}
-              />
-            </div>
-
-            {/* Status + Button */}
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 12,
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <button
-                type="submit"
-                disabled={status === "submitting"}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: 999,
-                  border: "none",
-                  background:
-                    status === "submitting"
-                      ? "linear-gradient(135deg, #9ca3af, #6b7280)"
-                      : "linear-gradient(135deg, #2563eb, #22c55e)",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  cursor: status === "submitting" ? "default" : "pointer",
-                  boxShadow:
-                    "0 10px 25px rgba(37, 99, 235, 0.35), 0 0 0 1px rgba(255,255,255,0.2)",
-                  transition: "transform 0.08s ease, box-shadow 0.08s ease",
-                }}
-              >
-                {status === "submitting" ? "Sending..." : "Send my details"}
-              </button>
-
-              <div
-                style={{
-                  fontSize: "0.85rem",
-                  color: "var(--eti-text-muted)",
-                  minHeight: 20,
-                }}
-              >
-                {status === "success" && (
-                  <span style={{ color: "#16a34a" }}>
-                    Thank you! We&apos;ve received your details and will get in
-                    touch.
-                  </span>
-                )}
-                {status === "error" && (
-                  <span style={{ color: "#dc2626" }}>
-                    {errorMessage ||
-                      "Something went wrong. Please try again later."}
-                  </span>
-                )}
-              </div>
-            </div>
-          </form>
-        </section>
-      </div>
+        </div>
+      </Section>
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  padding: "9px 11px",
-  borderRadius: 10,
-  border: "1px solid var(--eti-border-subtle)",
-  fontSize: "0.9rem",
-  outline: "none",
-  backgroundColor: "rgba(255,255,255,0.9)",
-  color: "var(--eti-text-main)",
-  boxSizing: "border-box",
-};

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
+import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
+import { ThemeProvider } from "@/components/theme-provider";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Edutindo",
@@ -16,44 +18,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <header
-          style={{
-            borderBottom: "1px solid #eee",
-            padding: "12px 24px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.variable}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
-          <div style={{ fontWeight: 700 }}>Edutindo</div>
-          <nav style={{ display: "flex", gap: "16px", fontSize: "0.9rem" }}>
-            <Link href="/">Home</Link>
-            <Link href="/about">About</Link>
-            <Link href="/contact">Contact</Link>
-            <Link href="/donate">Donate</Link>
-            <Link href="/get-involved">Get involved</Link>
-          </nav>
-        </header>
-
-        {/* full-width, only vertical padding */}
-        <main style={{ padding: "24px 0" }}>
-          {children}
-        </main>
-
-        <footer
-          style={{
-            borderTop: "1px solid #eee",
-            padding: "12px 24px",
-            textAlign: "center",
-            fontSize: "0.8rem",
-            color: "#666",
-            marginTop: "48px",
-          }}
-        >
-          © {new Date().getFullYear()} Yayasan Edutindo
-        </footer>
+          <div className="flex min-h-screen flex-col">
+            <Navbar />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

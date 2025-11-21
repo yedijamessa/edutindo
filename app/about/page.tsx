@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { Users, Globe, Award } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Section } from "@/components/ui/section";
+import { cn } from "@/components/ui/button";
 
 type Founder = {
   role: string;
@@ -85,91 +90,33 @@ const FOUNDERS: Founder[] = [
 function FounderDetail({ founder }: { founder: Founder }) {
   const { role, name, imageSrc, imageAlt, lines } = founder;
   return (
-    <article
-      className="eti-card eti-hero-card"
-      style={{
-        borderRadius: 24,
-        padding: "22px 26px 24px",
-        backgroundColor: "#ffffff",
-        boxShadow: "0 18px 45px rgba(15, 23, 42, 0.07)",
-        border: "1px solid rgba(148, 163, 184, 0.26)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        maxWidth: 1040,
-        margin: "0 auto",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 18,
-        }}
-      >
-        <div
-          style={{
-            width: 84,
-            height: 84,
-            borderRadius: "50%",
-            overflow: "hidden",
-            flexShrink: 0,
-          }}
-        >
-          <Image
-            src={imageSrc}
-            alt={imageAlt}
-            width={168}
-            height={168}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+    <Card className="overflow-hidden border-none shadow-xl bg-white/50 backdrop-blur-sm">
+      <CardContent className="p-8 md:p-12">
+        <div className="flex flex-col md:flex-row gap-8 items-start">
+          <div className="shrink-0">
+            <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white shadow-lg">
+              <Image
+                src={imageSrc}
+                alt={imageAlt}
+                fill
+                className="object-cover"
+              />
+            </div>
+          </div>
+          <div className="space-y-4 flex-1">
+            <div>
+              <p className="text-sm font-bold tracking-wider text-muted-foreground uppercase mb-1">{role}</p>
+              <h3 className="text-2xl md:text-3xl font-bold text-foreground">{name}</h3>
+            </div>
+            <div className="space-y-2 text-muted-foreground leading-relaxed">
+              {lines.map((l, idx) => (
+                <p key={idx}>{l}</p>
+              ))}
+            </div>
+          </div>
         </div>
-        <div>
-          <p
-            style={{
-              fontSize: "0.76rem",
-              fontWeight: 600,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "#64748b",
-              margin: "0 0 4px",
-            }}
-          >
-            {role}
-          </p>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "1.18rem",
-              fontWeight: 700,
-              color: "#0f172a",
-            }}
-          >
-            {name}
-          </h3>
-        </div>
-      </div>
-
-      <div
-        style={{
-          fontSize: "0.9rem",
-          lineHeight: 1.7,
-          color: "#334e68",
-          marginTop: 4,
-        }}
-      >
-        {lines.map((l, idx) => (
-          <p
-            key={idx}
-            style={{
-              margin: idx === lines.length - 1 ? "0" : "0 0 4px",
-            }}
-          >
-            {l}
-          </p>
-        ))}
-      </div>
-    </article>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -178,433 +125,103 @@ export default function AboutPage() {
   const activeFounder = FOUNDERS[activeIndex];
 
   return (
-    <div
-      className="eti-page"
-      style={{
-        padding: "32px 0 64px",
-        background:
-          "radial-gradient(circle at top, #e0f2fe 0, #f8fafc 45%, #f1f5f9 100%)",
-        minHeight: "calc(100vh - 64px)",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 1440,
-          margin: "0 auto",
-          padding: "0 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 40,
-        }}
-      >
-        {/* Vision / Intro */}
-        <section
-          className="eti-section-soft eti-hero-section"
-          style={{
-            width: "100%",
-            maxWidth: 1160,
-            margin: "0 auto",
-            borderRadius: 28,
-            padding: "24px 22px 26px",
-            background:
-              "linear-gradient(135deg, #eff6ff 0%, #e0f2fe 45%, #f9fafb 100%)",
-            border: "1px solid rgba(148,163,184,0.35)",
-          }}
-        >
-          <div className="eti-about-grid">
-            {/* Left: text */}
-            <div>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  backgroundColor: "rgba(37, 99, 235, 0.06)",
-                  border: "1px solid rgba(59, 130, 246, 0.2)",
-                  marginBottom: 14,
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background:
-                      "conic-gradient(from 180deg at 50% 50%, #0ea5e9, #22c55e, #f97316, #0ea5e9)",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "0.78rem",
-                    fontWeight: 600,
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    color: "#1d4ed8",
-                  }}
-                >
-                  About Edukasi Terang Indonesia
-                </span>
-              </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Vision / Intro */}
+      <Section className="pb-12">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">
+              About Edukasi Terang Indonesia
+            </Badge>
 
-              <h1
-                style={{
-                  fontSize: "2.4rem",
-                  lineHeight: 1.15,
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  margin: "0 0 10px",
-                }}
-              >
-                Shaping a generation of{" "}
-                <span style={{ color: "#2563eb" }}>
-                  bright Indonesian learners
-                </span>
-              </h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
+              Shaping a generation of <br />
+              <span className="text-blue-600">bright Indonesian learners</span>
+            </h1>
 
-              <p
-                style={{
-                  fontSize: "1rem",
-                  lineHeight: 1.8,
-                  color: "#475569",
-                  margin: "0 0 18px",
-                }}
-              >
-                Edukasi Terang Indonesia exists to guide students to become{" "}
-                <strong>faith-driven, innovative, and resilient</strong>{" "}
-                learners. We want them to master STEAM knowledge, think
-                critically and creatively, collaborate with others, and live out{" "}
-                <strong>Christian values</strong> in every area of life—
-                becoming a light and a blessing to their communities.
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              Edukasi Terang Indonesia exists to guide students to become <strong>faith-driven, innovative, and resilient</strong> learners. We want them to master STEAM knowledge, think critically and creatively, collaborate with others, and live out <strong>Christian values</strong> in every area of life.
+            </p>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 p-6 rounded-r-xl">
+              <p className="text-foreground italic">
+                "Our vision is to see Indonesian learners who combine <strong>academic excellence</strong> in STEAM, <strong>creative problem-solving</strong>, and <strong>Christ-like character</strong>."
               </p>
-
-              <div
-                className="eti-about-vision"
-                style={{
-                  borderLeft: "4px solid #2563eb",
-                  paddingLeft: 16,
-                  backgroundColor: "#eff6ff",
-                  borderRadius: 14,
-                  paddingTop: 14,
-                  paddingBottom: 14,
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: "0.96rem",
-                    lineHeight: 1.8,
-                    color: "#1e293b",
-                    margin: 0,
-                  }}
-                >
-                  Our vision is to see Indonesian learners who combine{" "}
-                  <strong>academic excellence</strong> in STEAM,{" "}
-                  <strong>creative problem-solving</strong>, and{" "}
-                  <strong>Christ-like character</strong>—young people who can
-                  carry God’s light into classrooms, campuses, workplaces, and
-                  nations.
-                </p>
-              </div>
-            </div>
-
-            {/* Right: visual hero card */}
-            <div
-              className="eti-card eti-hero-image-card"
-              style={{
-                borderRadius: 22,
-                padding: 16,
-                background: "rgba(255,255,255,0.98)",
-                boxShadow: "0 18px 40px rgba(15,23,42,0.14)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: 18,
-                  overflow: "hidden",
-                  backgroundColor: "#0f172a",
-                  marginBottom: 4,
-                }}
-              >
-                {/* Suggestion: use a group/team photo or illustration here */}
-                <Image
-                  src="/homepage/eti-about-team.png"
-                  alt="Edukasi Terang Indonesia team collaborating"
-                  width={640}
-                  height={420}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    objectFit: "cover",
-                  }}
-                />
-              </div>
-              <p
-                style={{
-                  fontSize: "0.86rem",
-                  lineHeight: 1.6,
-                  color: "#4b5563",
-                  margin: 0,
-                }}
-              >
-                A collaborative team of educators, church leaders, and
-                professionals who care deeply about the next generation of
-                Indonesian learners.
-              </p>
-
-              <div
-                className="eti-about-stats"
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  marginTop: 4,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div
-                  style={{
-                    flex: "1 1 90px",
-                    minWidth: 90,
-                    borderRadius: 14,
-                    padding: "8px 10px",
-                    background:
-                      "linear-gradient(135deg,#dbeafe,#eff6ff,#e0f2fe)",
-                    fontSize: "0.78rem",
-                    fontWeight: 600,
-                    color: "#0f172a",
-                  }}
-                >
-                  6+ core leaders
-                  <br />
-                  <span style={{ fontWeight: 400 }}>
-                    across ministry, education, and business
-                  </span>
-                </div>
-                <div
-                  style={{
-                    flex: "1 1 90px",
-                    minWidth: 90,
-                    borderRadius: 14,
-                    padding: "8px 10px",
-                    background:
-                      "linear-gradient(135deg,#e0f2fe,#dcfce7,#fef9c3)",
-                    fontSize: "0.78rem",
-                    fontWeight: 600,
-                    color: "#0f172a",
-                  }}
-                >
-                  3 continents
-                  <br />
-                  <span style={{ fontWeight: 400 }}>
-                    experience in Indonesia, UK, and beyond
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
-        </section>
 
-        {/* Founders */}
-        <section
-          className="eti-section-soft"
-          style={{
-            borderRadius: 26,
-            padding: "28px 20px 32px",
-            background:
-              "linear-gradient(135deg, #dbeafe 0%, #e0f2fe 35%, #f9fafb 100%)",
-            border: "1px solid rgba(148, 163, 184, 0.35)",
-            width: "100%",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 1320,
-              margin: "0 auto",
-            }}
-          >
-            <header
-              style={{
-                marginBottom: 22,
-                textAlign: "center",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "1.9rem",
-                  fontWeight: 700,
-                  color: "#0f172a",
-                  margin: "0 0 8px",
-                }}
-              >
-                The Team Behind the Vision
-              </h2>
-              <p
-                style={{
-                  fontSize: "0.95rem",
-                  lineHeight: 1.75,
-                  color: "#334155",
-                  margin: 0,
-                  maxWidth: 960,
-                  marginInline: "auto",
-                }}
-              >
-                Meet the trustees and executives who steward the vision and
-                values of Edukasi Terang Indonesia.
-              </p>
-            </header>
-
-            {/* Selector row – centred, scrollable on mobile */}
-            <div
-              style={{
-                marginBottom: 18,
-                paddingBottom: 6,
-                overflowX: "auto",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: 12,
-                  minWidth: "max-content",
-                  paddingInline: 4,
-                }}
-              >
-                {FOUNDERS.map((f, index) => {
-                  const isActive = index === activeIndex;
-
-                  // Slight colour hint by role
-                  const roleLower = f.role.toLowerCase();
-                  const accentBorder = roleLower.includes("trustee")
-                    ? "#2563eb"
-                    : roleLower.includes("supervisor")
-                    ? "#0f766e"
-                    : "#f97316";
-
-                  return (
-                    <button
-                      key={f.name}
-                      type="button"
-                      className="etipill"
-                      onClick={() => setActiveIndex(index)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 14px",
-                        borderRadius: 999,
-                        border: isActive
-                          ? `2px solid ${accentBorder}`
-                          : "1px solid rgba(148, 163, 184, 0.6)",
-                        backgroundColor: isActive
-                          ? "linear-gradient(135deg, #dbeafe, #eff6ff)"
-                          : "rgba(255, 255, 255, 0.98)",
-                        boxShadow: isActive
-                          ? "0 6px 18px rgba(37, 99, 235, 0.18)"
-                          : "0 3px 10px rgba(148, 163, 184, 0.15)",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          overflow: "hidden",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Image
-                          src={f.imageSrc}
-                          alt={f.imageAlt}
-                          width={64}
-                          height={64}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-start",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            fontWeight: 500,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            color: "#64748b",
-                          }}
-                        >
-                          {f.role}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "0.86rem",
-                            fontWeight: 600,
-                            color: "#0f172a",
-                          }}
-                        >
-                          {f.name}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Single detail card */}
-            <FounderDetail founder={activeFounder} />
+          <div className="relative">
+            <Card className="border-none shadow-2xl rotate-1 hover:rotate-0 transition-transform duration-500">
+              <CardContent className="p-4">
+                <div className="relative rounded-xl overflow-hidden aspect-video bg-slate-100">
+                  <Image
+                    src="/homepage/eti-about-team.png"
+                    alt="Edukasi Terang Indonesia team"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2 text-blue-600">
+                      <Users className="w-5 h-5" />
+                      <span className="font-bold">6+ Leaders</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Across ministry, education, and business</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2 text-green-600">
+                      <Globe className="w-5 h-5" />
+                      <span className="font-bold">3 Continents</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Experience in Indonesia, UK, and beyond</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </section>
-      </div>
+        </div>
+      </Section>
 
-      <style jsx>{`
-        .eti-about-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
-          gap: 24px;
-          align-items: center;
-        }
+      {/* Founders */}
+      <Section className="bg-white dark:bg-slate-900">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <h2 className="text-3xl font-bold mb-4">The Team Behind the Vision</h2>
+          <p className="text-muted-foreground">
+            Meet the trustees and executives who steward the vision and values of Edukasi Terang Indonesia.
+          </p>
+        </div>
 
-        @media (max-width: 960px) {
-          .eti-about-grid {
-            grid-template-columns: minmax(0, 1fr);
-          }
-        }
+        <div className="flex flex-wrap justify-center gap-4 mb-12">
+          {FOUNDERS.map((f, index) => {
+            const isActive = index === activeIndex;
+            return (
+              <button
+                key={f.name}
+                onClick={() => setActiveIndex(index)}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2 rounded-full border transition-all duration-200",
+                  isActive
+                    ? "bg-blue-50 border-blue-200 shadow-md scale-105"
+                    : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                )}
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden relative bg-slate-200">
+                  <Image src={f.imageSrc} alt={f.name} fill className="object-cover" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground leading-none mb-0.5">{f.role}</p>
+                  <p className={cn("text-sm font-semibold leading-none", isActive ? "text-blue-700" : "text-foreground")}>{f.name}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-        @media (max-width: 768px) {
-          .eti-about-grid {
-            gap: 20px;
-          }
-
-          .eti-about-stats {
-            flex-direction: column;
-          }
-        }
-
-        @media (prefers-color-scheme: dark) {
-          .eti-about-vision {
-            background-color: rgba(15, 23, 42, 0.95) !important;
-          }
-        }
-      `}</style>
+        <div className="max-w-4xl mx-auto">
+          <FounderDetail founder={activeFounder} />
+        </div>
+      </Section>
     </div>
   );
 }

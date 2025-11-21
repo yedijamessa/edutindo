@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Mail, Send, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Section } from "@/components/ui/section";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -37,412 +44,107 @@ export default function ContactPage() {
   }
 
   return (
-    <div
-      style={{
-        padding: "32px 0 64px",
-        background: "var(--eti-page-bg)",
-        minHeight: "calc(100vh - 64px)",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 960,
-          margin: "0 auto",
-          padding: "0 16px",
-        }}
-      >
-        <section
-          style={{
-            borderRadius: 28,
-            padding: "28px 22px 30px",
-            background: "var(--eti-card-bg)",
-            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
-            border: "1px solid var(--eti-border-subtle)",
-          }}
-        >
-          {/* Header */}
-          <header
-            style={{
-              marginBottom: 24,
-              textAlign: "left",
-            }}
-          >
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 10px",
-                borderRadius: 999,
-                backgroundColor: "rgba(37, 99, 235, 0.06)",
-                border: "1px solid rgba(59, 130, 246, 0.2)",
-                marginBottom: 10,
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background:
-                    "conic-gradient(from 180deg at 50% 50%, #0ea5e9, #22c55e, #f97316, #0ea5e9)",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "#1d4ed8",
-                }}
-              >
-                Contact Edutindo
-              </span>
-            </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <Section>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Contact Info */}
+            <div className="md:col-span-1 space-y-6">
+              <div>
+                <Badge className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">Contact Edutindo</Badge>
+                <h1 className="text-3xl font-bold tracking-tight mb-4">We&apos;d love to hear from you</h1>
+                <p className="text-muted-foreground leading-relaxed">
+                  Have questions, testimonies, or want to partner with us? Send us a message and we&apos;ll get back to you.
+                </p>
+              </div>
 
-            <h1
-              style={{
-                fontSize: "1.9rem",
-                fontWeight: 700,
-                margin: "0 0 6px",
-                color: "var(--eti-text-main)",
-              }}
-            >
-              We&apos;d love to hear from you
-            </h1>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.96rem",
-                lineHeight: 1.7,
-                color: "var(--eti-text-muted)",
-                maxWidth: 620,
-              }}
-            >
-              Have questions, testimonies, or want to partner with us? Send us a
-              message and we&apos;ll get back to you. Your message will go
-              directly to{" "}
-              <strong>hello@edutindo.org</strong>.
-            </p>
-          </header>
-
-          {/* Layout: info + form */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 32,
-            }}
-          >
-            {/* Left: contact info */}
-            <div
-              style={{
-                flex: "0 0 240px",
-                minWidth: 220,
-                maxWidth: 280,
-                paddingRight: 8,
-                borderRight: "1px solid rgba(148,163,184,0.35)",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "0.95rem",
-                  fontWeight: 600,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "#64748b",
-                  margin: "0 0 8px",
-                }}
-              >
-                Direct Contact
-              </h2>
-              <p
-                style={{
-                  fontSize: "0.9rem",
-                  lineHeight: 1.6,
-                  color: "var(--eti-text-muted)",
-                  margin: "0 0 10px",
-                }}
-              >
-                Email us directly.
-              </p>
-              <p
-                style={{
-                  fontSize: "0.9rem",
-                  lineHeight: 1.6,
-                  color: "var(--eti-text-main)",
-                  margin: "0 0 4px",
-                }}
-              >
-                <strong>Email</strong>
-                <br />
-                <a
-                  href="mailto:hello@edutindo.org"
-                  style={{ color: "#2563eb", textDecoration: "none" }}
-                >
-                  hello@edutindo.org
-                </a>
-              </p>
-              <p
-                style={{
-                  fontSize: "0.9rem",
-                  lineHeight: 1.6,
-                  color: "var(--eti-text-main)",
-                  margin: 0,
-                }}
-              >
-
-              </p>
-            </div>
-
-            {/* Right: form */}
-            <div
-              style={{
-                flex: "1 1 260px",
-                minWidth: 260,
-              }}
-            >
-              <form
-                onSubmit={handleSubmit}
-                encType="multipart/form-data"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                }}
-              >
-                {/* Name */}
-                <div style={{ gridColumn: "span 1" }}>
-                  <label
-                    htmlFor="name"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      marginBottom: 4,
-                      color: "var(--eti-text-main)",
-                    }}
-                  >
-                    Name<span style={{ color: "#e11d48" }}> *</span>
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    required
-                    autoComplete="name"
-                    style={{
-                      width: "100%",
-                      borderRadius: 10,
-                      border: "1px solid var(--eti-border-subtle)",
-                      padding: "8px 10px",
-                      fontSize: "0.9rem",
-                      backgroundColor: "var(--eti-card-bg)",
-                      color: "var(--eti-text-main)",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Email */}
-                <div style={{ gridColumn: "span 1" }}>
-                  <label
-                    htmlFor="email"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      marginBottom: 4,
-                      color: "var(--eti-text-main)",
-                    }}
-                  >
-                    Email<span style={{ color: "#e11d48" }}> *</span>
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    style={{
-                      width: "100%",
-                      borderRadius: 10,
-                      border: "1px solid var(--eti-border-subtle)",
-                      padding: "8px 10px",
-                      fontSize: "0.9rem",
-                      backgroundColor: "var(--eti-card-bg)",
-                      color: "var(--eti-text-main)",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Subject – full row */}
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label
-                    htmlFor="subject"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      marginBottom: 4,
-                      color: "var(--eti-text-main)",
-                    }}
-                  >
-                    Subject
-                  </label>
-                  <input
-                    id="subject"
-                    name="subject"
-                    placeholder="Testimony, partnership, question, etc."
-                    style={{
-                      width: "100%",
-                      borderRadius: 10,
-                      border: "1px solid var(--eti-border-subtle)",
-                      padding: "8px 10px",
-                      fontSize: "0.9rem",
-                      backgroundColor: "var(--eti-card-bg)",
-                      color: "var(--eti-text-main)",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Message – full row */}
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label
-                    htmlFor="message"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      marginBottom: 4,
-                      color: "var(--eti-text-main)",
-                    }}
-                  >
-                    Message<span style={{ color: "#e11d48" }}> *</span>
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    required
-                    rows={5}
-                    style={{
-                      width: "100%",
-                      borderRadius: 10,
-                      border: "1px solid var(--eti-border-subtle)",
-                      padding: "8px 10px",
-                      fontSize: "0.9rem",
-                      backgroundColor: "var(--eti-card-bg)",
-                      color: "var(--eti-text-main)",
-                      resize: "vertical",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Attachment + helper text */}
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label
-                    htmlFor="attachment"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      marginBottom: 4,
-                      color: "var(--eti-text-main)",
-                    }}
-                  >
-                    Attach a document (optional)
-                  </label>
-                  <input
-                    id="attachment"
-                    name="attachment"
-                    type="file"
-                    style={{
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                  <p
-                    style={{
-                      fontSize: "0.78rem",
-                      color: "var(--eti-text-muted)",
-                      marginTop: 4,
-                    }}
-                  >
-                    You can attach PDFs, images, or Word documents (e.g. proposal,
-                    testimony, or supporting files).
-                  </p>
-                </div>
-
-                {/* Status messages */}
-                {status === "success" && (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      fontSize: "0.85rem",
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      backgroundColor: "rgba(22, 163, 74, 0.08)",
-                      border: "1px solid rgba(22, 163, 74, 0.4)",
-                      color: "#166534",
-                    }}
-                  >
-                    Thank you! Your message has been sent.
+              <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <span className="font-semibold">Email Us</span>
                   </div>
-                )}
-
-                {status === "error" && (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      fontSize: "0.85rem",
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      backgroundColor: "rgba(248, 113, 113, 0.08)",
-                      border: "1px solid rgba(248, 113, 113, 0.6)",
-                      color: "#b91c1c",
-                    }}
-                  >
-                    {error || "Something went wrong. Please try again."}
-                  </div>
-                )}
-
-                {/* Submit button */}
-                <div
-                  style={{
-                    gridColumn: "1 / -1",
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    marginTop: 4,
-                  }}
-                >
-                  <button
-                    type="submit"
-                    disabled={status === "submitting"}
-                    style={{
-                      borderRadius: 999,
-                      padding: "9px 18px",
-                      fontSize: "0.9rem",
-                      fontWeight: 600,
-                      border: "none",
-                      cursor: status === "submitting" ? "default" : "pointer",
-                      background:
-                        "linear-gradient(135deg, #2563eb, #0ea5e9, #22c55e)",
-                      color: "#f9fafb",
-                      boxShadow: "0 10px 25px rgba(37, 99, 235, 0.35)",
-                      opacity: status === "submitting" ? 0.7 : 1,
-                    }}
-                  >
-                    {status === "submitting" ? "Sending..." : "Send message"}
-                  </button>
-                </div>
-              </form>
+                  <a href="mailto:hello@edutindo.org" className="text-blue-600 hover:underline block pl-13">
+                    hello@edutindo.org
+                  </a>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Contact Form */}
+            <Card className="md:col-span-2 border-none shadow-xl">
+              <CardContent className="p-6 md:p-8">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="name" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Name <span className="text-red-500">*</span>
+                      </label>
+                      <Input id="name" name="name" required placeholder="Your name" />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <Input id="email" name="email" type="email" required placeholder="you@example.com" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="subject" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Subject
+                    </label>
+                    <Input id="subject" name="subject" placeholder="Testimony, partnership, question, etc." />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="message" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea id="message" name="message" required rows={5} placeholder="How can we help you?" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="attachment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Attachment (optional)
+                    </label>
+                    <Input id="attachment" name="attachment" type="file" className="cursor-pointer file:cursor-pointer" />
+                    <p className="text-xs text-muted-foreground">
+                      PDFs, images, or Word documents.
+                    </p>
+                  </div>
+
+                  {status === "success" && (
+                    <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Thank you! Your message has been sent.
+                    </div>
+                  )}
+
+                  {status === "error" && (
+                    <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-center gap-2 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {error || "Something went wrong. Please try again."}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={status === "submitting"} size="lg" className="w-full sm:w-auto">
+                      {status === "submitting" ? (
+                        "Sending..."
+                      ) : (
+                        <>Send Message <Send className="ml-2 w-4 h-4" /></>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
-        </section>
-      </div>
+        </div>
+      </Section>
     </div>
   );
 }
