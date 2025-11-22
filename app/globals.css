@@ -3,7 +3,7 @@
 @theme {
   --color-primary: #2563eb;
   --color-primary-foreground: #ffffff;
-  
+
   --color-secondary: #f97316;
   --color-secondary-foreground: #ffffff;
 
@@ -21,11 +21,11 @@
 
   --color-border: #e2e8f0;
   --color-input: #e2e8f0;
-  
+
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-sm: 0.25rem;
-  
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -47,6 +47,31 @@ body {
   @apply bg-background text-foreground antialiased font-sans;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   @apply font-bold tracking-tight;
+}
+
+/* Interactive Elements */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+select {
+  @apply cursor-pointer;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  @apply cursor-text;
 }

@@ -45,19 +45,19 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <Link href="/#for-educators" className="group">
+              <Link href="/teacher" className="group">
                 <Card className="bg-orange-50 border-orange-100 hover:border-orange-200 transition-colors cursor-pointer h-full">
                   <CardContent className="p-4 flex flex-col gap-2">
                     <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">For Educators</span>
-                    <span className="font-bold text-foreground group-hover:text-orange-600 transition-colors">I&apos;m an Educator</span>
+                    <span className="font-bold text-foreground group-hover:text-orange-600 transition-colors">I'm an Educator</span>
                   </CardContent>
                 </Card>
               </Link>
-              <Link href="/#for-learners" className="group">
+              <Link href="/student" className="group">
                 <Card className="bg-blue-50 border-blue-100 hover:border-blue-200 transition-colors cursor-pointer h-full">
                   <CardContent className="p-4 flex flex-col gap-2">
                     <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">For Learners</span>
-                    <span className="font-bold text-foreground group-hover:text-blue-600 transition-colors">I&apos;m a Learner</span>
+                    <span className="font-bold text-foreground group-hover:text-blue-600 transition-colors">I'm a Learner</span>
                   </CardContent>
                 </Card>
               </Link>
@@ -95,7 +95,7 @@ export default function HomePage() {
       {/* Quick Pathways */}
       <Section id="pathways" className="bg-white dark:bg-slate-950">
         <div className="grid md:grid-cols-3 gap-8">
-          <Card className="bg-orange-500 text-white border-none card-hover">
+          <Card className="bg-orange-500 text-white border-none card-hover cursor-pointer">
             <CardHeader>
               <CardTitle>School Partnership</CardTitle>
             </CardHeader>
@@ -103,13 +103,13 @@ export default function HomePage() {
               <p className="mb-6 text-orange-50">
                 Collaborate with us to redesign your curriculum using our STEAM–C++ framework, training, and mentoring.
               </p>
-              <Button variant="secondary" className="w-full bg-white text-orange-600 hover:bg-orange-50" asChild>
-                <Link href="/contact">For Principals</Link>
+              <Button variant="secondary" className="w-full bg-white text-orange-600 hover:bg-orange-50 cursor-pointer" asChild>
+                <Link href="/principal">For Principals</Link>
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="bg-cyan-500 text-white border-none card-hover">
+          <Card className="bg-cyan-500 text-white border-none card-hover cursor-pointer">
             <CardHeader>
               <CardTitle>Teacher Growth</CardTitle>
             </CardHeader>
@@ -117,13 +117,13 @@ export default function HomePage() {
               <p className="mb-6 text-cyan-50">
                 Workshops, coaching, and ready-to-use lesson designs that make STEAM & character-building practical.
               </p>
-              <Button variant="secondary" className="w-full bg-white text-cyan-600 hover:bg-cyan-50" asChild>
-                <Link href="/contact">For Teachers</Link>
+              <Button variant="secondary" className="w-full bg-white text-cyan-600 hover:bg-cyan-50 cursor-pointer" asChild>
+                <Link href="/teacher">For Teachers</Link>
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="bg-yellow-400 text-slate-900 border-none card-hover">
+          <Card className="bg-yellow-400 text-slate-900 border-none card-hover cursor-pointer">
             <CardHeader>
               <CardTitle>Learner Experience</CardTitle>
             </CardHeader>
@@ -131,8 +131,8 @@ export default function HomePage() {
               <p className="mb-6 text-slate-800/80">
                 Joyful projects, clubs, and programs where students explore science, tech, arts, and faith in everyday life.
               </p>
-              <Button variant="secondary" className="w-full bg-slate-900 text-yellow-400 hover:bg-slate-800" asChild>
-                <Link href="/get-involved">For Parents</Link>
+              <Button variant="secondary" className="w-full bg-slate-900 text-yellow-400 hover:bg-slate-800 cursor-pointer" asChild>
+                <Link href="/parent">For Parents</Link>
               </Button>
             </CardContent>
           </Card>

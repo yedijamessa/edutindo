@@ -12,7 +12,11 @@ import {
     Video,
     Users,
     StickyNote,
-    HelpCircle
+    HelpCircle,
+    Trophy,
+    GitBranch,
+    Sparkles,
+    DoorOpen
 } from "lucide-react";
 
 interface NavItem {
@@ -31,8 +35,12 @@ const studentNav: NavItem[] = [
     { title: 'Quizzes', href: '/student/quizzes', icon: HelpCircle },
     { title: 'Notes', href: '/student/notes', icon: StickyNote },
     { title: 'Progress', href: '/student/progress', icon: BarChart3 },
+    { title: 'Gamification', href: '/student/gamification', icon: Trophy },
+    { title: 'Mind Map', href: '/student/mindmap', icon: GitBranch },
+    { title: 'AI Assistant', href: '/student/ai-assistant', icon: Sparkles },
     { title: 'Calendar', href: '/student/calendar', icon: Calendar },
     { title: 'Meeting Room', href: '/student/meeting', icon: Video },
+    { title: 'Book Room', href: '/student/booking', icon: DoorOpen },
 ];
 
 const teacherNav: NavItem[] = [
@@ -42,6 +50,7 @@ const teacherNav: NavItem[] = [
     { title: 'Notes', href: '/teacher/notes', icon: StickyNote },
     { title: 'Calendar', href: '/teacher/calendar', icon: Calendar },
     { title: 'Meeting Room', href: '/teacher/meeting', icon: Video },
+    { title: 'Book Room', href: '/teacher/booking', icon: DoorOpen },
 ];
 
 const parentNav: NavItem[] = [
@@ -58,7 +67,12 @@ export function SidebarNav({ role }: SidebarNavProps) {
         <nav className="space-y-1">
             {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                // For dashboard routes (ending with /student, /teacher, /parent), use exact match
+                // For sub-routes, check if pathname starts with the href
+                const isDashboard = item.href === `/${role}`;
+                const isActive = isDashboard
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(item.href + '/');
 
                 return (
                     <Link
