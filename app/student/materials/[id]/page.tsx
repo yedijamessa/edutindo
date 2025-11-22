@@ -3,19 +3,23 @@ import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { mockMaterials, getMaterialById } from "@/lib/mock-data";
+import { getMaterialById } from "@/lib/firestore-services";
 import { ArrowLeft, FileText, Download, Clock } from "lucide-react";
 import Link from "next/link";
 
-export function generateStaticParams() {
-    return mockMaterials.map((material) => ({
-        id: material.id,
-    }));
+export async function generateStaticParams() {
+    // For static export, we'll generate params for existing materials
+    // In production, you might want to fetch this from Firestore
+    return [
+        { id: 'math-101' },
+        { id: 'science-101' },
+        { id: 'english-101' },
+    ];
 }
 
 export default async function MaterialDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const material = getMaterialById(id);
+    const material = await getMaterialById(id);
 
     if (!material) {
         notFound();
