@@ -11,9 +11,11 @@ import { ModeToggle } from "../mode-toggle"
 const navItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
-    { name: "Contact", href: "/contact" },
-    { name: "Donate", href: "/donate" },
     { name: "Get Involved", href: "/get-involved" },
+    { name: "Contact", href: "/contact" },
+    { name: "Student Portal", href: "/student" },
+    { name: "Teacher Portal", href: "/teacher" },
+    { name: "Parent Portal", href: "/parent" },
 ]
 
 export function Navbar() {
