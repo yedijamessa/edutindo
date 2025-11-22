@@ -24,7 +24,6 @@ export default function StudentAIAssistantPage() {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<'gpt' | 'gemini'>('gpt');
 
     const sendMessage = async () => {
         if (!input.trim()) return;
@@ -50,7 +49,7 @@ export default function StudentAIAssistantPage() {
                 const aiResponse = {
                     id: messages.length + 2,
                     role: 'assistant' as const,
-                    content: `I understand you're asking about "${input}". Let me help you with that! (This is a demo response. Connect to ${selectedModel === 'gpt' ? 'OpenAI GPT' : 'Google Gemini'} API for real responses.)`,
+                    content: `I understand you're asking about "${input}". Let me help you with that! (This is a demo response. The AI will automatically use the best available model.)`,
                     timestamp: new Date(),
                 };
                 setMessages(prev => [...prev, aiResponse]);
@@ -82,28 +81,12 @@ export default function StudentAIAssistantPage() {
 
                 <main className="flex-1 p-6 lg:p-8">
                     <div className="max-w-5xl mx-auto space-y-6">
-                        <div className="flex items-center justify-between">
+                        <div>
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                                     AI Assistant <Sparkles className="w-8 h-8 text-yellow-500" />
                                 </h1>
                                 <p className="text-muted-foreground mt-2">Your personal learning companion powered by AI</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant={selectedModel === 'gpt' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => setSelectedModel('gpt')}
-                                >
-                                    GPT-4
-                                </Button>
-                                <Button
-                                    variant={selectedModel === 'gemini' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => setSelectedModel('gemini')}
-                                >
-                                    Gemini
-                                </Button>
                             </div>
                         </div>
 
@@ -114,7 +97,7 @@ export default function StudentAIAssistantPage() {
                                     <Bot className="w-5 h-5" />
                                     Chat with AI
                                     <Badge variant="secondary" className="ml-auto">
-                                        {selectedModel === 'gpt' ? 'OpenAI GPT-4' : 'Google Gemini'}
+                                        AI Powered
                                     </Badge>
                                 </CardTitle>
                             </CardHeader>
@@ -133,8 +116,8 @@ export default function StudentAIAssistantPage() {
                                         )}
                                         <div
                                             className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === 'user'
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted'
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-muted'
                                                 }`}
                                         >
                                             <p className="text-sm">{message.content}</p>
@@ -231,19 +214,6 @@ export default function StudentAIAssistantPage() {
                                 </CardContent>
                             </Card>
                         </div>
-
-                        {/* API Info */}
-                        <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                            <CardContent className="p-4">
-                                <p className="text-sm">
-                                    <strong>Note:</strong> To enable AI features, add your API keys to <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">.env.local</code>:
-                                </p>
-                                <pre className="text-xs mt-2 bg-blue-100 dark:bg-blue-900 p-2 rounded overflow-x-auto">
-                                    {`NEXT_PUBLIC_OPENAI_API_KEY=your_openai_key
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_key`}
-                                </pre>
-                            </CardContent>
-                        </Card>
                     </div>
                 </main>
             </div>
