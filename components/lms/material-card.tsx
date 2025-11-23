@@ -1,9 +1,24 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Material } from "@/types/lms";
 import { BookOpen, Clock, FileText } from "lucide-react";
 import Link from "next/link";
+
+interface Material {
+    id: string;
+    title: string;
+    description: string;
+    subject: string;
+    content: string;
+    attachments?: any[];
+    createdBy: string;
+    createdAt: string; // ISO string
+    updatedAt: string; // ISO string
+    published: boolean;
+    prerequisites?: any[];
+}
 
 interface MaterialCardProps {
     material: Material;
@@ -11,6 +26,15 @@ interface MaterialCardProps {
     role?: 'student' | 'teacher';
     href?: string;
 }
+
+const formatDate = (isoString: string) => {
+    return new Intl.DateTimeFormat('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(new Date(isoString));
+};
 
 export function MaterialCard({ material, progress, role = 'student', href }: MaterialCardProps) {
     const cardHref = href || `/${role}/materials/${material.id}`;
@@ -36,7 +60,7 @@ export function MaterialCard({ material, progress, role = 'student', href }: Mat
                     </div>
                     <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        <span>{new Date(material.updatedAt).toLocaleDateString()}</span>
+                        <span>{formatDate(material.updatedAt)}</span>
                     </div>
                 </div>
 

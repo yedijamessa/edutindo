@@ -1,10 +1,13 @@
 import { SidebarNav } from "@/components/lms/sidebar-nav";
-import { getNotes } from "@/lib/firestore-services";
-import NotesClient from "./notes-client";
+import { getStudentFiles, getStudentStorageUsage } from "@/lib/firestore-services";
+import LockerClient from "./locker-client";
 
-export default async function StudentNotesPage() {
+export default async function DigitalLockerPage() {
     const studentId = 'student-1';
-    const notes = await getNotes(studentId);
+    const [files, storageUsage] = await Promise.all([
+        getStudentFiles(studentId),
+        getStudentStorageUsage(studentId)
+    ]);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -17,7 +20,7 @@ export default async function StudentNotesPage() {
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
-                    <NotesClient initialNotes={notes} studentId={studentId} />
+                    <LockerClient initialFiles={files} initialStorageUsage={storageUsage} studentId={studentId} />
                 </main>
             </div>
         </div>

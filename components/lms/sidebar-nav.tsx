@@ -16,7 +16,10 @@ import {
     Trophy,
     GitBranch,
     Sparkles,
-    DoorOpen
+    DoorOpen,
+    HardDrive,
+    MessageCircle,
+    Palette
 } from "lucide-react";
 
 interface NavItem {
@@ -32,9 +35,16 @@ interface SidebarNavProps {
 const studentNav: NavItem[] = [
     { title: 'Dashboard', href: '/student', icon: LayoutDashboard },
     { title: 'Materials', href: '/student/materials', icon: BookOpen },
+    { title: 'Learning Path', href: '/student/learning-path', icon: GitBranch },
     { title: 'Quizzes', href: '/student/quizzes', icon: HelpCircle },
     { title: 'Notes', href: '/student/notes', icon: StickyNote },
     { title: 'Progress', href: '/student/progress', icon: BarChart3 },
+    { title: 'Announcements', href: '/student/announcements', icon: Sparkles },
+    { title: 'Digital Locker', href: '/student/locker', icon: HardDrive },
+    { title: 'Tutoring', href: '/student/tutoring', icon: Users },
+    { title: 'Whiteboard', href: '/student/whiteboard', icon: Palette },
+    { title: 'Annotations', href: '/student/annotations', icon: MessageCircle },
+    { title: 'Oral Exam', href: '/student/oral-exam', icon: Video },
     { title: 'Gamification', href: '/student/gamification', icon: Trophy },
     { title: 'Mind Map', href: '/student/mindmap', icon: GitBranch },
     { title: 'AI Assistant', href: '/student/ai-assistant', icon: Sparkles },
@@ -48,6 +58,7 @@ const teacherNav: NavItem[] = [
     { title: 'Materials', href: '/teacher/materials', icon: BookOpen },
     { title: 'Students', href: '/teacher/students', icon: Users },
     { title: 'Notes', href: '/teacher/notes', icon: StickyNote },
+    { title: 'Messages', href: '/teacher/chat', icon: MessageCircle },
     { title: 'Calendar', href: '/teacher/calendar', icon: Calendar },
     { title: 'Meeting Room', href: '/teacher/meeting', icon: Video },
     { title: 'Book Room', href: '/teacher/booking', icon: DoorOpen },
@@ -56,7 +67,12 @@ const teacherNav: NavItem[] = [
 const parentNav: NavItem[] = [
     { title: 'Dashboard', href: '/parent', icon: LayoutDashboard },
     { title: 'Progress', href: '/parent/progress', icon: BarChart3 },
+    { title: 'Messages', href: '/parent/chat', icon: MessageCircle },
 ];
+
+import { FocusTimer } from "@/components/lms/focus-timer";
+
+// ... (existing imports)
 
 export function SidebarNav({ role }: SidebarNavProps) {
     const pathname = usePathname();
@@ -64,32 +80,35 @@ export function SidebarNav({ role }: SidebarNavProps) {
     const navItems = role === 'student' ? studentNav : role === 'teacher' ? teacherNav : parentNav;
 
     return (
-        <nav className="space-y-1">
-            {navItems.map((item) => {
-                const Icon = item.icon;
-                // For dashboard routes (ending with /student, /teacher, /parent), use exact match
-                // For sub-routes, check if pathname starts with the href
-                const isDashboard = item.href === `/${role}`;
-                const isActive = isDashboard
-                    ? pathname === item.href
-                    : pathname === item.href || pathname.startsWith(item.href + '/');
+        <>
+            <nav className="space-y-1">
+                {navItems.map((item) => {
+                    const Icon = item.icon;
+                    // For dashboard routes (ending with /student, /teacher, /parent), use exact match
+                    // For sub-routes, check if pathname starts with the href
+                    const isDashboard = item.href === `/${role}`;
+                    const isActive = isDashboard
+                        ? pathname === item.href
+                        : pathname === item.href || pathname.startsWith(item.href + '/');
 
-                return (
-                    <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                            isActive
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        )}
-                    >
-                        <Icon className="w-5 h-5" />
-                        {item.title}
-                    </Link>
-                );
-            })}
-        </nav>
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cn(
+                                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                                isActive
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            )}
+                        >
+                            <Icon className="w-5 h-5" />
+                            {item.title}
+                        </Link>
+                    );
+                })}
+            </nav>
+            {role === 'student' && <FocusTimer />}
+        </>
     );
 }

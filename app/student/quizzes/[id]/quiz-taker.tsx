@@ -8,24 +8,40 @@ import { Badge } from "@/components/ui/badge";
 import { Quiz } from "@/types/lms";
 import { ArrowLeft, Clock, Award } from "lucide-react";
 import Link from "next/link";
+import { saveQuizScore } from "@/lib/firestore-services";
 
 export default function QuizTaker({ quiz }: { quiz: Quiz }) {
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [answers, setAnswers] = useState<Record<number, any>>({});
     const [submitted, setSubmitted] = useState(false);
     const [score, setScore] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleAnswer = (questionIndex: number, answer: any) => {
         setAnswers({ ...answers, [questionIndex]: answer });
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        setIsSubmitting(true);
         const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
         const earnedPoints = quiz.questions.reduce((sum, q, index) => {
             return sum + (answers[index] === q.correctAnswer ? q.points : 0);
         }, 0);
-        setScore(Math.round((earnedPoints / totalPoints) * 100));
+        const finalScore = Math.round((earnedPoints / totalPoints) * 100);
+        setScore(finalScore);
+
+        try {
+            // Save score to Firestore
+            // Using 'general' as materialId if not provided, or the quiz's materialId
+            const materialId = quiz.materialId || 'general';
+            await saveQuizScore('student-1', materialId, quiz.id, finalScore);
+        } catch (error) {
+            console.error('Error saving quiz score:', error);
+            // Continue to show results even if saving fails
+        }
+
         setSubmitted(true);
+        setIsSubmitting(false);
     };
 
     if (submitted) {
@@ -176,10 +192,10 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
                                         key={index}
                                         onClick={() => setCurrentQuestion(index)}
                                         className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${index === currentQuestion
-                                                ? 'bg-primary text-primary-foreground'
-                                                : answers[index] !== undefined
-                                                    ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                                                    : 'bg-muted text-muted-foreground hover:bg-accent'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : answers[index] !== undefined
+                                                ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                                                : 'bg-muted text-muted-foreground hover:bg-accent'
                                             }`}
                                     >
                                         {index + 1}

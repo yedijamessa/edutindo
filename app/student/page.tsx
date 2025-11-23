@@ -3,23 +3,27 @@ import { CalendarWidget } from "@/components/lms/calendar-widget";
 import { MaterialCard } from "@/components/lms/material-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockMaterials, mockProgress, mockCalendarEvents, getStudentProgress, getStudentEvents } from "@/lib/mock-data";
+import { getMaterials, getStudentProgress, getCalendarEvents } from "@/lib/firestore-services";
 import { BookOpen, Award, Clock, TrendingUp } from "lucide-react";
 
-export default function StudentDashboard() {
+export default async function StudentDashboard() {
     const studentId = 'student-1'; // In production, get from auth
     const studentName = 'Sarah Johnson';
 
-    const studentProgress = getStudentProgress(studentId);
-    const studentEvents = getStudentEvents(studentId);
-    const enrolledMaterials = mockMaterials.slice(0, 3);
+    const [materials, studentProgress, studentEvents] = await Promise.all([
+        getMaterials(),
+        getStudentProgress(studentId),
+        getCalendarEvents(studentId)
+    ]);
+
+    const enrolledMaterials = materials.slice(0, 3);
 
     const completedCount = studentProgress.filter(p => p.completed).length;
-    const totalMaterials = enrolledMaterials.length;
+    const totalMaterials = materials.length;
     const overallProgress = studentProgress.length > 0
         ? Math.round(studentProgress.reduce((sum, p) => sum + p.progress, 0) / studentProgress.length)
         : 0;
-    const pendingQuizzes = 2; // Mock data
+    const pendingQuizzes = 2; // Mock data for now
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -114,7 +118,11 @@ export default function StudentDashboard() {
                                         return (
                                             <MaterialCard
                                                 key={material.id}
-                                                material={material}
+                                                material={{
+                                                    ...material,
+                                                    createdAt: material.createdAt.toISOString(),
+                                                    updatedAt: material.updatedAt.toISOString()
+                                                }}
                                                 progress={progress?.progress}
                                                 role="student"
                                             />
@@ -125,7 +133,11 @@ export default function StudentDashboard() {
 
                             {/* Calendar Widget */}
                             <div>
-                                <CalendarWidget events={studentEvents} />
+                                <CalendarWidget events={studentEvents.map(e => ({
+                                    ...e,
+                                    startTime: e.startTime.toISOString(),
+                                    endTime: e.endTime.toISOString()
+                                }))} />
                             </div>
                         </div>
                     </div>

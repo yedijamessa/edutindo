@@ -7,9 +7,20 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage"; // Added import for getStorage and type
 
-function getEnv(name: string): string {
-  const value = process.env[name];
+// Collect env vars with static property access so they are inlined in client bundles.
+const env = {
+  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+function getEnv<K extends keyof typeof env>(name: K): string {
+  const value = env[name];
   if (!value) {
     throw new Error(`Missing required env var: ${name}`);
   }
@@ -34,6 +45,7 @@ if (!getApps().length) {
 }
 
 export const db: Firestore = getFirestore(app);
+export const storage: FirebaseStorage = getStorage(app); // Initialized Firebase Storage
 
 // Helper to save a submission
 export async function saveGetInvolvedSubmission(data: {

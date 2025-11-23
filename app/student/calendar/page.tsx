@@ -2,12 +2,12 @@ import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getStudentEvents } from "@/lib/mock-data";
+import { getCalendarEvents } from "@/lib/firestore-services";
 import { Calendar as CalendarIcon, Clock, Video, MapPin } from "lucide-react";
 
-export default function StudentCalendarPage() {
+export default async function StudentCalendarPage() {
     const studentId = 'student-1';
-    const events = getStudentEvents(studentId);
+    const events = await getCalendarEvents(studentId);
 
     const upcomingEvents = events.filter(e => new Date(e.startTime) > new Date());
     const pastEvents = events.filter(e => new Date(e.startTime) <= new Date());

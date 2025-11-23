@@ -1,12 +1,15 @@
 import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { ProgressChart } from "@/components/lms/progress-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockMaterials, getStudentProgress } from "@/lib/mock-data";
+import { getStudentProgress, getMaterials } from "@/lib/firestore-services";
 import { Trophy, Target, Clock, TrendingUp } from "lucide-react";
 
-export default function StudentProgressPage() {
+export default async function StudentProgressPage() {
     const studentId = 'student-1';
-    const studentProgress = getStudentProgress(studentId);
+    const [studentProgress, materials] = await Promise.all([
+        getStudentProgress(studentId),
+        getMaterials()
+    ]);
 
     const totalTimeSpent = studentProgress.reduce((sum, p) => sum + p.timeSpent, 0);
     const completedCount = studentProgress.filter(p => p.completed).length;
@@ -89,7 +92,7 @@ export default function StudentProgressPage() {
                         {/* Progress Charts */}
                         <ProgressChart
                             progressData={studentProgress}
-                            materials={mockMaterials}
+                            materials={materials}
                         />
 
                         {/* Achievements */}

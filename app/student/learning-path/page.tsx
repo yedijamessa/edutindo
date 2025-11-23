@@ -1,10 +1,10 @@
 import { SidebarNav } from "@/components/lms/sidebar-nav";
-import { getNotes } from "@/lib/firestore-services";
-import NotesClient from "./notes-client";
+import { getLearningPath } from "@/lib/firestore-services";
+import LearningPathClient from "./learning-path-client";
 
-export default async function StudentNotesPage() {
+export default async function LearningPathPage() {
     const studentId = 'student-1';
-    const notes = await getNotes(studentId);
+    const { unlocked, locked } = await getLearningPath(studentId);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -17,7 +17,7 @@ export default async function StudentNotesPage() {
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
-                    <NotesClient initialNotes={notes} studentId={studentId} />
+                    <LearningPathClient unlockedMaterials={unlocked} lockedMaterials={locked} />
                 </main>
             </div>
         </div>

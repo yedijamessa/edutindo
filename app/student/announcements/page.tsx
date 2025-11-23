@@ -1,10 +1,9 @@
 import { SidebarNav } from "@/components/lms/sidebar-nav";
-import { getNotes } from "@/lib/firestore-services";
-import NotesClient from "./notes-client";
+import { getAnnouncements } from "@/lib/firestore-services";
+import AnnouncementsClient from "./announcements-client";
 
-export default async function StudentNotesPage() {
-    const studentId = 'student-1';
-    const notes = await getNotes(studentId);
+export default async function AnnouncementsPage() {
+    const announcements = await getAnnouncements('student');
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -17,7 +16,7 @@ export default async function StudentNotesPage() {
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
-                    <NotesClient initialNotes={notes} studentId={studentId} />
+                    <AnnouncementsClient announcements={announcements} />
                 </main>
             </div>
         </div>
