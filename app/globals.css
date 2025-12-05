@@ -26,7 +26,7 @@
   --radius-md: 0.5rem;
   --radius-sm: 0.25rem;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 /* Custom Utilities */

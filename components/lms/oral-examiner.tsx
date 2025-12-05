@@ -17,7 +17,7 @@ export default function OralExaminer({ question, expectedAnswer }: OralExamProps
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [feedback, setFeedback] = useState<any>(null);
     const [recordingTime, setRecordingTime] = useState(0);
-    const timerRef = useRef<NodeJS.Timeout>();
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const startRecording = () => {
         setIsRecording(true);

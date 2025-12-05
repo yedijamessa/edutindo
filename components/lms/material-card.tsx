@@ -5,20 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Clock, FileText } from "lucide-react";
 import Link from "next/link";
-
-interface Material {
-    id: string;
-    title: string;
-    description: string;
-    subject: string;
-    content: string;
-    attachments?: any[];
-    createdBy: string;
-    createdAt: string; // ISO string
-    updatedAt: string; // ISO string
-    published: boolean;
-    prerequisites?: any[];
-}
+import { Material } from "@/types/lms";
 
 interface MaterialCardProps {
     material: Material;
@@ -27,13 +14,13 @@ interface MaterialCardProps {
     href?: string;
 }
 
-const formatDate = (isoString: string) => {
+const formatDate = (date: string | Date) => {
     return new Intl.DateTimeFormat('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: 'numeric',
         timeZone: 'UTC',
-    }).format(new Date(isoString));
+    }).format(new Date(date));
 };
 
 export function MaterialCard({ material, progress, role = 'student', href }: MaterialCardProps) {

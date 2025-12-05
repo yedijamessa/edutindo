@@ -2,6 +2,9 @@
   "hosting": {
     "site": "edutindo-1b96c",
     "public": "out",
+    "predeploy": [
+      "npm run build"
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Star, Clock, BookOpen, MessageSquare, Plus, X } from "lucide-react";
+import { Users, Star, Clock, Plus, X } from "lucide-react";
 
 interface TutoringOffer {
     id: string;
@@ -30,7 +28,8 @@ interface TutoringRequest {
     studentName: string;
     subject: string;
     description: string;
-    status: 'open' | 'matched' | 'closed';
+    preferredTimes: string[];
+    status: 'open' | 'matched' | 'completed' | 'cancelled';
     createdAt: string; // ISO string
 }
 import { createTutoringOffer, createTutoringRequest } from "@/lib/firestore-services";

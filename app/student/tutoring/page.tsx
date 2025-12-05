@@ -4,6 +4,7 @@ import TutoringClient from "./tutoring-client";
 
 export default async function TutoringPage() {
     const studentId = 'student-1';
+    const studentName = 'Sarah Johnson';
 
     const [offers, requests] = await Promise.all([
         getTutoringOffers(),
@@ -36,6 +37,7 @@ export default async function TutoringPage() {
                         initialOffers={serializedOffers}
                         initialRequests={serializedRequests}
                         studentId={studentId}
+                        studentName={studentName}
                     />
                 </main>
             </div>

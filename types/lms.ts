@@ -7,6 +7,8 @@ export interface Material {
     subject: string;
     content: string;
     attachments?: Attachment[];
+    type?: 'pdf' | 'video' | 'document' | 'link';
+    url?: string;
     createdBy: string;
     createdAt: Date;
     updatedAt: Date;
@@ -78,6 +80,12 @@ export interface Progress {
     progress: number; // 0-100
     lastAccessed: Date;
     timeSpent: number; // in minutes
+    quizScores?: {
+        quizId: string;
+        score: number;
+        attempts: number;
+        lastAttempt: Date;
+    }[];
 }
 
 export interface CalendarEvent {
@@ -233,4 +241,37 @@ export interface TutoringRequest {
     status: 'open' | 'matched' | 'completed' | 'cancelled';
     matchedTutorId?: string;
     createdAt: Date;
+}
+
+// ==================== DONATION PORTAL ====================
+
+export interface Equipment {
+    id: string;
+    name: string;
+    description: string;
+    category: 'technology' | 'furniture' | 'supplies' | 'other';
+    targetAmount: number; // in IDR
+    currentAmount: number; // in IDR
+    imageUrl?: string;
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    status: 'active' | 'completed' | 'paused';
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface Donation {
+    id: string;
+    equipmentId: string;
+    equipmentName: string;
+    donorName: string;
+    donorEmail?: string;
+    donorPhone?: string;
+    amount: number; // in IDR
+    message?: string;
+    isAnonymous: boolean;
+    status: 'pending' | 'confirmed' | 'completed';
+    paymentMethod: 'bank_transfer' | 'cash' | 'other';
+    paymentProof?: string; // URL to uploaded receipt
+    createdAt: Date;
+    confirmedAt?: Date;
 }

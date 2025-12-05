@@ -10,8 +10,8 @@ interface CalendarEvent {
     id: string;
     title: string;
     description?: string; // Optional
-    startTime: string; // ISO string from server
-    endTime: string;   // ISO string from server
+    startTime: string | Date; // ISO string from server
+    endTime: string | Date;   // ISO string from server
     type: string;
     location?: string;
     participants: string[];
@@ -23,7 +23,7 @@ interface CalendarWidgetProps {
     events: CalendarEvent[];
 }
 
-const formatDate = (isoString: string) => {
+const formatDate = (isoString: string | Date) => {
     return new Intl.DateTimeFormat('en-US', {
         month: '2-digit',
         day: '2-digit',
@@ -32,7 +32,7 @@ const formatDate = (isoString: string) => {
     }).format(new Date(isoString));
 };
 
-const formatTime = (isoString: string) => {
+const formatTime = (isoString: string | Date) => {
     return new Intl.DateTimeFormat('en-US', {
         hour: '2-digit',
         minute: '2-digit',

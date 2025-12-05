@@ -32,7 +32,9 @@ import {
     Conversation,
     Message,
     TutoringOffer,
-    TutoringRequest
+    TutoringRequest,
+    Equipment,
+    Donation
 } from "@/types/lms";
 
 // ==================== MATERIALS ====================
@@ -188,7 +190,7 @@ export async function saveQuizScore(
 
 export async function getNotes(studentId: string): Promise<Note[]> {
     const notesRef = collection(db, 'notes');
-    const q = query(notesRef, where('createdBy', '==', studentId), orderBy('updatedAt', 'desc'));
+    const q = query(notesRef, where('createdBy', '==', studentId));
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map(doc => ({
@@ -380,7 +382,7 @@ export async function createAnnouncement(announcement: Omit<Announcement, 'id' |
 
 export async function getStudentFiles(studentId: string): Promise<StudentFile[]> {
     const filesRef = collection(db, 'student_files');
-    const q = query(filesRef, where('studentId', '==', studentId), orderBy('uploadedAt', 'desc'));
+    const q = query(filesRef, where('studentId', '==', studentId));
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map(doc => ({
@@ -413,8 +415,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
     const conversationsRef = collection(db, 'conversations');
     const q = query(
         conversationsRef,
-        where('participants', 'array-contains', userId),
-        orderBy('lastMessageTime', 'desc')
+        where('participants', 'array-contains', userId)
     );
     const snapshot = await getDocs(q);
 
@@ -659,3 +660,145 @@ export async function getLearningPath(studentId: string, subject?: string): Prom
 
     return { unlocked, locked };
 }
+
+// ==================== EQUIPMENT & DONATIONS ====================
+
+export async function getEquipmentNeeds(status?: string): Promise<Equipment[]> {
+    const equipmentRef = collection(db, 'equipment');
+    let q = query(equipmentRef, orderBy('priority', 'desc'), orderBy('createdAt', 'desc'));
+
+    const snapshot = await getDocs(q);
+
+    let equipment = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as any),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+    })) as Equipment[];
+
+    // Client-side filtering by status if provided
+    if (status) {
+        equipment = equipment.filter(e => e.status === status);
+    }
+
+    return equipment;
+}
+
+export async function getEquipmentById(id: string): Promise<Equipment | null> {
+    const docRef = doc(db, 'equipment', id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) return null;
+
+    return {
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+        updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
+    } as Equipment;
+}
+
+export async function createEquipment(
+    equipment: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt' | 'currentAmount'>
+): Promise<string> {
+    const equipmentRef = collection(db, 'equipment');
+    const docRef = await addDoc(equipmentRef, {
+        ...equipment,
+        currentAmount: 0,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+    });
+    return docRef.id;
+}
+
+export async function updateEquipment(id: string, data: Partial<Equipment>): Promise<void> {
+    const docRef = doc(db, 'equipment', id);
+    await updateDoc(docRef, {
+        ...data,
+        updatedAt: Timestamp.now(),
+    });
+}
+
+export async function createDonation(
+    donation: Omit<Donation, 'id' | 'createdAt' | 'status'>
+): Promise<string> {
+    const donationsRef = collection(db, 'donations');
+    const docRef = await addDoc(donationsRef, {
+        ...donation,
+        status: 'pending',
+        createdAt: Timestamp.now(),
+    });
+    return docRef.id;
+}
+
+export async function getDonations(equipmentId?: string): Promise<Donation[]> {
+    const donationsRef = collection(db, 'donations');
+    let q = query(donationsRef, orderBy('createdAt', 'desc'));
+
+    if (equipmentId) {
+        q = query(donationsRef, where('equipmentId', '==', equipmentId), orderBy('createdAt', 'desc'));
+    }
+
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as any),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        confirmedAt: doc.data().confirmedAt?.toDate() || undefined,
+    })) as Donation[];
+}
+
+export async function confirmDonation(donationId: string): Promise<void> {
+    const donationRef = doc(db, 'donations', donationId);
+    const donationSnap = await getDoc(donationRef);
+
+    if (!donationSnap.exists()) {
+        throw new Error('Donation not found');
+    }
+
+    const donation = donationSnap.data() as Donation;
+
+    // Update donation status
+    await updateDoc(donationRef, {
+        status: 'confirmed',
+        confirmedAt: Timestamp.now(),
+    });
+
+    // Update equipment current amount
+    const equipmentRef = doc(db, 'equipment', donation.equipmentId);
+    const equipmentSnap = await getDoc(equipmentRef);
+
+    if (equipmentSnap.exists()) {
+        const equipment = equipmentSnap.data() as Equipment;
+        const newAmount = equipment.currentAmount + donation.amount;
+        const newStatus = newAmount >= equipment.targetAmount ? 'completed' : equipment.status;
+
+        await updateDoc(equipmentRef, {
+            currentAmount: newAmount,
+            status: newStatus,
+            updatedAt: Timestamp.now(),
+        });
+    }
+}
+
+export async function getRecentDonors(limitCount: number = 10): Promise<Donation[]> {
+    const donationsRef = collection(db, 'donations');
+    const q = query(
+        donationsRef,
+        where('isAnonymous', '==', false),
+        where('status', '==', 'confirmed'),
+        orderBy('confirmedAt', 'desc'),
+        limit(limitCount)
+    );
+
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as any),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        confirmedAt: doc.data().confirmedAt?.toDate() || undefined,
+    })) as Donation[];
+}
+

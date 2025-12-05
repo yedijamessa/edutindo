@@ -118,11 +118,7 @@ export default async function StudentDashboard() {
                                         return (
                                             <MaterialCard
                                                 key={material.id}
-                                                material={{
-                                                    ...material,
-                                                    createdAt: material.createdAt.toISOString(),
-                                                    updatedAt: material.updatedAt.toISOString()
-                                                }}
+                                                material={material}
                                                 progress={progress?.progress}
                                                 role="student"
                                             />
