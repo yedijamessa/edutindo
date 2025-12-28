@@ -67,7 +67,7 @@ export default function HomePage() {
           <div className="relative">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 rotate-2 hover:rotate-0 transition-transform duration-500">
               <Image
-                src="/homepage/eti-hero-classroom.jpg"
+                src="/meeting-new.png"
                 alt="Teacher and children learning joyfully"
                 width={800}
                 height={600}
