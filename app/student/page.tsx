@@ -3,7 +3,7 @@ import { CalendarWidget } from "@/components/lms/calendar-widget";
 import { MaterialCard } from "@/components/lms/material-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getMaterials, getStudentProgress, getCalendarEvents } from "@/lib/firestore-services";
+import { getMaterials, getStudentProgress, getCalendarEvents } from "@/lib/db-services";
 import { BookOpen, Award, Clock, TrendingUp } from "lucide-react";
 
 export default async function StudentDashboard() {

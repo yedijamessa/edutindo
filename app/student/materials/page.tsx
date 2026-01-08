@@ -1,5 +1,5 @@
 // Server component - fetches materials from Firestore
-import { getMaterials } from "@/lib/firestore-services";
+import { getMaterials } from "@/lib/db-services";
 import MaterialsClient from "./materials-client";
 
 export default async function StudentMaterialsPage() {

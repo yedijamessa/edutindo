@@ -19,6 +19,10 @@ export async function getQuizForMaterial(materialId: string) {
     return result[0];
 }
 
+export async function getQuizzes() {
+    return await db.select().from(quizzes).orderBy(desc(quizzes.createdAt));
+}
+
 // --- Learning Path Logic ---
 export async function getLearningPath(userId: string) {
     const allMaterials = await db.select().from(materials);
@@ -71,29 +75,33 @@ export async function saveQuizResults(userId: string, materialId: string, quizId
         and(eq(progress.studentId, userId), eq(progress.materialId, materialId))
     );
 
-    const newScoreEntry = { quizId, score, attempts: 1, lastAttempt: new Date() }; // Simplified attempts logic
+    const newScoreEntry = { quizId, score, attempts: 1, lastAttempt: new Date() };
 
     if (existing.length > 0) {
         const current = existing[0];
         const scores = (current.quizScores as any[]) || [];
         scores.push(newScoreEntry);
 
-        // Mark completed if passed? For now just update scores.
-        // In real app, check passing score from quiz table.
-
         await db.update(progress).set({
             quizScores: scores,
             lastAccessed: new Date(),
-            // completed: score >= passingScore ? true : current.completed // Need to fetch quiz passing score
         }).where(eq(progress.id, current.id));
     } else {
         await db.insert(progress).values({
             studentId: userId,
             materialId: materialId,
             quizScores: [newScoreEntry],
-            completed: false, // Update based on score logic
+            completed: false,
             progress: 0,
             lastAccessed: new Date()
         });
     }
+}
+
+export async function getStudentProgress(userId: string) {
+    return await db.select().from(progress).where(eq(progress.studentId, userId));
+}
+
+export async function getCalendarEvents(userId: string) {
+    return Promise.resolve([]);
 }

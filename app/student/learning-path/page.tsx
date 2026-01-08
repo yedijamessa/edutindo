@@ -1,5 +1,5 @@
 import { SidebarNav } from "@/components/lms/sidebar-nav";
-import { getLearningPath } from "@/lib/firestore-services";
+import { getLearningPath } from "@/lib/db-services";
 import LearningPathClient from "./learning-path-client";
 
 export default async function LearningPathPage() {
