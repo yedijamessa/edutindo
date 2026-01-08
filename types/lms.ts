@@ -5,7 +5,7 @@ export interface Material {
     title: string;
     description: string;
     subject: string;
-    content: string;
+    content: string | null;
     attachments?: Attachment[];
     type?: 'pdf' | 'video' | 'document' | 'link';
     url?: string;

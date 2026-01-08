@@ -2,25 +2,54 @@
 import { db } from './db';
 import { materials, quizzes, progress, mindmaps, users } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { CalendarEvent } from '@/types/lms';
 
 // --- Materials ---
 export async function getMaterials() {
-    return await db.select().from(materials).orderBy(desc(materials.createdAt));
+    const data = await db.select().from(materials).orderBy(desc(materials.createdAt));
+    return data.map(m => ({
+        ...m,
+        prerequisites: m.prerequisites as any,
+        type: m.type as any,
+        url: m.url || undefined,
+        createdBy: m.createdBy || '',
+        content: m.content || '',
+    }));
 }
 
 export async function getMaterial(id: string) {
     const result = await db.select().from(materials).where(eq(materials.id, id));
-    return result[0];
+    if (!result[0]) return null;
+    return {
+        ...result[0],
+        prerequisites: result[0].prerequisites as any,
+        type: result[0].type as any,
+        url: result[0].url || undefined,
+        createdBy: result[0].createdBy || '',
+        content: result[0].content || '',
+    };
 }
 
 // --- Quizzes ---
 export async function getQuizForMaterial(materialId: string) {
     const result = await db.select().from(quizzes).where(eq(quizzes.materialId, materialId));
-    return result[0];
+    if (!result[0]) return null;
+    return {
+        ...result[0],
+        questions: result[0].questions as any[],
+        timeLimit: result[0].timeLimit || undefined,
+    };
 }
 
 export async function getQuizzes() {
-    return await db.select().from(quizzes).orderBy(desc(quizzes.createdAt));
+    const data = await db.select().from(quizzes).orderBy(desc(quizzes.createdAt));
+    return data.map(q => ({
+        ...q,
+        questions: q.questions as any[], // Cast jsonb
+        description: q.description || '',
+        createdBy: q.createdBy || '',
+        timeLimit: q.timeLimit || undefined,
+    }));
 }
 
 // --- Learning Path Logic ---
@@ -99,9 +128,13 @@ export async function saveQuizResults(userId: string, materialId: string, quizId
 }
 
 export async function getStudentProgress(userId: string) {
-    return await db.select().from(progress).where(eq(progress.studentId, userId));
+    const data = await db.select().from(progress).where(eq(progress.studentId, userId));
+    return data.map(p => ({
+        ...p,
+        quizScores: p.quizScores as any[]
+    }));
 }
 
-export async function getCalendarEvents(userId: string) {
+export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]> {
     return Promise.resolve([]);
 }
