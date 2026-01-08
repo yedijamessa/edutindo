@@ -22,7 +22,8 @@ const env = {
 function getEnv<K extends keyof typeof env>(name: K): string {
   const value = env[name];
   if (!value) {
-    throw new Error(`Missing required env var: ${name}`);
+    console.warn(`Missing required env var: ${name}`);
+    return "MISSING_ENV_" + name;
   }
   return value;
 }

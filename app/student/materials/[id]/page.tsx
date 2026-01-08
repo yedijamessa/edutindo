@@ -7,15 +7,7 @@ import { getMaterialById } from "@/lib/firestore-services";
 import { ArrowLeft, FileText, Download, Clock } from "lucide-react";
 import Link from "next/link";
 
-export async function generateStaticParams() {
-    // For static export, we'll generate params for existing materials
-    // In production, you might want to fetch this from Firestore
-    return [
-        { id: 'math-101' },
-        { id: 'science-101' },
-        { id: 'english-101' },
-    ];
-}
+
 
 export default async function MaterialDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
