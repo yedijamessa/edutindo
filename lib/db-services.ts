@@ -2,7 +2,7 @@
 import { db } from './db';
 import { materials, quizzes, progress, mindmaps, users } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { CalendarEvent } from '@/types/lms';
+import { Attachment, CalendarEvent } from '@/types/lms';
 
 // --- Materials ---
 export async function getMaterials() {
@@ -14,6 +14,7 @@ export async function getMaterials() {
         url: m.url || undefined,
         createdBy: m.createdBy || '',
         content: m.content || '',
+        attachments: [] as Attachment[],
     }));
 }
 
@@ -27,8 +28,11 @@ export async function getMaterial(id: string) {
         url: result[0].url || undefined,
         createdBy: result[0].createdBy || '',
         content: result[0].content || '',
+        attachments: [] as Attachment[],
     };
 }
+
+export const getMaterialById = getMaterial;
 
 // --- Quizzes ---
 export async function getQuizForMaterial(materialId: string) {
@@ -37,6 +41,18 @@ export async function getQuizForMaterial(materialId: string) {
     return {
         ...result[0],
         questions: result[0].questions as any[],
+        timeLimit: result[0].timeLimit || undefined,
+    };
+}
+
+export async function getQuizById(id: string) {
+    const result = await db.select().from(quizzes).where(eq(quizzes.id, id));
+    if (!result[0]) return null;
+    return {
+        ...result[0],
+        questions: result[0].questions as any[],
+        description: result[0].description || '',
+        createdBy: result[0].createdBy || '',
         timeLimit: result[0].timeLimit || undefined,
     };
 }

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getQuizById } from "@/lib/firestore-services";
+import { getQuizById } from "@/lib/db-services";
 import QuizTaker from "./quiz-taker";
 
 

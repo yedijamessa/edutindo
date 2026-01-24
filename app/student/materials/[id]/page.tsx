@@ -3,7 +3,7 @@ import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getMaterialById } from "@/lib/firestore-services";
+import { getMaterialById } from "@/lib/db-services";
 import { ArrowLeft, FileText, Download, Clock } from "lucide-react";
 import Link from "next/link";
 
