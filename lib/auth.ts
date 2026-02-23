@@ -242,6 +242,10 @@ function getAppBaseUrl() {
   return configured.endsWith("/") ? configured.slice(0, -1) : configured;
 }
 
+function recipientMatch(entry: unknown, email: string) {
+  return String(entry).toLowerCase().includes(email.toLowerCase());
+}
+
 async function sendEmailVerification(email: string, firstName: string, token: string) {
   const candidates = buildSmtpCandidates();
   const verificationUrl = `${getAppBaseUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
@@ -288,8 +292,19 @@ async function sendEmailVerification(email: string, firstName: string, token: st
         `,
       });
 
+      const accepted = info.accepted ?? [];
+      const rejected = info.rejected ?? [];
+      const wasAccepted = accepted.some((entry) => recipientMatch(entry, email));
+      const wasRejected = rejected.some((entry) => recipientMatch(entry, email));
+
+      if (!wasAccepted || wasRejected) {
+        throw new Error(
+          `Recipient not accepted by SMTP server. accepted=${accepted.join(",")} rejected=${rejected.join(",")} response=${info.response ?? ""}`
+        );
+      }
+
       console.info(
-        `[auth-email] verification sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} accepted=${(info.accepted ?? []).join(",")} rejected=${(info.rejected ?? []).join(",")}`
+        `[auth-email] verification sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} response=${info.response ?? ""} accepted=${accepted.join(",")} rejected=${rejected.join(",")}`
       );
 
       return;
@@ -346,8 +361,19 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
         `,
       });
 
+      const accepted = info.accepted ?? [];
+      const rejected = info.rejected ?? [];
+      const wasAccepted = accepted.some((entry) => recipientMatch(entry, email));
+      const wasRejected = rejected.some((entry) => recipientMatch(entry, email));
+
+      if (!wasAccepted || wasRejected) {
+        throw new Error(
+          `Recipient not accepted by SMTP server. accepted=${accepted.join(",")} rejected=${rejected.join(",")} response=${info.response ?? ""}`
+        );
+      }
+
       console.info(
-        `[auth-email] admin-otp sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} accepted=${(info.accepted ?? []).join(",")} rejected=${(info.rejected ?? []).join(",")}`
+        `[auth-email] admin-otp sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} response=${info.response ?? ""} accepted=${accepted.join(",")} rejected=${rejected.join(",")}`
       );
 
       return;
