@@ -75,3 +75,20 @@ input[type="url"],
 textarea {
   @apply cursor-text;
 }
+
+/* Google Translate integration (EN/ID) */
+#google_translate_element {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}

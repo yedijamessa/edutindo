@@ -7,6 +7,7 @@ import { Menu, X, ChevronDown } from "lucide-react"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
+import { LanguageSwitcher } from "../language-switcher"
 
 const navItems = [
     { name: "Home", href: "/" },
@@ -92,6 +93,7 @@ export function Navbar() {
                     <Button asChild size="sm" variant="default">
                         <Link href="/donate">Donate Now</Link>
                     </Button>
+                    <LanguageSwitcher />
                     <ModeToggle />
                 </nav>
 
@@ -147,6 +149,9 @@ export function Navbar() {
                         <Button asChild className="w-full" variant="default">
                             <Link href="/donate" onClick={() => setIsOpen(false)}>Donate Now</Link>
                         </Button>
+                        <div className="flex justify-center pt-2">
+                            <LanguageSwitcher />
+                        </div>
                         <div className="flex justify-center pt-2">
                             <ModeToggle />
                         </div>
