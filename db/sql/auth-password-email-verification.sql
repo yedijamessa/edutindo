@@ -1,4 +1,4 @@
--- Edutindo auth schema for email/password + email verification + portal access control
+-- Edutindo auth schema for email/password + email verification + admin OTP + portal access control
 
 CREATE TABLE IF NOT EXISTS auth_users (
   id TEXT PRIMARY KEY,
@@ -34,6 +34,19 @@ CREATE TABLE IF NOT EXISTS auth_email_verifications (
 
 CREATE INDEX IF NOT EXISTS auth_email_verifications_user_idx
 ON auth_email_verifications (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS auth_admin_otp_codes (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  otp_hash TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS auth_admin_otp_codes_email_created_idx
+ON auth_admin_otp_codes (email, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS auth_sessions (
   id TEXT PRIMARY KEY,

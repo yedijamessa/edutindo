@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 
 type AuthMode = "login" | "signup";
+type LoginStep = "email" | "password" | "admin_otp";
 
 interface EmailPasswordAuthFormProps {
   mode: AuthMode;
@@ -24,6 +25,10 @@ type ApiResponse = {
   error?: string;
   message?: string;
   redirectTo?: string;
+};
+
+type LoginStartResponse = ApiResponse & {
+  method?: "password" | "admin_otp";
 };
 
 function getVerificationError(reason: string | undefined) {
@@ -52,6 +57,9 @@ export function EmailPasswordAuthForm({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [loginStep, setLoginStep] = useState<LoginStep>("email");
+
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(
@@ -61,16 +69,34 @@ export function EmailPasswordAuthForm({
       ? getVerificationError(verificationReason)
       : null
   );
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResending, setIsResending] = useState(false);
+  const [isOtpResending, setIsOtpResending] = useState(false);
+  const [isVerificationResending, setIsVerificationResending] = useState(false);
 
   const isLogin = mode === "login";
-  const cardIcon = useMemo(() => (isLogin ? <ShieldCheck className="w-5 h-5" /> : <Mail className="w-5 h-5" />), [isLogin]);
 
-  const submitSignup = async () => {
+  const cardIcon = useMemo(() => {
+    if (!isLogin) return <Mail className="w-5 h-5" />;
+    if (loginStep === "admin_otp") return <ShieldCheck className="w-5 h-5" />;
+    return <Mail className="w-5 h-5" />;
+  }, [isLogin, loginStep]);
+
+  const resetMessages = () => {
     setError(null);
     setErrorCode(null);
     setInfo(null);
+  };
+
+  const useDifferentEmail = () => {
+    setLoginStep("email");
+    setPassword("");
+    setOtpCode("");
+    resetMessages();
+  };
+
+  const submitSignup = async () => {
+    resetMessages();
     setIsSubmitting(true);
 
     try {
@@ -98,10 +124,43 @@ export function EmailPasswordAuthForm({
     }
   };
 
-  const submitLogin = async () => {
-    setError(null);
-    setErrorCode(null);
-    setInfo(null);
+  const startLoginFlow = async () => {
+    resetMessages();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/auth/login/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data: LoginStartResponse = await response.json();
+
+      if (!response.ok || !data.ok || !data.method) {
+        setErrorCode(data.code || null);
+        setError(data.error || "Failed to start login.");
+        return;
+      }
+
+      if (data.method === "password") {
+        setLoginStep("password");
+        setInfo("Enter your password to continue.");
+        return;
+      }
+
+      setLoginStep("admin_otp");
+      setInfo(data.message || "Admin passcode sent. Please check your email.");
+    } catch (startError) {
+      console.error(startError);
+      setError("Unable to start login right now.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitPasswordLogin = async () => {
+    resetMessages();
     setIsSubmitting(true);
 
     try {
@@ -130,11 +189,67 @@ export function EmailPasswordAuthForm({
     }
   };
 
+  const submitAdminOtpLogin = async () => {
+    resetMessages();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/auth/login/admin-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: otpCode, nextPath }),
+      });
+
+      const data: ApiResponse = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setErrorCode(data.code || null);
+        setError(data.error || "Invalid passcode.");
+        return;
+      }
+
+      setInfo("Signed in successfully.");
+      router.push(data.redirectTo || "/admin");
+      router.refresh();
+    } catch (verifyError) {
+      console.error(verifyError);
+      setError("Unable to verify passcode right now.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resendAdminOtp = async () => {
+    resetMessages();
+    setIsOtpResending(true);
+
+    try {
+      const response = await fetch("/api/auth/login/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data: LoginStartResponse = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setErrorCode(data.code || null);
+        setError(data.error || "Failed to resend passcode.");
+        return;
+      }
+
+      setInfo(data.message || "Passcode resent. Please check your email.");
+    } catch (resendError) {
+      console.error(resendError);
+      setError("Unable to resend passcode right now.");
+    } finally {
+      setIsOtpResending(false);
+    }
+  };
+
   const resendVerification = async () => {
-    setError(null);
-    setErrorCode(null);
-    setInfo(null);
-    setIsResending(true);
+    resetMessages();
+    setIsVerificationResending(true);
 
     try {
       const response = await fetch("/api/auth/resend-verification", {
@@ -156,9 +271,16 @@ export function EmailPasswordAuthForm({
       console.error(resendError);
       setError("Unable to resend verification email right now.");
     } finally {
-      setIsResending(false);
+      setIsVerificationResending(false);
     }
   };
+
+  const loginDescription =
+    loginStep === "email"
+      ? "Enter your email. Admin accounts will receive a one-time passcode."
+      : loginStep === "password"
+      ? `Password login for ${email}.`
+      : `Enter the 6-digit passcode sent to ${email}.`;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
@@ -170,7 +292,7 @@ export function EmailPasswordAuthForm({
           <CardTitle className="text-2xl">{isLogin ? "Log In" : "Create Account"}</CardTitle>
           <CardDescription>
             {isLogin
-              ? "Use your email and password to access your dashboard."
+              ? loginDescription
               : "Enter your details. We will send a verification email before you can log in."}
           </CardDescription>
         </CardHeader>
@@ -207,51 +329,158 @@ export function EmailPasswordAuthForm({
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
+              readOnly={isLogin && loginStep !== "email"}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Password</label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={isLogin ? "Enter your password" : "At least 8 characters"}
-              autoComplete={isLogin ? "current-password" : "new-password"}
-            />
-          </div>
+          {!isLogin && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+              />
+            </div>
+          )}
 
-          <Button
-            className="w-full"
-            onClick={isLogin ? submitLogin : submitSignup}
-            disabled={
-              isSubmitting ||
-              !email.trim() ||
-              !password ||
-              (!isLogin && (!firstName.trim() || !lastName.trim()))
-            }
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {isLogin ? "Signing in..." : "Creating account..."}
-              </>
-            ) : (
-              <>
-                {isLogin ? "Log In" : "Create Account"}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
+          {isLogin && loginStep === "password" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+              />
+            </div>
+          )}
 
-          {isLogin && errorCode === "EMAIL_NOT_VERIFIED" && (
+          {isLogin && loginStep === "admin_otp" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">One-time passcode</label>
+              <Input
+                value={otpCode}
+                onChange={(event) => setOtpCode(event.target.value)}
+                placeholder="123456"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+              />
+            </div>
+          )}
+
+          {!isLogin && (
+            <Button
+              className="w-full"
+              onClick={submitSignup}
+              disabled={
+                isSubmitting ||
+                !email.trim() ||
+                !password ||
+                !firstName.trim() ||
+                !lastName.trim()
+              }
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
+
+          {isLogin && loginStep === "email" && (
+            <Button className="w-full" onClick={startLoginFlow} disabled={isSubmitting || !email.trim()}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
+
+          {isLogin && loginStep === "password" && (
+            <>
+              <Button className="w-full" onClick={submitPasswordLogin} disabled={isSubmitting || !password}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Log In"
+                )}
+              </Button>
+
+              <Button variant="outline" className="w-full" onClick={useDifferentEmail} disabled={isSubmitting}>
+                Use different email
+              </Button>
+            </>
+          )}
+
+          {isLogin && loginStep === "admin_otp" && (
+            <>
+              <Button
+                className="w-full"
+                onClick={submitAdminOtpLogin}
+                disabled={isSubmitting || otpCode.trim().length !== 6}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify Passcode"
+                )}
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={resendAdminOtp}
+                disabled={isOtpResending || isSubmitting}
+              >
+                {isOtpResending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Resend passcode"
+                )}
+              </Button>
+
+              <Button variant="outline" className="w-full" onClick={useDifferentEmail} disabled={isSubmitting}>
+                Use different email
+              </Button>
+            </>
+          )}
+
+          {isLogin && loginStep === "password" && errorCode === "EMAIL_NOT_VERIFIED" && (
             <Button
               variant="outline"
               className="w-full"
               onClick={resendVerification}
-              disabled={isResending || !email.trim()}
+              disabled={isVerificationResending || !email.trim()}
             >
-              {isResending ? (
+              {isVerificationResending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Sending...

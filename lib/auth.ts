@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } from "crypto";
+import { createHash, pbkdf2Sync, randomBytes, randomInt, randomUUID, timingSafeEqual } from "crypto";
 import nodemailer from "nodemailer";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -37,6 +37,13 @@ type AuthEmailVerificationRow = {
   expires_at: Date;
 };
 
+type AuthAdminOtpRow = {
+  id: number;
+  otp_hash: string;
+  attempts: number;
+  expires_at: Date;
+};
+
 type SmtpCandidate = {
   host: string;
   port: number;
@@ -66,6 +73,9 @@ const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-auth-secret";
 const EMAIL_VERIFICATION_EXPIRES_HOURS = Number(process.env.AUTH_EMAIL_VERIFICATION_EXPIRES_HOURS ?? 24);
 const PASSWORD_MIN_LENGTH = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 8);
 const PASSWORD_HASH_ITERATIONS = Number(process.env.AUTH_PASSWORD_HASH_ITERATIONS ?? 120000);
+const ADMIN_OTP_EXPIRES_MINUTES = Number(process.env.AUTH_ADMIN_OTP_EXPIRES_MINUTES ?? 10);
+const ADMIN_OTP_MAX_ATTEMPTS = Number(process.env.AUTH_ADMIN_OTP_MAX_ATTEMPTS ?? 5);
+const ADMIN_OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.AUTH_ADMIN_OTP_RESEND_COOLDOWN_SECONDS ?? 30);
 const PORTAL_SET = new Set<string>(PORTAL_OPTIONS);
 
 let authSchemaReady: Promise<void> | null = null;
@@ -126,6 +136,10 @@ function hashSessionToken(token: string) {
 
 function hashEmailVerificationToken(token: string) {
   return createHash("sha256").update(`${AUTH_SECRET}:verify-email:${token}`).digest("hex");
+}
+
+function hashAdminOtp(email: string, code: string) {
+  return createHash("sha256").update(`${AUTH_SECRET}:admin-otp:${email}:${code}`).digest("hex");
 }
 
 function hashPassword(password: string) {
@@ -289,6 +303,57 @@ async function sendEmailVerification(email: string, firstName: string, token: st
   );
 }
 
+async function sendAdminLoginOtpEmail(email: string, code: string) {
+  const candidates = buildSmtpCandidates();
+  const minutes = ADMIN_OTP_EXPIRES_MINUTES;
+  let lastError: unknown = null;
+
+  for (const smtp of candidates) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+      });
+
+      await transporter.sendMail({
+        from: smtp.from,
+        to: email,
+        subject: "Your Edutindo admin one-time passcode",
+        text:
+          `Your Edutindo admin login passcode is ${code}. ` +
+          `It expires in ${minutes} minutes.\n\n` +
+          "If you did not request this passcode, please ignore this email.",
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">
+            <h2 style="margin:0 0 12px;">Edutindo Admin Login</h2>
+            <p style="margin:0 0 12px;">Use this one-time passcode to sign in:</p>
+            <div style="font-size:32px;font-weight:700;letter-spacing:6px;margin:8px 0 16px;">${code}</div>
+            <p style="margin:0 0 8px;">This passcode expires in <strong>${minutes} minutes</strong>.</p>
+            <p style="margin:0;color:#64748b;">If you did not request this code, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Admin OTP email failed via SMTP ${smtp.host}:${smtp.port} secure=${smtp.secure}`);
+    }
+  }
+
+  console.error("All SMTP candidates failed for admin OTP email:", lastError);
+  throw new AuthError(
+    500,
+    "EMAIL_SEND_FAILED",
+    "Failed to send admin passcode email. Check SMTP host/port and credentials."
+  );
+}
+
 export async function ensureAuthSchema() {
   if (authSchemaReady) return authSchemaReady;
 
@@ -332,6 +397,23 @@ export async function ensureAuthSchema() {
     await sql`
       CREATE INDEX IF NOT EXISTS auth_email_verifications_user_idx
       ON auth_email_verifications (user_id, created_at DESC);
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS auth_admin_otp_codes (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL,
+        otp_hash TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS auth_admin_otp_codes_email_created_idx
+      ON auth_admin_otp_codes (email, created_at DESC);
     `;
 
     await sql`
@@ -459,6 +541,58 @@ async function ensureAdminFlag(email: string, existingUser: AuthUserRow) {
   `;
 
   await setUserPortals(existingUser.id, [...PORTAL_OPTIONS]);
+}
+
+async function ensureAdminUserAccount(email: string) {
+  let userRow = await getUserRowByEmail(email);
+
+  if (!userRow) {
+    const userId = randomUUID();
+    await sql`
+      INSERT INTO auth_users (
+        id,
+        email,
+        first_name,
+        last_name,
+        password_hash,
+        email_verified,
+        email_verified_at,
+        is_admin
+      )
+      VALUES (
+        ${userId},
+        ${email},
+        ${"Admin"},
+        ${""},
+        ${null},
+        TRUE,
+        NOW(),
+        TRUE
+      )
+    `;
+
+    await setUserPortals(userId, [...PORTAL_OPTIONS]);
+    userRow = await getUserRowById(userId);
+  } else {
+    await sql`
+      UPDATE auth_users
+      SET
+        is_admin = TRUE,
+        email_verified = TRUE,
+        email_verified_at = COALESCE(email_verified_at, NOW()),
+        updated_at = NOW()
+      WHERE id = ${userRow.id}
+    `;
+
+    await setUserPortals(userRow.id, [...PORTAL_OPTIONS]);
+    userRow = await getUserRowById(userRow.id);
+  }
+
+  if (!userRow) {
+    throw new AuthError(500, "USER_LOAD_FAILED", "Failed to load admin account.");
+  }
+
+  return hydrateUser(userRow);
 }
 
 async function issueEmailVerificationToken(userId: string, email: string) {
@@ -668,6 +802,133 @@ export async function verifyEmailAddress(tokenInput: string) {
   }
 
   return hydrateUser(userRow);
+}
+
+type LoginStartResult =
+  | { method: "password" }
+  | { method: "admin_otp"; message: string };
+
+export async function startLoginFlow(emailInput: string): Promise<LoginStartResult> {
+  await ensureAuthSchema();
+
+  const email = normalizeEmail(emailInput);
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  const userRow = await getUserRowByEmail(email);
+  const isAdminLogin = isAllowlistedAdmin(email) || Boolean(userRow?.is_admin);
+
+  if (!isAdminLogin) {
+    if (!userRow) {
+      throw new AuthError(404, "ACCOUNT_NOT_FOUND", "No account found. Please sign up first.");
+    }
+
+    return { method: "password" };
+  }
+
+  const recentOtp = await sql<{ created_at: Date }>`
+    SELECT created_at
+    FROM auth_admin_otp_codes
+    WHERE email = ${email}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  if (recentOtp.rows[0]) {
+    const secondsAgo = (Date.now() - new Date(recentOtp.rows[0].created_at).getTime()) / 1000;
+    if (secondsAgo < ADMIN_OTP_RESEND_COOLDOWN_SECONDS) {
+      throw new AuthError(
+        429,
+        "OTP_TOO_SOON",
+        `Please wait ${Math.ceil(ADMIN_OTP_RESEND_COOLDOWN_SECONDS - secondsAgo)} seconds before requesting another passcode.`
+      );
+    }
+  }
+
+  const otpCode = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const expiresAt = new Date(Date.now() + ADMIN_OTP_EXPIRES_MINUTES * 60 * 1000);
+
+  await sql`
+    INSERT INTO auth_admin_otp_codes (email, otp_hash, expires_at)
+    VALUES (${email}, ${hashAdminOtp(email, otpCode)}, ${expiresAt.toISOString()})
+  `;
+
+  await sendAdminLoginOtpEmail(email, otpCode);
+
+  return {
+    method: "admin_otp",
+    message: "One-time passcode sent. Please check your email.",
+  };
+}
+
+export async function verifyAdminLoginOtp(params: { email: string; code: string }) {
+  await ensureAuthSchema();
+
+  const email = normalizeEmail(params.email);
+  const code = params.code.trim();
+
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  if (!/^\d{6}$/.test(code)) {
+    throw new AuthError(400, "INVALID_OTP", "Please enter a valid 6-digit passcode.");
+  }
+
+  const userRow = await getUserRowByEmail(email);
+  const isAdminLogin = isAllowlistedAdmin(email) || Boolean(userRow?.is_admin);
+  if (!isAdminLogin) {
+    throw new AuthError(403, "ADMIN_ONLY", "This email is not allowed for admin passcode login.");
+  }
+
+  const otpResult = await sql<AuthAdminOtpRow>`
+    SELECT id, otp_hash, attempts, expires_at
+    FROM auth_admin_otp_codes
+    WHERE email = ${email} AND used_at IS NULL
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  const otpRow = otpResult.rows[0];
+  if (!otpRow) {
+    throw new AuthError(400, "OTP_NOT_FOUND", "No active passcode found. Request a new code.");
+  }
+
+  if (new Date(otpRow.expires_at).getTime() < Date.now()) {
+    await sql`
+      UPDATE auth_admin_otp_codes
+      SET used_at = NOW()
+      WHERE id = ${otpRow.id}
+    `;
+    throw new AuthError(400, "OTP_EXPIRED", "This passcode has expired. Request a new one.");
+  }
+
+  if (otpRow.attempts >= ADMIN_OTP_MAX_ATTEMPTS) {
+    throw new AuthError(429, "OTP_LOCKED", "Too many invalid attempts. Request a new passcode.");
+  }
+
+  if (hashAdminOtp(email, code) !== otpRow.otp_hash) {
+    await sql`
+      UPDATE auth_admin_otp_codes
+      SET attempts = attempts + 1
+      WHERE id = ${otpRow.id}
+    `;
+    throw new AuthError(400, "OTP_INCORRECT", "Incorrect passcode.");
+  }
+
+  await sql`
+    UPDATE auth_admin_otp_codes
+    SET used_at = NOW()
+    WHERE id = ${otpRow.id}
+  `;
+
+  if (!userRow) {
+    return createSessionForUser(await ensureAdminUserAccount(email));
+  }
+
+  await ensureAdminFlag(email, userRow);
+  return createSessionForUser(await ensureAdminUserAccount(email));
 }
 
 export async function loginWithPassword(params: { email: string; password: string }) {
