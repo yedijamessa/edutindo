@@ -123,7 +123,9 @@ function FounderDetail({
           </div>
 
           <div className="p-8 md:p-10 lg:p-12">
-            <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">{name}</h3>
+            <h3 translate="no" className="notranslate text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+              {name}
+            </h3>
             <div className="mt-7 space-y-4">
               {lines.map((l, idx) => (
                 <p key={idx} className="relative pl-6 text-base leading-relaxed text-slate-600">
@@ -252,7 +254,13 @@ export default function AboutPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 leading-none mb-1">
                       {f.role}
                     </p>
-                    <p className={cn("text-base font-semibold leading-tight truncate", isActive ? "text-sky-700" : "text-slate-900")}>
+                    <p
+                      translate="no"
+                      className={cn(
+                        "notranslate text-base font-semibold leading-tight truncate",
+                        isActive ? "text-sky-700" : "text-slate-900"
+                      )}
+                    >
                       {f.name}
                     </p>
                   </div>

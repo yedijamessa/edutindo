@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 type CurrentUser = {
   id: string;
   email: string;
+  firstName: string;
+  lastName: string;
+  emailVerified: boolean;
   isAdmin: boolean;
   portals: string[];
 };
@@ -94,6 +97,11 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
   if (mobile) {
     return (
       <div className="space-y-2">
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/dashboard" onClick={onNavigate}>
+            Dashboard
+          </Link>
+        </Button>
         {user.isAdmin && (
           <Button asChild variant="outline" className="w-full">
             <Link href="/admin" onClick={onNavigate}>
@@ -110,6 +118,9 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
 
   return (
     <div className="flex items-center gap-2">
+      <Button asChild variant="outline" size="sm">
+        <Link href="/dashboard">Dashboard</Link>
+      </Button>
       {user.isAdmin && (
         <Button asChild variant="outline" size="sm">
           <Link href="/admin">Admin</Link>

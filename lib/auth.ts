@@ -1,36 +1,40 @@
 import "server-only";
 
-import { randomBytes, randomInt, randomUUID, createHash } from "crypto";
+import { createHash, pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import nodemailer from "nodemailer";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@vercel/postgres";
 import { PORTAL_OPTIONS, SESSION_COOKIE_NAME, type PortalKey } from "@/lib/auth-shared";
 
-
 export interface AuthUser {
   id: string;
   email: string;
+  firstName: string;
+  lastName: string;
+  emailVerified: boolean;
   isAdmin: boolean;
   portals: PortalKey[];
   createdAt: Date;
 }
 
-type AuthMode = "login" | "signup";
-
 type AuthUserRow = {
   id: string;
   email: string;
+  first_name: string | null;
+  last_name: string | null;
+  password_hash: string | null;
+  email_verified: boolean;
+  email_verified_at: Date | null;
   is_admin: boolean;
   created_at: Date;
 };
 
-type AuthOtpRow = {
+type AuthEmailVerificationRow = {
   id: number;
-  otp_hash: string;
-  attempts: number;
+  user_id: string;
+  email: string;
   expires_at: Date;
-  mode: string;
 };
 
 type SmtpCandidate = {
@@ -56,12 +60,12 @@ const ADMIN_ALLOWLIST = new Set(
   ].map((email) => email.toLowerCase())
 );
 
-const OTP_EXPIRY_MINUTES = Number(process.env.AUTH_OTP_EXPIRES_MINUTES ?? 10);
-const OTP_MAX_ATTEMPTS = Number(process.env.AUTH_OTP_MAX_ATTEMPTS ?? 5);
 const SESSION_MAX_DAYS = Number(process.env.AUTH_SESSION_MAX_DAYS ?? 14);
 const SESSION_MAX_SECONDS = SESSION_MAX_DAYS * 24 * 60 * 60;
 const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-auth-secret";
-const OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.AUTH_OTP_RESEND_COOLDOWN_SECONDS ?? 30);
+const EMAIL_VERIFICATION_EXPIRES_HOURS = Number(process.env.AUTH_EMAIL_VERIFICATION_EXPIRES_HOURS ?? 24);
+const PASSWORD_MIN_LENGTH = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 8);
+const PASSWORD_HASH_ITERATIONS = Number(process.env.AUTH_PASSWORD_HASH_ITERATIONS ?? 120000);
 const PORTAL_SET = new Set<string>(PORTAL_OPTIONS);
 
 let authSchemaReady: Promise<void> | null = null;
@@ -89,12 +93,67 @@ function isAllowlistedAdmin(email: string) {
   return ADMIN_ALLOWLIST.has(email);
 }
 
-function hashOtp(email: string, code: string) {
-  return createHash("sha256").update(`${AUTH_SECRET}:otp:${email}:${code}`).digest("hex");
+function sanitizeName(value: string, field: "first name" | "last name") {
+  const cleaned = value.trim();
+  if (!cleaned) {
+    throw new AuthError(400, "INVALID_NAME", `Please enter your ${field}.`);
+  }
+
+  if (cleaned.length > 80) {
+    throw new AuthError(400, "INVALID_NAME", `${field[0].toUpperCase()}${field.slice(1)} is too long.`);
+  }
+
+  return cleaned;
+}
+
+function validatePassword(password: string) {
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    throw new AuthError(
+      400,
+      "WEAK_PASSWORD",
+      `Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`
+    );
+  }
+
+  if (password.length > 128) {
+    throw new AuthError(400, "WEAK_PASSWORD", "Password is too long.");
+  }
 }
 
 function hashSessionToken(token: string) {
   return createHash("sha256").update(`${AUTH_SECRET}:session:${token}`).digest("hex");
+}
+
+function hashEmailVerificationToken(token: string) {
+  return createHash("sha256").update(`${AUTH_SECRET}:verify-email:${token}`).digest("hex");
+}
+
+function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(password, salt, PASSWORD_HASH_ITERATIONS, 64, "sha512").toString("hex");
+  return `pbkdf2_sha512$${PASSWORD_HASH_ITERATIONS}$${salt}$${hash}`;
+}
+
+function verifyPassword(password: string, storedHash: string) {
+  const [algorithm, iterationText, salt, expectedHashHex] = storedHash.split("$");
+
+  if (algorithm !== "pbkdf2_sha512") return false;
+
+  const iterations = Number(iterationText);
+  if (!Number.isInteger(iterations) || iterations <= 0) return false;
+
+  if (!/^[0-9a-f]+$/i.test(expectedHashHex) || expectedHashHex.length % 2 !== 0) {
+    return false;
+  }
+
+  const expectedHashBuffer = Buffer.from(expectedHashHex, "hex");
+  const actualHashBuffer = pbkdf2Sync(password, salt, iterations, expectedHashBuffer.length, "sha512");
+
+  if (expectedHashBuffer.length !== actualHashBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(actualHashBuffer, expectedHashBuffer);
 }
 
 function getSmtpConfig() {
@@ -164,9 +223,15 @@ function buildSmtpCandidates(): SmtpCandidate[] {
   }));
 }
 
-async function sendOtpEmail(email: string, code: string) {
+function getAppBaseUrl() {
+  const configured = process.env.AUTH_APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return configured.endsWith("/") ? configured.slice(0, -1) : configured;
+}
+
+async function sendEmailVerification(email: string, firstName: string, token: string) {
   const candidates = buildSmtpCandidates();
-  const minutes = OTP_EXPIRY_MINUTES;
+  const verificationUrl = `${getAppBaseUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+  const expiresHours = EMAIL_VERIFICATION_EXPIRES_HOURS;
   let lastError: unknown = null;
 
   for (const smtp of candidates) {
@@ -184,15 +249,27 @@ async function sendOtpEmail(email: string, code: string) {
       await transporter.sendMail({
         from: smtp.from,
         to: email,
-        subject: "Your Edutindo one-time passcode",
-        text: `Your one-time passcode is ${code}. It expires in ${minutes} minutes.\n\nIf you did not request this code, please ignore this email.`,
+        subject: "Verify your Edutindo account",
+        text:
+          `Hi ${firstName},\n\n` +
+          `Please verify your Edutindo account by opening this link:\n${verificationUrl}\n\n` +
+          `This link expires in ${expiresHours} hours.\n\n` +
+          "If you did not create this account, you can ignore this email.",
         html: `
           <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">
-            <h2 style="margin:0 0 12px;">Edutindo Sign-In Code</h2>
-            <p style="margin:0 0 12px;">Use this one-time passcode to continue:</p>
-            <div style="font-size:32px;font-weight:700;letter-spacing:6px;margin:8px 0 16px;">${code}</div>
-            <p style="margin:0 0 8px;">This code expires in <strong>${minutes} minutes</strong>.</p>
-            <p style="margin:0;color:#64748b;">If you did not request this code, you can safely ignore this email.</p>
+            <h2 style="margin:0 0 12px;">Welcome to Edutindo</h2>
+            <p style="margin:0 0 12px;">Hi ${firstName}, please verify your account to continue.</p>
+            <p style="margin:0 0 16px;">
+              <a
+                href="${verificationUrl}"
+                style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;"
+              >
+                Verify Email
+              </a>
+            </p>
+            <p style="margin:0 0 8px;">Or copy this link into your browser:</p>
+            <p style="margin:0 0 8px;word-break:break-all;color:#1d4ed8;">${verificationUrl}</p>
+            <p style="margin:0;color:#64748b;">This link expires in ${expiresHours} hours.</p>
           </div>
         `,
       });
@@ -200,15 +277,15 @@ async function sendOtpEmail(email: string, code: string) {
       return;
     } catch (error) {
       lastError = error;
-      console.warn(`OTP email failed via SMTP ${smtp.host}:${smtp.port} secure=${smtp.secure}`);
+      console.warn(`Verification email failed via SMTP ${smtp.host}:${smtp.port} secure=${smtp.secure}`);
     }
   }
 
-  console.error("All SMTP candidates failed for OTP email:", lastError);
+  console.error("All SMTP candidates failed for verification email:", lastError);
   throw new AuthError(
     500,
     "EMAIL_SEND_FAILED",
-    "Failed to send passcode email. Check SMTP host/port and credentials."
+    "Failed to send verification email. Check SMTP host/port and credentials."
   );
 }
 
@@ -220,19 +297,32 @@ export async function ensureAuthSchema() {
       CREATE TABLE IF NOT EXISTS auth_users (
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
+        first_name TEXT,
+        last_name TEXT,
+        password_hash TEXT,
+        email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+        email_verified_at TIMESTAMPTZ,
         is_admin BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `;
 
+    await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS first_name TEXT;`;
+    await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS last_name TEXT;`;
+    await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS password_hash TEXT;`;
+    await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN;`;
+    await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;`;
+    await sql`UPDATE auth_users SET email_verified = TRUE WHERE email_verified IS NULL;`;
+    await sql`ALTER TABLE auth_users ALTER COLUMN email_verified SET DEFAULT FALSE;`;
+    await sql`ALTER TABLE auth_users ALTER COLUMN email_verified SET NOT NULL;`;
+
     await sql`
-      CREATE TABLE IF NOT EXISTS auth_otp_codes (
+      CREATE TABLE IF NOT EXISTS auth_email_verifications (
         id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
         email TEXT NOT NULL,
-        otp_hash TEXT NOT NULL,
-        mode TEXT NOT NULL,
-        attempts INTEGER NOT NULL DEFAULT 0,
+        token_hash TEXT NOT NULL UNIQUE,
         expires_at TIMESTAMPTZ NOT NULL,
         used_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -240,8 +330,8 @@ export async function ensureAuthSchema() {
     `;
 
     await sql`
-      CREATE INDEX IF NOT EXISTS auth_otp_codes_email_created_idx
-      ON auth_otp_codes (email, created_at DESC);
+      CREATE INDEX IF NOT EXISTS auth_email_verifications_user_idx
+      ON auth_email_verifications (user_id, created_at DESC);
     `;
 
     await sql`
@@ -280,21 +370,23 @@ export async function ensureAuthSchema() {
 
 async function getUserRowByEmail(email: string) {
   const result = await sql<AuthUserRow>`
-    SELECT id, email, is_admin, created_at
+    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, created_at
     FROM auth_users
     WHERE email = ${email}
     LIMIT 1
   `;
+
   return result.rows[0] ?? null;
 }
 
 async function getUserRowById(userId: string) {
   const result = await sql<AuthUserRow>`
-    SELECT id, email, is_admin, created_at
+    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, created_at
     FROM auth_users
     WHERE id = ${userId}
     LIMIT 1
   `;
+
   return result.rows[0] ?? null;
 }
 
@@ -305,6 +397,7 @@ async function getPortalsForUser(userId: string) {
     WHERE user_id = ${userId}
     ORDER BY portal ASC
   `;
+
   return result.rows
     .map((row) => row.portal)
     .filter((portal): portal is PortalKey => PORTAL_SET.has(portal));
@@ -316,28 +409,43 @@ async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
   return {
     id: userRow.id,
     email: userRow.email,
+    firstName: userRow.first_name ?? "",
+    lastName: userRow.last_name ?? "",
+    emailVerified: userRow.email_verified,
     isAdmin: userRow.is_admin,
     portals,
     createdAt: new Date(userRow.created_at),
   };
 }
 
-async function createUser(email: string, forceAdmin = false): Promise<AuthUser> {
+function sanitizePortals(input: string[]): PortalKey[] {
+  const unique = Array.from(new Set(input.map((portal) => portal.toLowerCase().trim())));
+  return unique.filter((portal): portal is PortalKey => PORTAL_SET.has(portal));
+}
+
+async function createUser(params: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  passwordHash: string;
+  forceAdmin?: boolean;
+}) {
   const id = randomUUID();
-  const isAdmin = forceAdmin || isAllowlistedAdmin(email);
+  const isAdmin = Boolean(params.forceAdmin) || isAllowlistedAdmin(params.email);
 
   await sql`
-    INSERT INTO auth_users (id, email, is_admin)
-    VALUES (${id}, ${email}, ${isAdmin})
+    INSERT INTO auth_users (id, email, first_name, last_name, password_hash, email_verified, is_admin)
+    VALUES (${id}, ${params.email}, ${params.firstName}, ${params.lastName}, ${params.passwordHash}, FALSE, ${isAdmin})
   `;
 
-  const defaultPortals: PortalKey[] = isAdmin ? [...PORTAL_OPTIONS] : ["student"];
+  const defaultPortals: PortalKey[] = isAdmin ? [...PORTAL_OPTIONS] : [];
   await setUserPortals(id, defaultPortals);
 
   const userRow = await getUserRowById(id);
   if (!userRow) {
     throw new AuthError(500, "USER_CREATE_FAILED", "Failed to create user.");
   }
+
   return hydrateUser(userRow);
 }
 
@@ -350,16 +458,35 @@ async function ensureAdminFlag(email: string, existingUser: AuthUserRow) {
     WHERE id = ${existingUser.id}
   `;
 
-  await sql`
-    INSERT INTO auth_user_portals (user_id, portal)
-    VALUES (${existingUser.id}, ${"admin"})
-    ON CONFLICT (user_id, portal) DO NOTHING
-  `;
+  await setUserPortals(existingUser.id, [...PORTAL_OPTIONS]);
 }
 
-function sanitizePortals(input: string[]): PortalKey[] {
-  const unique = Array.from(new Set(input.map((portal) => portal.toLowerCase().trim())));
-  return unique.filter((portal): portal is PortalKey => PORTAL_SET.has(portal));
+async function issueEmailVerificationToken(userId: string, email: string) {
+  const rawToken = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_EXPIRES_HOURS * 60 * 60 * 1000);
+
+  await sql`
+    UPDATE auth_email_verifications
+    SET used_at = NOW()
+    WHERE user_id = ${userId} AND used_at IS NULL
+  `;
+
+  await sql`
+    INSERT INTO auth_email_verifications (user_id, email, token_hash, expires_at)
+    VALUES (${userId}, ${email}, ${hashEmailVerificationToken(rawToken)}, ${expiresAt.toISOString()})
+  `;
+
+  return rawToken;
+}
+
+async function sendVerificationEmailForUser(userId: string) {
+  const userRow = await getUserRowById(userId);
+  if (!userRow) {
+    throw new AuthError(404, "USER_NOT_FOUND", "User not found.");
+  }
+
+  const token = await issueEmailVerificationToken(userRow.id, userRow.email);
+  await sendEmailVerification(userRow.email, userRow.first_name ?? "there", token);
 }
 
 export async function setUserPortals(userId: string, portals: PortalKey[]) {
@@ -389,124 +516,200 @@ export async function setUserPortals(userId: string, portals: PortalKey[]) {
   }
 }
 
-export async function requestOtpCode(params: { email: string; mode: AuthMode }) {
+export async function signupWithPassword(params: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}) {
   await ensureAuthSchema();
 
   const email = normalizeEmail(params.email);
+  const firstName = sanitizeName(params.firstName, "first name");
+  const lastName = sanitizeName(params.lastName, "last name");
+  const password = params.password;
+
   if (!isValidEmail(email)) {
     throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
   }
 
+  validatePassword(password);
+
+  const passwordHash = hashPassword(password);
   const existingUser = await getUserRowByEmail(email);
 
-  if (params.mode === "login" && !existingUser && !isAllowlistedAdmin(email)) {
-    throw new AuthError(404, "ACCOUNT_NOT_FOUND", "No account found. Please sign up first.");
-  }
-
-  if (params.mode === "signup" && existingUser) {
+  if (existingUser?.email_verified && existingUser.password_hash) {
     throw new AuthError(409, "ACCOUNT_EXISTS", "This email is already registered. Please log in.");
   }
 
-  const recentOtp = await sql<{ created_at: Date }>`
-    SELECT created_at
-    FROM auth_otp_codes
-    WHERE email = ${email}
+  if (existingUser) {
+    const shouldBeAdmin = existingUser.is_admin || isAllowlistedAdmin(email);
+
+    await sql`
+      UPDATE auth_users
+      SET
+        first_name = ${firstName},
+        last_name = ${lastName},
+        password_hash = ${passwordHash},
+        is_admin = ${shouldBeAdmin},
+        email_verified = FALSE,
+        email_verified_at = NULL,
+        updated_at = NOW()
+      WHERE id = ${existingUser.id}
+    `;
+
+    await setUserPortals(existingUser.id, shouldBeAdmin ? [...PORTAL_OPTIONS] : []);
+    await sendVerificationEmailForUser(existingUser.id);
+
+    return {
+      ok: true as const,
+      status: "resent" as const,
+      message: "A new verification email was sent.",
+    };
+  }
+
+  const user = await createUser({
+    email,
+    firstName,
+    lastName,
+    passwordHash,
+  });
+
+  try {
+    await sendVerificationEmailForUser(user.id);
+  } catch (error) {
+    await sql`
+      DELETE FROM auth_users
+      WHERE id = ${user.id}
+    `;
+    throw error;
+  }
+
+  return {
+    ok: true as const,
+    status: "created" as const,
+    message: "Verification email sent. Please check your inbox.",
+  };
+}
+
+export async function resendVerificationEmail(emailInput: string) {
+  await ensureAuthSchema();
+
+  const email = normalizeEmail(emailInput);
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  const userRow = await getUserRowByEmail(email);
+  if (!userRow) {
+    throw new AuthError(404, "ACCOUNT_NOT_FOUND", "No account found with that email.");
+  }
+
+  if (userRow.email_verified) {
+    throw new AuthError(409, "ALREADY_VERIFIED", "This email is already verified. Please log in.");
+  }
+
+  await sendVerificationEmailForUser(userRow.id);
+
+  return {
+    ok: true as const,
+    message: "Verification email sent. Please check your inbox.",
+  };
+}
+
+export async function verifyEmailAddress(tokenInput: string) {
+  await ensureAuthSchema();
+
+  const token = tokenInput.trim();
+  if (token.length < 20) {
+    throw new AuthError(400, "INVALID_TOKEN", "Invalid verification token.");
+  }
+
+  const tokenHash = hashEmailVerificationToken(token);
+  const result = await sql<AuthEmailVerificationRow>`
+    SELECT id, user_id, email, expires_at
+    FROM auth_email_verifications
+    WHERE token_hash = ${tokenHash}
+      AND used_at IS NULL
     ORDER BY created_at DESC
     LIMIT 1
   `;
 
-  if (recentOtp.rows[0]) {
-    const secondsAgo = (Date.now() - new Date(recentOtp.rows[0].created_at).getTime()) / 1000;
-    if (secondsAgo < OTP_RESEND_COOLDOWN_SECONDS) {
-      throw new AuthError(
-        429,
-        "OTP_TOO_SOON",
-        `Please wait ${Math.ceil(OTP_RESEND_COOLDOWN_SECONDS - secondsAgo)} seconds before requesting another code.`
-      );
-    }
+  const verification = result.rows[0];
+  if (!verification) {
+    throw new AuthError(400, "INVALID_TOKEN", "Invalid or already used verification token.");
   }
 
-  const otpCode = randomInt(0, 1_000_000).toString().padStart(6, "0");
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+  if (new Date(verification.expires_at).getTime() < Date.now()) {
+    await sql`
+      UPDATE auth_email_verifications
+      SET used_at = NOW()
+      WHERE id = ${verification.id}
+    `;
+
+    throw new AuthError(400, "TOKEN_EXPIRED", "This verification link has expired. Request a new one.");
+  }
 
   await sql`
-    INSERT INTO auth_otp_codes (email, otp_hash, mode, expires_at)
-    VALUES (${email}, ${hashOtp(email, otpCode)}, ${params.mode}, ${expiresAt.toISOString()})
+    UPDATE auth_email_verifications
+    SET used_at = NOW()
+    WHERE id = ${verification.id}
   `;
 
-  await sendOtpEmail(email, otpCode);
+  await sql`
+    UPDATE auth_users
+    SET email_verified = TRUE, email_verified_at = NOW(), updated_at = NOW()
+    WHERE id = ${verification.user_id} AND email = ${verification.email}
+  `;
+
+  const userRow = await getUserRowById(verification.user_id);
+  if (!userRow) {
+    throw new AuthError(500, "USER_NOT_FOUND", "Failed to load user after verification.");
+  }
+
+  return hydrateUser(userRow);
 }
 
-export async function verifyOtpCode(params: { email: string; code: string; mode: AuthMode }) {
+export async function loginWithPassword(params: { email: string; password: string }) {
   await ensureAuthSchema();
 
   const email = normalizeEmail(params.email);
-  const code = params.code.trim();
+  const password = params.password;
 
   if (!isValidEmail(email)) {
     throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
   }
 
-  if (!/^\d{6}$/.test(code)) {
-    throw new AuthError(400, "INVALID_OTP", "Please enter a valid 6-digit passcode.");
+  if (!password) {
+    throw new AuthError(400, "INVALID_PASSWORD", "Please enter your password.");
   }
-
-  const otpResult = await sql<AuthOtpRow>`
-    SELECT id, otp_hash, attempts, expires_at, mode
-    FROM auth_otp_codes
-    WHERE email = ${email} AND used_at IS NULL
-    ORDER BY created_at DESC
-    LIMIT 1
-  `;
-
-  const otpRow = otpResult.rows[0];
-  if (!otpRow) {
-    throw new AuthError(400, "OTP_NOT_FOUND", "No active passcode found. Request a new code.");
-  }
-
-  if (new Date(otpRow.expires_at).getTime() < Date.now()) {
-    await sql`
-      UPDATE auth_otp_codes
-      SET used_at = NOW()
-      WHERE id = ${otpRow.id}
-    `;
-    throw new AuthError(400, "OTP_EXPIRED", "This passcode has expired. Request a new one.");
-  }
-
-  if (otpRow.attempts >= OTP_MAX_ATTEMPTS) {
-    throw new AuthError(429, "OTP_LOCKED", "Too many invalid attempts. Request a new code.");
-  }
-
-  const expectedHash = hashOtp(email, code);
-  if (expectedHash !== otpRow.otp_hash) {
-    await sql`
-      UPDATE auth_otp_codes
-      SET attempts = attempts + 1
-      WHERE id = ${otpRow.id}
-    `;
-    throw new AuthError(400, "OTP_INCORRECT", "Incorrect passcode.");
-  }
-
-  await sql`
-    UPDATE auth_otp_codes
-    SET used_at = NOW()
-    WHERE id = ${otpRow.id}
-  `;
 
   let userRow = await getUserRowByEmail(email);
-
-  if (params.mode === "login" && !userRow && !isAllowlistedAdmin(email)) {
+  if (!userRow) {
     throw new AuthError(404, "ACCOUNT_NOT_FOUND", "No account found. Please sign up first.");
   }
 
-  if (!userRow) {
-    return createSessionForUser(await createUser(email));
+  if (!userRow.password_hash) {
+    throw new AuthError(
+      400,
+      "PASSWORD_NOT_SET",
+      "This account does not have a password yet. Please sign up again to set your password."
+    );
+  }
+
+  if (!verifyPassword(password, userRow.password_hash)) {
+    throw new AuthError(401, "INVALID_CREDENTIALS", "Invalid email or password.");
   }
 
   await ensureAdminFlag(email, userRow);
   userRow = await getUserRowById(userRow.id);
+
   if (!userRow) {
     throw new AuthError(500, "USER_LOAD_FAILED", "Failed to load account.");
+  }
+
+  if (!userRow.email_verified) {
+    throw new AuthError(403, "EMAIL_NOT_VERIFIED", "Please verify your email before logging in.");
   }
 
   return createSessionForUser(await hydrateUser(userRow));
@@ -621,6 +824,15 @@ export function clearSessionCookie(response: {
   });
 }
 
+export async function requireSignedIn(nextPath: string) {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  }
+
+  return user;
+}
+
 export async function requirePortalAccess(portal: PortalKey, nextPath: string) {
   const user = await getCurrentUser();
   if (!user) {
@@ -628,7 +840,7 @@ export async function requirePortalAccess(portal: PortalKey, nextPath: string) {
   }
 
   if (!user.isAdmin && !user.portals.includes(portal)) {
-    redirect("/");
+    redirect("/dashboard?pending=1");
   }
 
   return user;
@@ -638,7 +850,7 @@ export async function listUsersWithPortals() {
   await ensureAuthSchema();
 
   const usersResult = await sql<AuthUserRow>`
-    SELECT id, email, is_admin, created_at
+    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, created_at
     FROM auth_users
     ORDER BY created_at DESC
   `;
@@ -660,13 +872,16 @@ export async function listUsersWithPortals() {
   return usersResult.rows.map((row) => ({
     id: row.id,
     email: row.email,
+    firstName: row.first_name ?? "",
+    lastName: row.last_name ?? "",
+    emailVerified: row.email_verified,
     isAdmin: row.is_admin,
     createdAt: new Date(row.created_at),
     portals: portalsByUser.get(row.id) ?? [],
   }));
 }
 
-export function sanitizeNextPath(nextPath: string | null | undefined, fallback = "/student") {
+export function sanitizeNextPath(nextPath: string | null | undefined, fallback = "/dashboard") {
   if (!nextPath) return fallback;
   if (!nextPath.startsWith("/")) return fallback;
   if (nextPath.startsWith("//")) return fallback;

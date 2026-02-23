@@ -18,6 +18,9 @@ export async function GET(req: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        emailVerified: user.emailVerified,
         isAdmin: user.isAdmin,
         portals: user.portals,
       },

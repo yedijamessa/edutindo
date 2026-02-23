@@ -10,6 +10,9 @@ import { PORTAL_OPTIONS } from "@/lib/auth-shared";
 type AdminUser = {
   id: string;
   email: string;
+  firstName: string;
+  lastName: string;
+  emailVerified: boolean;
   isAdmin: boolean;
   portals: string[];
   createdAt: string;
@@ -147,12 +150,20 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
                       <p className="font-semibold text-foreground">{user.email}</p>
+                      {(user.firstName || user.lastName) && (
+                        <p className="text-sm text-muted-foreground">
+                          {`${user.firstName} ${user.lastName}`.trim()}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Created {new Date(user.createdAt).toLocaleDateString("en-US")}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       {user.isAdmin && <Badge>Admin</Badge>}
+                      <Badge variant={user.emailVerified ? "default" : "secondary"}>
+                        {user.emailVerified ? "Verified" : "Unverified"}
+                      </Badge>
                       <Badge variant="secondary">{selectedPortals.size} portals</Badge>
                     </div>
                   </div>
