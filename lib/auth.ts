@@ -70,6 +70,9 @@ const ADMIN_ALLOWLIST = new Set(
 const SESSION_MAX_DAYS = Number(process.env.AUTH_SESSION_MAX_DAYS ?? 14);
 const SESSION_MAX_SECONDS = SESSION_MAX_DAYS * 24 * 60 * 60;
 const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-auth-secret";
+const DEMO_PORTAL_CODE = process.env.DEMO_PORTAL_CODE ?? "123456";
+const DEMO_ACCESS_MAX_DAYS = Number(process.env.DEMO_ACCESS_MAX_DAYS ?? 7);
+const DEMO_ACCESS_MAX_SECONDS = DEMO_ACCESS_MAX_DAYS * 24 * 60 * 60;
 const EMAIL_VERIFICATION_EXPIRES_HOURS = Number(process.env.AUTH_EMAIL_VERIFICATION_EXPIRES_HOURS ?? 24);
 const PASSWORD_MIN_LENGTH = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 8);
 const PASSWORD_HASH_ITERATIONS = Number(process.env.AUTH_PASSWORD_HASH_ITERATIONS ?? 120000);
@@ -77,6 +80,7 @@ const ADMIN_OTP_EXPIRES_MINUTES = Number(process.env.AUTH_ADMIN_OTP_EXPIRES_MINU
 const ADMIN_OTP_MAX_ATTEMPTS = Number(process.env.AUTH_ADMIN_OTP_MAX_ATTEMPTS ?? 5);
 const ADMIN_OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.AUTH_ADMIN_OTP_RESEND_COOLDOWN_SECONDS ?? 30);
 const PORTAL_SET = new Set<string>(PORTAL_OPTIONS);
+export const DEMO_ACCESS_COOKIE_NAME = "edutindo_demo_portal_access";
 
 let authSchemaReady: Promise<void> | null = null;
 
@@ -132,6 +136,15 @@ function validatePassword(password: string) {
 
 function hashSessionToken(token: string) {
   return createHash("sha256").update(`${AUTH_SECRET}:session:${token}`).digest("hex");
+}
+
+function hashDemoAccessCode(code: string) {
+  return createHash("sha256").update(`${AUTH_SECRET}:demo-access:${code}`).digest("hex");
+}
+
+function hasValidDemoAccessToken(token: string | null | undefined) {
+  if (!token) return false;
+  return token === hashDemoAccessCode(DEMO_PORTAL_CODE);
 }
 
 function hashEmailVerificationToken(token: string) {
@@ -1125,6 +1138,36 @@ export function clearSessionCookie(response: {
   });
 }
 
+export function verifyDemoPortalCode(codeInput: string) {
+  if (codeInput.trim() !== DEMO_PORTAL_CODE) {
+    throw new AuthError(401, "INVALID_DEMO_CODE", "Invalid demo access code.");
+  }
+}
+
+export function applyDemoAccessCookie(response: {
+  cookies: {
+    set: (options: {
+      name: string;
+      value: string;
+      httpOnly: boolean;
+      secure: boolean;
+      sameSite: "lax" | "strict" | "none";
+      path: string;
+      maxAge: number;
+    }) => void;
+  };
+}) {
+  response.cookies.set({
+    name: DEMO_ACCESS_COOKIE_NAME,
+    value: hashDemoAccessCode(DEMO_PORTAL_CODE),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: DEMO_ACCESS_MAX_SECONDS,
+  });
+}
+
 export async function requireSignedIn(nextPath: string) {
   const user = await getCurrentUser();
   if (!user) {
@@ -1137,10 +1180,29 @@ export async function requireSignedIn(nextPath: string) {
 export async function requirePortalAccess(portal: PortalKey, nextPath: string) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+    if (portal === "admin") {
+      redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+    }
+
+    const cookieStore = await cookies();
+    const demoToken = cookieStore.get(DEMO_ACCESS_COOKIE_NAME)?.value;
+
+    if (!hasValidDemoAccessToken(demoToken)) {
+      redirect(`/demo-access?next=${encodeURIComponent(nextPath)}`);
+    }
+
+    return null;
   }
 
   if (!user.isAdmin && !user.portals.includes(portal)) {
+    if (portal !== "admin") {
+      const cookieStore = await cookies();
+      const demoToken = cookieStore.get(DEMO_ACCESS_COOKIE_NAME)?.value;
+      if (hasValidDemoAccessToken(demoToken)) {
+        return user;
+      }
+    }
+
     redirect("/dashboard?pending=1");
   }
 
