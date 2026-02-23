@@ -260,7 +260,7 @@ async function sendEmailVerification(email: string, firstName: string, token: st
         },
       });
 
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: smtp.from,
         to: email,
         subject: "Verify your Edutindo account",
@@ -288,10 +288,17 @@ async function sendEmailVerification(email: string, firstName: string, token: st
         `,
       });
 
+      console.info(
+        `[auth-email] verification sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} accepted=${(info.accepted ?? []).join(",")} rejected=${(info.rejected ?? []).join(",")}`
+      );
+
       return;
     } catch (error) {
       lastError = error;
-      console.warn(`Verification email failed via SMTP ${smtp.host}:${smtp.port} secure=${smtp.secure}`);
+      console.warn(
+        `[auth-email] verification failed to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure}`,
+        error
+      );
     }
   }
 
@@ -320,7 +327,7 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
         },
       });
 
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: smtp.from,
         to: email,
         subject: "Your Edutindo admin one-time passcode",
@@ -339,10 +346,17 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
         `,
       });
 
+      console.info(
+        `[auth-email] admin-otp sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} accepted=${(info.accepted ?? []).join(",")} rejected=${(info.rejected ?? []).join(",")}`
+      );
+
       return;
     } catch (error) {
       lastError = error;
-      console.warn(`Admin OTP email failed via SMTP ${smtp.host}:${smtp.port} secure=${smtp.secure}`);
+      console.warn(
+        `[auth-email] admin-otp failed to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure}`,
+        error
+      );
     }
   }
 
