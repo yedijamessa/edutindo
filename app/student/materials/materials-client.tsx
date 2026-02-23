@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react";
+import Link from "next/link";
 import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { MaterialCard } from "@/components/lms/material-card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Material } from "@/types/lms";
-import { Search, Plus, FileText, Video, Link as LinkIcon, File, X } from "lucide-react";
+import { Search, Plus, FileText, Video, Link as LinkIcon, File, X, ChevronRight, FlaskConical } from "lucide-react";
 import { createMaterial } from "@/lib/firestore-services";
 import { useRouter } from "next/navigation";
 
@@ -112,6 +113,38 @@ export default function MaterialsClient({ materials }: MaterialsClientProps) {
                                 Add Material
                             </Button>
                         </div>
+
+                        <Card className="border-sky-200 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.22),_transparent_55%),linear-gradient(to_bottom_right,_#ffffff,_#f8fbff)] shadow-[0_24px_40px_-35px_rgba(14,116,144,0.9)]">
+                            <CardContent className="p-6 md:p-7">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                    <div className="space-y-3">
+                                        <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 border border-sky-200">
+                                            Portal Path: Learning Materials &gt; Year 7 &gt; Science
+                                        </Badge>
+                                        <div className="flex items-center gap-3">
+                                            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+                                                <FlaskConical className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-xl font-bold text-slate-900">Year 7 Science Chapters</h2>
+                                                <p className="text-sm text-slate-600">Chapter-by-chapter pages ready for editing.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button asChild variant="outline">
+                                            <Link href="/student/materials/year-7">Open Year 7</Link>
+                                        </Button>
+                                        <Button asChild>
+                                            <Link href="/student/materials/year-7/science">
+                                                Open Science
+                                                <ChevronRight className="w-4 h-4 ml-2" />
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
 
                         {/* Create Material Form */}
                         {isCreating && (

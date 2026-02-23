@@ -87,14 +87,23 @@ const FOUNDERS: Founder[] = [
   },
 ];
 
-function FounderDetail({ founder }: { founder: Founder }) {
+function FounderDetail({
+  founder,
+  activeIndex,
+}: {
+  founder: Founder;
+  activeIndex: number;
+}) {
   const { role, name, imageSrc, imageAlt, lines } = founder;
   return (
-    <Card className="overflow-hidden border-none shadow-xl bg-white/50 backdrop-blur-sm">
-      <CardContent className="p-8 md:p-12">
-        <div className="flex flex-col md:flex-row gap-8 items-start">
-          <div className="shrink-0">
-            <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white shadow-lg">
+    <Card className="overflow-hidden border border-sky-100/80 bg-white/90 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.45)] backdrop-blur-sm">
+      <CardContent className="p-0">
+        <div className="grid md:grid-cols-[280px_1fr]">
+          <div className="relative isolate overflow-hidden bg-gradient-to-b from-sky-50 via-blue-50 to-white p-8 md:p-10">
+            <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-sky-200/50 blur-2xl" />
+            <div className="pointer-events-none absolute -left-14 bottom-0 h-40 w-40 rounded-full bg-blue-100/80 blur-2xl" />
+
+            <div className="relative mx-auto w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl ring-2 ring-sky-100">
               <Image
                 src={imageSrc}
                 alt={imageAlt}
@@ -102,15 +111,25 @@ function FounderDetail({ founder }: { founder: Founder }) {
                 className="object-cover"
               />
             </div>
-          </div>
-          <div className="space-y-4 flex-1">
-            <div>
-              <p className="text-sm font-bold tracking-wider text-muted-foreground uppercase mb-1">{role}</p>
-              <h3 className="text-2xl md:text-3xl font-bold text-foreground">{name}</h3>
+
+            <div className="relative mt-6 text-center">
+              <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">
+                {role}
+              </p>
+              <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                Member {activeIndex + 1} of {FOUNDERS.length}
+              </p>
             </div>
-            <div className="space-y-2 text-muted-foreground leading-relaxed">
+          </div>
+
+          <div className="p-8 md:p-10 lg:p-12">
+            <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">{name}</h3>
+            <div className="mt-7 space-y-4">
               {lines.map((l, idx) => (
-                <p key={idx}>{l}</p>
+                <p key={idx} className="relative pl-6 text-base leading-relaxed text-slate-600">
+                  <span className="absolute left-0 top-[0.62rem] h-2 w-2 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 shadow-[0_0_0_3px_rgba(14,165,233,0.15)]" />
+                  {l}
+                </p>
               ))}
             </div>
           </div>
@@ -184,15 +203,21 @@ export default function AboutPage() {
       </Section>
 
       {/* Founders */}
-      <Section className="bg-white dark:bg-slate-900">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold mb-4">The Team Behind the Vision</h2>
-          <p className="text-muted-foreground">
+      <Section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(14,116,144,0.10),_transparent_48%),linear-gradient(to_bottom,_#f8fbff,_#f1f5f9)] dark:bg-slate-900">
+        <div className="pointer-events-none absolute -left-24 top-28 h-72 w-72 rounded-full bg-cyan-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-20 h-72 w-72 rounded-full bg-blue-200/30 blur-3xl" />
+
+        <div className="relative text-center max-w-3xl mx-auto mb-12">
+          <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-4 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700 shadow-sm">
+            Leadership Team
+          </p>
+          <h2 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900">The Team Behind the Vision</h2>
+          <p className="mt-4 text-lg text-slate-600">
             Meet the trustees and executives who steward the vision and values of Edukasi Terang Indonesia.
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-4 mb-12">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 mb-12">
           {FOUNDERS.map((f, index) => {
             const isActive = index === activeIndex;
             return (
@@ -200,26 +225,54 @@ export default function AboutPage() {
                 key={f.name}
                 onClick={() => setActiveIndex(index)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-2 rounded-full border transition-all duration-200",
+                  "group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                   isActive
-                    ? "bg-blue-50 border-blue-200 shadow-md scale-105"
-                    : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                    ? "-translate-y-0.5 border-sky-300 bg-white shadow-[0_16px_40px_-30px_rgba(14,116,144,0.95)]"
+                    : "border-slate-200/80 bg-white/85 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white"
                 )}
               >
-                <div className="w-8 h-8 rounded-full overflow-hidden relative bg-slate-200">
-                  <Image src={f.imageSrc} alt={f.name} fill className="object-cover" />
-                </div>
-                <div className="text-left">
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground leading-none mb-0.5">{f.role}</p>
-                  <p className={cn("text-sm font-semibold leading-none", isActive ? "text-blue-700" : "text-foreground")}>{f.name}</p>
+                <span
+                  className={cn(
+                    "absolute inset-x-0 top-0 h-1 transition-all duration-300",
+                    isActive ? "bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600" : "bg-slate-100 group-hover:bg-sky-100"
+                  )}
+                />
+
+                <div className="relative flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "w-12 h-12 rounded-full overflow-hidden relative bg-slate-200 ring-2 transition-all duration-300",
+                      isActive ? "ring-sky-200" : "ring-white group-hover:ring-sky-100"
+                    )}
+                  >
+                    <Image src={f.imageSrc} alt={f.name} fill className="object-cover" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 leading-none mb-1">
+                      {f.role}
+                    </p>
+                    <p className={cn("text-base font-semibold leading-tight truncate", isActive ? "text-sky-700" : "text-slate-900")}>
+                      {f.name}
+                    </p>
+                  </div>
+
+                  <span
+                    className={cn(
+                      "ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                      isActive ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-500"
+                    )}
+                  >
+                    {index + 1}
+                  </span>
                 </div>
               </button>
             );
           })}
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          <FounderDetail founder={activeFounder} />
+        <div className="max-w-5xl mx-auto">
+          <FounderDetail founder={activeFounder} activeIndex={activeIndex} />
         </div>
       </Section>
     </div>
