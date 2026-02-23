@@ -8,6 +8,7 @@ import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
 import { LanguageSwitcher } from "../language-switcher"
+import { AuthNavActions } from "../auth/auth-nav-actions"
 
 const navItems = [
     { name: "Home", href: "/" },
@@ -93,6 +94,7 @@ export function Navbar() {
                     <Button asChild size="sm" variant="default">
                         <Link href="/donate">Donate Now</Link>
                     </Button>
+                    <AuthNavActions />
                     <LanguageSwitcher />
                     <ModeToggle />
                 </nav>
@@ -149,6 +151,7 @@ export function Navbar() {
                         <Button asChild className="w-full" variant="default">
                             <Link href="/donate" onClick={() => setIsOpen(false)}>Donate Now</Link>
                         </Button>
+                        <AuthNavActions mobile onNavigate={() => setIsOpen(false)} />
                         <div className="flex justify-center pt-2">
                             <LanguageSwitcher />
                         </div>

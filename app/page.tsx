@@ -12,12 +12,12 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <Section className="pt-20 pb-32 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 overflow-hidden relative">
+      <Section className="pt-8 sm:pt-12 md:pt-20 pb-20 md:pb-32 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 overflow-hidden relative">
         <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-orange-400/20 rounded-full blur-3xl" />
 
         <div className="grid lg:grid-cols-2 gap-12 items-center relative z-10">
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <Badge variant="secondary" className="px-4 py-1 text-sm">
               EDUKASI TERANG INDONESIA
             </Badge>
@@ -33,13 +33,13 @@ export default function HomePage() {
               A Christian STEAM education initiative for Indonesia&apos;s next generation of innovators, leaders, and servant-hearted citizens.
             </p>
 
-            <div className="flex flex-wrap gap-4">
-              <Button size="lg" asChild className="rounded-full text-lg h-14 px-8">
+            <div className="flex flex-nowrap gap-2 sm:gap-4">
+              <Button size="lg" asChild className="rounded-full text-sm sm:text-lg h-11 sm:h-14 px-4 sm:px-8 whitespace-nowrap">
                 <Link href="/get-involved">
-                  Start Your Journey <ArrowRight className="ml-2 h-5 w-5" />
+                  Start Your Journey <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="rounded-full text-lg h-14 px-8">
+              <Button size="lg" variant="outline" asChild className="rounded-full text-sm sm:text-lg h-11 sm:h-14 px-4 sm:px-8 whitespace-nowrap">
                 <Link href="/about">Learn More</Link>
               </Button>
             </div>
