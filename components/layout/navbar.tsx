@@ -31,6 +31,8 @@ export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isPortalDropdownOpen, setIsPortalDropdownOpen] = React.useState(false)
     const [isAdminUser, setIsAdminUser] = React.useState(false)
+    const [isAuthenticated, setIsAuthenticated] = React.useState(false)
+    const [authResolved, setAuthResolved] = React.useState(false)
     const pathname = usePathname()
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
     const showAdminBackButton = isPortalRoute && isAdminUser
@@ -43,10 +45,16 @@ export function Navbar() {
                 const res = await fetch("/api/auth/me", { cache: "no-store" })
                 const data = await res.json()
                 if (!isMounted) return
+                setIsAuthenticated(Boolean(data?.authenticated))
                 setIsAdminUser(Boolean(data?.authenticated && data?.user?.isAdmin))
             } catch (error) {
                 console.error("navbar auth state load error:", error)
-                if (isMounted) setIsAdminUser(false)
+                if (isMounted) {
+                    setIsAuthenticated(false)
+                    setIsAdminUser(false)
+                }
+            } finally {
+                if (isMounted) setAuthResolved(true)
             }
         }
 
@@ -56,6 +64,16 @@ export function Navbar() {
             isMounted = false
         }
     }, [pathname])
+
+    const getPortalHref = React.useCallback(
+        (portalPath: string) => {
+            if (authResolved && !isAuthenticated) {
+                return `/demo-access?next=${encodeURIComponent(portalPath)}`
+            }
+            return portalPath
+        },
+        [authResolved, isAuthenticated]
+    )
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -117,7 +135,7 @@ export function Navbar() {
                                 {portalItems.map((item) => (
                                     <Link
                                         key={item.href}
-                                        href={item.href}
+                                        href={getPortalHref(item.href)}
                                         onClick={() => setIsPortalDropdownOpen(false)}
                                         className={cn(
                                             "block px-4 py-2 text-sm transition-colors hover:bg-accent",
@@ -197,7 +215,7 @@ export function Navbar() {
                             {portalItems.map((item) => (
                                 <Link
                                     key={item.href}
-                                    href={item.href}
+                                    href={getPortalHref(item.href)}
                                     className={cn(
                                         "block py-2 text-sm font-medium transition-colors hover:text-primary",
                                         pathname.startsWith(item.href)
