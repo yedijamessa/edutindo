@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { Menu, X, ChevronDown } from "lucide-react"
+import { Menu, X, ChevronDown, ArrowLeft } from "lucide-react"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
@@ -24,23 +25,55 @@ const portalItems = [
     { name: "Principal Portal", href: "/principal" },
 ]
 
+const portalRoutePrefixes = ["/student", "/teacher", "/parent", "/principal", "/admin"] as const
+
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isPortalDropdownOpen, setIsPortalDropdownOpen] = React.useState(false)
+    const [isAdminUser, setIsAdminUser] = React.useState(false)
     const pathname = usePathname()
+    const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
+    const showAdminBackButton = isPortalRoute && isAdminUser
+
+    React.useEffect(() => {
+        let isMounted = true
+
+        const loadAuthState = async () => {
+            try {
+                const res = await fetch("/api/auth/me", { cache: "no-store" })
+                const data = await res.json()
+                if (!isMounted) return
+                setIsAdminUser(Boolean(data?.authenticated && data?.user?.isAdmin))
+            } catch (error) {
+                console.error("navbar auth state load error:", error)
+                if (isMounted) setIsAdminUser(false)
+            }
+        }
+
+        loadAuthState()
+
+        return () => {
+            isMounted = false
+        }
+    }, [pathname])
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container-custom flex h-16 items-center justify-between">
-                <Link href="/" className="flex items-center space-x-2 group">
-                    <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500 transition-all group-hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]">
-                        Edutindo
-                    </span>
+                <Link href="/" className="group flex items-center">
+                    <Image
+                        src="/logo-edutindo.png"
+                        alt="Edutindo"
+                        width={180}
+                        height={44}
+                        priority
+                        className="h-8 w-auto md:h-9 transition-all group-hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.35)]"
+                    />
                 </Link>
 
                 {/* Desktop Nav */}
                 <nav className="hidden md:flex items-center gap-6">
-                    {navItems.map((item) => (
+                    {!isPortalRoute && navItems.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}
@@ -54,6 +87,15 @@ export function Navbar() {
                             {item.name}
                         </Link>
                     ))}
+
+                    {showAdminBackButton && (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href="/admin" className="gap-1.5">
+                                <ArrowLeft className="h-4 w-4" />
+                                Admin Dashboard
+                            </Link>
+                        </Button>
+                    )}
 
                     {/* Portal Dropdown */}
                     <div className="relative">
@@ -91,29 +133,50 @@ export function Navbar() {
                         )}
                     </div>
 
-                    <Button asChild size="sm" variant="default">
-                        <Link href="/donate">Donate Now</Link>
-                    </Button>
+                    {!isPortalRoute && (
+                        <Button asChild size="sm" variant="default">
+                            <Link href="/donate">Donate Now</Link>
+                        </Button>
+                    )}
                     <AuthNavActions />
                     <LanguageSwitcher />
                     <ModeToggle />
                 </nav>
 
                 {/* Mobile Menu Button */}
-                <button
-                    className="md:hidden p-2"
-                    onClick={() => setIsOpen(!isOpen)}
-                    aria-label="Toggle menu"
-                >
-                    {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                </button>
+                <div className="flex items-center gap-2 md:hidden">
+                    {showAdminBackButton && (
+                        <Button asChild variant="outline" size="sm" className="h-9 px-3">
+                            <Link href="/admin" aria-label="Back to admin dashboard">
+                                <ArrowLeft className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Admin</span>
+                            </Link>
+                        </Button>
+                    )}
+                    <button
+                        className="p-2"
+                        onClick={() => setIsOpen(!isOpen)}
+                        aria-label="Toggle menu"
+                    >
+                        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                    </button>
+                </div>
             </div>
 
             {/* Mobile Nav */}
             {isOpen && (
                 <div className="md:hidden border-t p-4 bg-background">
                     <nav className="flex flex-col space-y-4">
-                        {navItems.map((item) => (
+                        {showAdminBackButton && (
+                            <Button asChild variant="outline" className="w-full">
+                                <Link href="/admin" onClick={() => setIsOpen(false)}>
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Back to Admin Dashboard
+                                </Link>
+                            </Button>
+                        )}
+
+                        {!isPortalRoute && navItems.map((item) => (
                             <Link
                                 key={item.href}
                                 href={item.href}
@@ -148,9 +211,11 @@ export function Navbar() {
                             ))}
                         </div>
 
-                        <Button asChild className="w-full" variant="default">
-                            <Link href="/donate" onClick={() => setIsOpen(false)}>Donate Now</Link>
-                        </Button>
+                        {!isPortalRoute && (
+                            <Button asChild className="w-full" variant="default">
+                                <Link href="/donate" onClick={() => setIsOpen(false)}>Donate Now</Link>
+                            </Button>
+                        )}
                         <AuthNavActions mobile onNavigate={() => setIsOpen(false)} />
                         <div className="flex justify-center pt-2">
                             <LanguageSwitcher />

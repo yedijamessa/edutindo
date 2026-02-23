@@ -23,43 +23,7 @@ export default function PrincipalDashboard() {
                         <h2 className="text-lg font-bold">Principal Portal</h2>
                         <p className="text-sm text-muted-foreground">{principalName}</p>
                     </div>
-                    <nav className="space-y-1">
-                        <Link
-                            href="/principal"
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground"
-                        >
-                            <School className="w-5 h-5" />
-                            Dashboard
-                        </Link>
-                        <Link
-                            href="/principal/teachers"
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        >
-                            <Users className="w-5 h-5" />
-                            Teachers
-                        </Link>
-                        <Link
-                            href="/principal/students"
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        >
-                            <Users className="w-5 h-5" />
-                            Students
-                        </Link>
-                        <Link
-                            href="/principal/curriculum"
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        >
-                            <BookOpen className="w-5 h-5" />
-                            Curriculum
-                        </Link>
-                        <Link
-                            href="/principal/reports"
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        >
-                            <FileText className="w-5 h-5" />
-                            Reports
-                        </Link>
-                    </nav>
+                    <SidebarNav role="principal" />
                 </aside>
 
                 {/* Main Content */}

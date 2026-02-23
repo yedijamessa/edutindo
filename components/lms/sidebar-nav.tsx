@@ -6,7 +6,6 @@ import { cn } from "@/components/ui/button";
 import {
     LayoutDashboard,
     BookOpen,
-    FileText,
     BarChart3,
     Calendar,
     Video,
@@ -19,7 +18,8 @@ import {
     DoorOpen,
     HardDrive,
     MessageCircle,
-    Palette
+    Palette,
+    School
 } from "lucide-react";
 
 interface NavItem {
@@ -29,7 +29,7 @@ interface NavItem {
 }
 
 interface SidebarNavProps {
-    role: 'student' | 'teacher' | 'parent';
+    role: 'student' | 'teacher' | 'parent' | 'principal';
 }
 
 const studentNav: NavItem[] = [
@@ -70,6 +70,13 @@ const parentNav: NavItem[] = [
     { title: 'Messages', href: '/parent/chat', icon: MessageCircle },
 ];
 
+const principalNav: NavItem[] = [
+    { title: 'Dashboard', href: '/principal', icon: School },
+    { title: 'Materials', href: '/principal/materials', icon: BookOpen },
+    { title: 'Reports', href: '/principal/reports', icon: BarChart3 },
+    { title: 'Book Room', href: '/principal/booking', icon: DoorOpen },
+];
+
 import { FocusTimer } from "@/components/lms/focus-timer";
 
 // ... (existing imports)
@@ -77,7 +84,14 @@ import { FocusTimer } from "@/components/lms/focus-timer";
 export function SidebarNav({ role }: SidebarNavProps) {
     const pathname = usePathname();
 
-    const navItems = role === 'student' ? studentNav : role === 'teacher' ? teacherNav : parentNav;
+    const navItems =
+        role === 'student'
+            ? studentNav
+            : role === 'teacher'
+                ? teacherNav
+                : role === 'principal'
+                    ? principalNav
+                    : parentNav;
 
     return (
         <>

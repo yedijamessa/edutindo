@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 type CurrentUser = {
@@ -22,9 +22,17 @@ interface AuthNavActionsProps {
 
 export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const isPortalOrAdminPage =
+    pathname.startsWith("/student") ||
+    pathname.startsWith("/teacher") ||
+    pathname.startsWith("/parent") ||
+    pathname.startsWith("/principal") ||
+    pathname.startsWith("/admin");
 
   useEffect(() => {
     let isMounted = true;
@@ -65,6 +73,22 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
   if (!loaded) return null;
 
   if (!user) {
+    if (isPortalOrAdminPage) {
+      if (mobile) {
+        return (
+          <Button variant="outline" className="w-full" onClick={logout} disabled={loggingOut}>
+            {loggingOut ? "Signing out..." : "Sign Out"}
+          </Button>
+        );
+      }
+
+      return (
+        <Button variant="outline" size="sm" onClick={logout} disabled={loggingOut}>
+          {loggingOut ? "Signing out..." : "Sign Out"}
+        </Button>
+      );
+    }
+
     if (mobile) {
       return (
         <div className="flex flex-col gap-2">
@@ -110,7 +134,7 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
           </Button>
         )}
         <Button variant="outline" className="w-full" onClick={logout} disabled={loggingOut}>
-          {loggingOut ? "Logging out..." : "Log Out"}
+          {loggingOut ? "Signing out..." : "Sign Out"}
         </Button>
       </div>
     );
@@ -127,7 +151,7 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
         </Button>
       )}
       <Button variant="outline" size="sm" onClick={logout} disabled={loggingOut}>
-        {loggingOut ? "Logging out..." : "Log Out"}
+        {loggingOut ? "Signing out..." : "Sign Out"}
       </Button>
     </div>
   );

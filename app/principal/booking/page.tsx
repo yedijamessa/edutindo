@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Users, MapPin, Plus, X, School } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Plus, X } from "lucide-react";
+import { SidebarNav } from "@/components/lms/sidebar-nav";
 
 interface Booking {
     id: number;
@@ -61,16 +62,7 @@ export default function PrincipalBookingPage() {
                         <h2 className="text-lg font-bold">Principal Portal</h2>
                         <p className="text-sm text-muted-foreground">{principalName}</p>
                     </div>
-                    <nav className="space-y-1">
-                        <a href="/principal" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent">
-                            <School className="w-5 h-5" />
-                            Dashboard
-                        </a>
-                        <a href="/principal/booking" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground">
-                            <MapPin className="w-5 h-5" />
-                            Book Room
-                        </a>
-                    </nav>
+                    <SidebarNav role="principal" />
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
