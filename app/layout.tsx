@@ -4,6 +4,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
+import { InactivitySignOut } from "@/components/auth/inactivity-signout";
 
 export const metadata: Metadata = {
   title: "Edutindo",
@@ -34,6 +35,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider>
+            <InactivitySignOut />
             <div className="flex min-h-screen flex-col">
               <Navbar />
               <main className="flex-1">

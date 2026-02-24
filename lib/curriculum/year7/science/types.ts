@@ -2,6 +2,7 @@ export interface Year7ScienceLesson {
   week: string;
   lessonCode: string;
   title: string;
+  slug?: string;
 }
 
 export interface Year7ScienceChapter {

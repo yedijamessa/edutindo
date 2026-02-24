@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Video } from "lucide-react";
 import Link from "next/link";
+import { getPortalMeetingLink } from "@/lib/meeting-config";
 
 interface CalendarEvent {
     id: string;
@@ -76,7 +77,10 @@ export function CalendarWidget({ events }: CalendarWidgetProps) {
                     <p className="text-muted-foreground text-center py-8">No upcoming events</p>
                 ) : (
                     <div className="space-y-3">
-                        {upcomingEvents.map(event => (
+                        {upcomingEvents.map(event => {
+                            const meetingLink = getPortalMeetingLink(event.type, event.meetingLink);
+
+                            return (
                             <div
                                 key={event.id}
                                 className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
@@ -99,15 +103,16 @@ export function CalendarWidget({ events }: CalendarWidgetProps) {
                                         </span>
                                     </div>
                                 </div>
-                                {event.meetingLink && (
+                                {meetingLink && (
                                     <Button asChild size="sm" variant="outline">
-                                        <a href={event.meetingLink} target="_blank" rel="noopener noreferrer">
+                                        <a href={meetingLink} target="_blank" rel="noopener noreferrer">
                                             <Video className="w-4 h-4" />
                                         </a>
                                     </Button>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </CardContent>

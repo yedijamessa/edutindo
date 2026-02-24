@@ -34,8 +34,13 @@ export function Navbar() {
     const [isAuthenticated, setIsAuthenticated] = React.useState(false)
     const [authResolved, setAuthResolved] = React.useState(false)
     const pathname = usePathname()
+    const isFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
     const showAdminBackButton = isPortalRoute && isAdminUser
+
+    if (isFocusedScienceRoute) {
+        return null
+    }
 
     React.useEffect(() => {
         let isMounted = true

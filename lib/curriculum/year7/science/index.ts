@@ -37,6 +37,30 @@ export const year7ScienceChapters = [
 export const getYear7ScienceChapterBySlug = (chapterSlug: string) =>
   year7ScienceChapters.find((chapter) => chapter.slug === chapterSlug);
 
+export const getYear7ScienceLessonBySlugs = (chapterSlug: string, lessonSlug: string) => {
+  const chapter = getYear7ScienceChapterBySlug(chapterSlug);
+  if (!chapter) return null;
+
+  const lesson = chapter.lessons.find((item) => item.slug === lessonSlug);
+  if (!lesson) return null;
+
+  return { chapter, lesson };
+};
+
+export const getYear7ScienceLessonRouteParams = () =>
+  year7ScienceChapters.flatMap((chapter) =>
+    chapter.lessons.flatMap((lesson) =>
+      lesson.slug
+        ? [
+            {
+              chapterSlug: chapter.slug,
+              lessonSlug: lesson.slug,
+            },
+          ]
+        : []
+    )
+  );
+
 export const YEAR7_SCIENCE_TOTAL_LESSONS = year7ScienceChapters.reduce(
   (total, chapter) => total + chapter.lessons.length,
   0

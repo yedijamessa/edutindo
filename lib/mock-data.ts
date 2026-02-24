@@ -1,4 +1,5 @@
 import { Material, Quiz, Student, Teacher, Parent, CalendarEvent, Progress, Note } from '@/types/lms';
+import { PORTAL_ZOOM_MEETING } from '@/lib/meeting-config';
 
 // Mock Students
 export const mockStudents: Student[] = [
@@ -469,7 +470,7 @@ export const mockCalendarEvents: CalendarEvent[] = [
         startTime: new Date('2024-01-25T10:00:00'),
         endTime: new Date('2024-01-25T11:00:00'),
         participants: ['student-1', 'student-2', 'teacher-1'],
-        meetingLink: 'https://meet.example.com/math-class',
+        meetingLink: PORTAL_ZOOM_MEETING.url,
         createdBy: 'teacher-1',
     },
     {
@@ -490,7 +491,7 @@ export const mockCalendarEvents: CalendarEvent[] = [
         startTime: new Date('2024-01-28T14:00:00'),
         endTime: new Date('2024-01-28T14:30:00'),
         participants: ['parent-1', 'teacher-1'],
-        meetingLink: 'https://meet.example.com/parent-teacher',
+        meetingLink: PORTAL_ZOOM_MEETING.url,
         createdBy: 'teacher-1',
     },
 ];

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getStudentEvents } from "@/lib/mock-data";
+import { PORTAL_ZOOM_MEETING, getPortalMeetingLink } from "@/lib/meeting-config";
 import { Video, Calendar, Clock, Users } from "lucide-react";
 
 export default function StudentMeetingPage() {
@@ -82,19 +83,20 @@ export default function StudentMeetingPage() {
                                                     </div>
                                                 </div>
 
-                                                {meeting.meetingLink ? (
-                                                    <Button asChild className="w-full">
-                                                        <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer">
-                                                            <Video className="w-4 h-4 mr-2" />
-                                                            Join Meeting
-                                                        </a>
-                                                    </Button>
-                                                ) : (
-                                                    <Button className="w-full" disabled>
+                                                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                                                    Meeting ID: {PORTAL_ZOOM_MEETING.meetingId} | Passcode: {PORTAL_ZOOM_MEETING.passcode}
+                                                </div>
+
+                                                <Button asChild className="w-full">
+                                                    <a
+                                                        href={getPortalMeetingLink(meeting.type, meeting.meetingLink)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
                                                         <Video className="w-4 h-4 mr-2" />
-                                                        Link Not Available
-                                                    </Button>
-                                                )}
+                                                        Join Meeting
+                                                    </a>
+                                                </Button>
                                             </CardContent>
                                         </Card>
                                     ))}

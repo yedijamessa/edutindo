@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockCalendarEvents } from "@/lib/mock-data";
+import { PORTAL_ZOOM_MEETING, getPortalMeetingLink } from "@/lib/meeting-config";
 import { Video, Calendar, Clock, Users, Plus } from "lucide-react";
 
 export default function TeacherMeetingPage() {
@@ -63,20 +64,21 @@ export default function TeacherMeetingPage() {
                                             </div>
                                         </div>
 
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                                            Meeting ID: {PORTAL_ZOOM_MEETING.meetingId} | Passcode: {PORTAL_ZOOM_MEETING.passcode}
+                                        </div>
+
                                         <div className="flex gap-2">
-                                            {meeting.meetingLink ? (
-                                                <Button asChild className="flex-1">
-                                                    <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer">
-                                                        <Video className="w-4 h-4 mr-2" />
-                                                        Start Meeting
-                                                    </a>
-                                                </Button>
-                                            ) : (
-                                                <Button className="flex-1" disabled>
+                                            <Button asChild className="flex-1">
+                                                <a
+                                                    href={getPortalMeetingLink(meeting.type, meeting.meetingLink)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
                                                     <Video className="w-4 h-4 mr-2" />
-                                                    No Link
-                                                </Button>
-                                            )}
+                                                    Start Meeting
+                                                </a>
+                                            </Button>
                                             <Button variant="outline">Edit</Button>
                                         </div>
                                     </CardContent>

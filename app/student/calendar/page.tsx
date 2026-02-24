@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCalendarEvents } from "@/lib/firestore-services";
+import { getPortalMeetingLink } from "@/lib/meeting-config";
 import { Calendar as CalendarIcon, Clock, Video, MapPin } from "lucide-react";
 
 export default async function StudentCalendarPage() {
@@ -53,52 +54,56 @@ export default async function StudentCalendarPage() {
                                 </Card>
                             ) : (
                                 <div className="space-y-3">
-                                    {upcomingEvents.map(event => (
-                                        <Card key={event.id} className={`border-l-4 ${getEventColor(event.type)}`}>
-                                            <CardContent className="p-6">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex-1 space-y-3">
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <h3 className="font-semibold text-lg">{event.title}</h3>
-                                                                <Badge variant="outline">{event.type}</Badge>
+                                    {upcomingEvents.map(event => {
+                                        const meetingLink = getPortalMeetingLink(event.type, event.meetingLink);
+
+                                        return (
+                                            <Card key={event.id} className={`border-l-4 ${getEventColor(event.type)}`}>
+                                                <CardContent className="p-6">
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="flex-1 space-y-3">
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <h3 className="font-semibold text-lg">{event.title}</h3>
+                                                                    <Badge variant="outline">{event.type}</Badge>
+                                                                </div>
+                                                                {event.description && (
+                                                                    <p className="text-sm text-muted-foreground">{event.description}</p>
+                                                                )}
                                                             </div>
-                                                            {event.description && (
-                                                                <p className="text-sm text-muted-foreground">{event.description}</p>
-                                                            )}
+
+                                                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                                                <span className="flex items-center gap-1">
+                                                                    <CalendarIcon className="w-4 h-4" />
+                                                                    {new Date(event.startTime).toLocaleDateString('en-US', {
+                                                                        weekday: 'long',
+                                                                        year: 'numeric',
+                                                                        month: 'long',
+                                                                        day: 'numeric'
+                                                                    })}
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
+                                                                    <Clock className="w-4 h-4" />
+                                                                    {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    {' - '}
+                                                                    {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
                                                         </div>
 
-                                                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                                            <span className="flex items-center gap-1">
-                                                                <CalendarIcon className="w-4 h-4" />
-                                                                {new Date(event.startTime).toLocaleDateString('en-US', {
-                                                                    weekday: 'long',
-                                                                    year: 'numeric',
-                                                                    month: 'long',
-                                                                    day: 'numeric'
-                                                                })}
-                                                            </span>
-                                                            <span className="flex items-center gap-1">
-                                                                <Clock className="w-4 h-4" />
-                                                                {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                {' - '}
-                                                                {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        </div>
+                                                        {meetingLink && (
+                                                            <Button asChild>
+                                                                <a href={meetingLink} target="_blank" rel="noopener noreferrer">
+                                                                    <Video className="w-4 h-4 mr-2" />
+                                                                    Join
+                                                                </a>
+                                                            </Button>
+                                                        )}
                                                     </div>
-
-                                                    {event.meetingLink && (
-                                                        <Button asChild>
-                                                            <a href={event.meetingLink} target="_blank" rel="noopener noreferrer">
-                                                                <Video className="w-4 h-4 mr-2" />
-                                                                Join
-                                                            </a>
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
