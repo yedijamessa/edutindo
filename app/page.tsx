@@ -95,9 +95,7 @@ export default function HomePage() {
       {/* Why School + STEAM + Christian */}
       <Section id="pathways" className="bg-slate-50 dark:bg-slate-900/40">
         <div className="space-y-8">
-          <h2 className="text-center text-3xl md:text-5xl font-bold tracking-tight text-slate-700 dark:text-slate-100">
-            Why SCHOOL + STEAM + CHRISTIAN?
-          </h2>
+
 
           <div className="rounded-3xl bg-white/90 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-8 md:p-10">
             <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-6">OUR VISION</h3>
@@ -159,95 +157,144 @@ export default function HomePage() {
             </Card>
           </div>
 
-          <div className="rounded-3xl border border-sky-200 dark:border-sky-800 bg-white/90 dark:bg-slate-950 p-6 md:p-10">
-            <h3 className="text-center text-4xl md:text-5xl font-bold tracking-tight text-slate-700 dark:text-slate-100">
-              Building Blocks
-            </h3>
-
-            <div className="mt-6 grid gap-3 md:gap-6 md:grid-cols-2 text-center md:text-left">
-              <p className="text-lg md:text-3xl font-semibold text-slate-700 dark:text-slate-200">
-                1. <span className="underline">Breaking Barriers</span> in Rural Education
-              </p>
-              <p className="text-lg md:text-3xl font-semibold text-slate-700 dark:text-slate-200">
-                2. <span className="underline">Building The Future</span> for The Next Generation
-              </p>
+          <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 md:p-12 relative overflow-hidden">
+            {/* Background decorative elements */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+              <div className="absolute top-10 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl" />
+              <div className="absolute bottom-10 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-sky-400/5 rounded-full blur-3xl" />
             </div>
 
-            <div className="mt-10 hidden md:grid grid-cols-3 gap-5 items-center justify-items-center">
-              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
-                Partnership
-                <br />
-                Model
-              </div>
-              <div />
-              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
-                Curriculum4.0
+            <div className="relative z-10">
+              <h3 className="text-center text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">
+                Building Blocks
+              </h3>
+              <p className="text-center text-slate-400 text-sm md:text-base mb-8">The pillars that power our mission</p>
+
+              <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center items-center">
+                <div className="flex items-center gap-2 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-full px-5 py-2.5">
+                  <span className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">1</span>
+                  <span className="text-sm md:text-base font-semibold text-orange-200">
+                    <span className="underline decoration-orange-400">Breaking Barriers</span> in Rural Education
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-full px-5 py-2.5">
+                  <span className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-white text-xs font-bold">2</span>
+                  <span className="text-sm md:text-base font-semibold text-cyan-200">
+                    <span className="underline decoration-cyan-400">Building The Future</span> for The Next Generation
+                  </span>
+                </div>
               </div>
 
-              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
-                Empowering
-                <br />
-                Teachers
-              </div>
-              <div className="h-[220px] w-[220px] rounded-full bg-sky-300 dark:bg-sky-600 flex items-center justify-center text-center px-6">
-                <span className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-white">
-                  EDUTINDO
-                  <br />
-                  CHRISTIAN
-                  <br />
-                  STEAM
-                  <br />
-                  SCHOOL
-                </span>
-              </div>
-              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
-                Real World
-                <br />
-                Experience
-              </div>
-
-              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
-                Accessible
-                <br />
-                Resources
-              </div>
-              <div />
-              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
-                Transformative
-                <br />
-                Character
-              </div>
-            </div>
-
-            <div className="mt-10 md:hidden space-y-4">
-              <div className="mx-auto h-[180px] w-[180px] rounded-full bg-sky-300 dark:bg-sky-600 flex items-center justify-center text-center px-5">
-                <span className="text-2xl font-extrabold leading-tight text-slate-900 dark:text-white">
-                  EDUTINDO
-                  <br />
-                  CHRISTIAN
-                  <br />
-                  STEAM
-                  <br />
-                  SCHOOL
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  "Partnership Model",
-                  "Curriculum4.0",
-                  "Empowering Teachers",
-                  "Real World Experience",
-                  "Accessible Resources",
-                  "Transformative Character",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-sky-200 dark:border-sky-800 p-4 text-center text-lg font-semibold text-slate-700 dark:text-slate-200 min-h-[110px] flex items-center justify-center"
-                  >
-                    {item}
+              {/* Desktop Layout */}
+              <div className="mt-12 hidden md:grid grid-cols-3 gap-6 items-center justify-items-center">
+                {/* Row 1 */}
+                <div className="group w-full rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-400/40">
+                  <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
+                    <Users className="w-6 h-6 text-amber-400" />
                   </div>
-                ))}
+                  <h4 className="text-2xl font-bold text-white mb-1">Partnership</h4>
+                  <p className="text-lg font-semibold text-amber-300/80">Model</p>
+                </div>
+
+                <div />
+
+                <div className="group w-full rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/10 hover:border-cyan-400/40">
+                  <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/30 transition-colors">
+                    <GraduationCap className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-white">Curriculum 4.0</h4>
+                </div>
+
+                {/* Row 2 */}
+                <div className="group w-full rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-400/40">
+                  <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+                    <Lightbulb className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-white mb-1">Empowering</h4>
+                  <p className="text-lg font-semibold text-emerald-300/80">Teachers</p>
+                </div>
+
+                {/* Center Circle */}
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-[260px] h-[260px] rounded-full bg-gradient-to-br from-sky-400/20 to-blue-500/20 animate-pulse" />
+                  <div className="absolute w-[240px] h-[240px] rounded-full border border-sky-400/30" />
+                  <div className="relative h-[220px] w-[220px] rounded-full bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex items-center justify-center text-center px-5 shadow-2xl shadow-sky-500/30">
+                    <span className="text-xl font-extrabold leading-tight text-white drop-shadow-md tracking-wide">
+                      EDUTINDO
+                      <br />
+                      CHRISTIAN
+                      <br />
+                      STEAM
+                      <br />
+                      SCHOOL
+                    </span>
+                  </div>
+                </div>
+
+                <div className="group w-full rounded-2xl bg-gradient-to-br from-violet-500/10 to-violet-600/5 border border-violet-500/20 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-violet-500/10 hover:border-violet-400/40">
+                  <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/30 transition-colors">
+                    <Globe className="w-6 h-6 text-violet-400" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-white mb-1">Real World</h4>
+                  <p className="text-lg font-semibold text-violet-300/80">Experience</p>
+                </div>
+
+                {/* Row 3 */}
+                <div className="group w-full rounded-2xl bg-gradient-to-br from-rose-500/10 to-rose-600/5 border border-rose-500/20 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-rose-500/10 hover:border-rose-400/40">
+                  <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-rose-500/20 flex items-center justify-center group-hover:bg-rose-500/30 transition-colors">
+                    <School className="w-6 h-6 text-rose-400" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-white mb-1">Accessible</h4>
+                  <p className="text-lg font-semibold text-rose-300/80">Resources</p>
+                </div>
+
+                <div />
+
+                <div className="group w-full rounded-2xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-500/20 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/10 hover:border-indigo-400/40">
+                  <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
+                    <Plus className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-white mb-1">Transformative</h4>
+                  <p className="text-lg font-semibold text-indigo-300/80">Character</p>
+                </div>
+              </div>
+
+              {/* Mobile Layout */}
+              <div className="mt-10 md:hidden space-y-6">
+                <div className="relative mx-auto flex items-center justify-center">
+                  <div className="absolute w-[210px] h-[210px] rounded-full bg-gradient-to-br from-sky-400/20 to-blue-500/20 animate-pulse" />
+                  <div className="relative h-[180px] w-[180px] rounded-full bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex items-center justify-center text-center px-5 shadow-2xl shadow-sky-500/30">
+                    <span className="text-lg font-extrabold leading-tight text-white drop-shadow-md tracking-wide">
+                      EDUTINDO
+                      <br />
+                      CHRISTIAN
+                      <br />
+                      STEAM
+                      <br />
+                      SCHOOL
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Partnership Model", icon: Users, color: "amber" },
+                    { label: "Curriculum 4.0", icon: GraduationCap, color: "cyan" },
+                    { label: "Empowering Teachers", icon: Lightbulb, color: "emerald" },
+                    { label: "Real World Experience", icon: Globe, color: "violet" },
+                    { label: "Accessible Resources", icon: School, color: "rose" },
+                    { label: "Transformative Character", icon: Plus, color: "indigo" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className={`rounded-2xl bg-gradient-to-br from-${item.color}-500/10 to-${item.color}-600/5 border border-${item.color}-500/20 p-4 text-center flex flex-col items-center justify-center gap-2 min-h-[110px]`}
+                    >
+                      <item.icon className={`w-5 h-5 text-${item.color}-400`} />
+                      <span className="text-sm font-semibold text-white">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -310,6 +357,6 @@ export default function HomePage() {
         </div>
       </Section>
     </div>
-  
+
   );
 }

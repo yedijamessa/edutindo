@@ -277,7 +277,7 @@ export function EmailPasswordAuthForm({
 
   const loginDescription =
     loginStep === "email"
-      ? "Enter your email."
+      ? "Enter your email. "
       : loginStep === "password"
       ? `Password login for ${email}.`
       : `Enter the 6-digit passcode sent to ${email}.`;
