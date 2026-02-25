@@ -38,10 +38,6 @@ export function Navbar() {
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
     const showAdminBackButton = isPortalRoute && isAdminUser
 
-    if (isFocusedScienceRoute) {
-        return null
-    }
-
     React.useEffect(() => {
         let isMounted = true
 
@@ -79,6 +75,10 @@ export function Navbar() {
         },
         [authResolved, isAuthenticated]
     )
+
+    if (isFocusedScienceRoute) {
+        return null
+    }
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
