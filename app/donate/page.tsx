@@ -540,7 +540,9 @@ export default function DonatePage() {
                     <Upload className="w-4 h-4 mr-2" />
                     {receiptStatus === "uploading" ? "Uploading Receipt..." : "Attach Receipt Here"}
                   </Button>
-
+                  <p className="text-xs text-muted-foreground text-center">
+                    Upload your transfer receipt here.
+                  </p>
 
                   {receiptStatus === "success" && receiptMessage && (
                     <div className="rounded-md bg-green-50 dark:bg-green-900/30 px-3 py-2 text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
