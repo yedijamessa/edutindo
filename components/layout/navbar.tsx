@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { Menu, X, ChevronDown, ArrowLeft } from "lucide-react"
+import { Menu, X, ArrowLeft } from "lucide-react"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
@@ -14,7 +14,6 @@ import { AuthNavActions } from "../auth/auth-nav-actions"
 const navItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
-    { name: "Get Involved", href: "/get-involved" },
     { name: "Contact", href: "/contact" },
 ]
 
@@ -29,7 +28,6 @@ const portalRoutePrefixes = ["/student", "/teacher", "/parent", "/principal", "/
 
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
-    const [isPortalDropdownOpen, setIsPortalDropdownOpen] = React.useState(false)
     const [isAdminUser, setIsAdminUser] = React.useState(false)
     const [isAuthenticated, setIsAuthenticated] = React.useState(false)
     const [authResolved, setAuthResolved] = React.useState(false)
@@ -120,45 +118,9 @@ export function Navbar() {
                         </Button>
                     )}
 
-                    {/* Portal Dropdown */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsPortalDropdownOpen(!isPortalDropdownOpen)}
-                            className={cn(
-                                "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
-                                portalItems.some(item => pathname.startsWith(item.href.split('/')[1] ? `/${item.href.split('/')[1]}` : item.href))
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
-                            )}
-                        >
-                            Portals
-                            <ChevronDown className={cn("w-4 h-4 transition-transform", isPortalDropdownOpen && "rotate-180")} />
-                        </button>
-
-                        {isPortalDropdownOpen && (
-                            <div className="absolute top-full mt-2 right-0 w-48 bg-background border rounded-lg shadow-lg py-2 z-50">
-                                {portalItems.map((item) => (
-                                    <Link
-                                        key={item.href}
-                                        href={getPortalHref(item.href)}
-                                        onClick={() => setIsPortalDropdownOpen(false)}
-                                        className={cn(
-                                            "block px-4 py-2 text-sm transition-colors hover:bg-accent",
-                                            pathname.startsWith(item.href)
-                                                ? "text-foreground font-medium"
-                                                : "text-muted-foreground"
-                                        )}
-                                    >
-                                        {item.name}
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
                     {!isPortalRoute && (
                         <Button asChild size="sm" variant="default">
-                            <Link href="/donate">Donate Now</Link>
+                            <Link href="/donate">Support Us</Link>
                         </Button>
                     )}
                     <AuthNavActions />
@@ -236,7 +198,7 @@ export function Navbar() {
 
                         {!isPortalRoute && (
                             <Button asChild className="w-full" variant="default">
-                                <Link href="/donate" onClick={() => setIsOpen(false)}>Donate Now</Link>
+                                <Link href="/donate" onClick={() => setIsOpen(false)}>Support Us</Link>
                             </Button>
                         )}
                         <AuthNavActions mobile onNavigate={() => setIsOpen(false)} />

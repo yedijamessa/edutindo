@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, GraduationCap, Lightbulb, Users, Globe } from "lucide-react";
+import { ArrowRight, GraduationCap, Lightbulb, Users, Globe, School, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 
@@ -19,13 +19,13 @@ export default function HomePage() {
         <div className="grid lg:grid-cols-2 gap-12 items-center relative z-10">
           <div className="space-y-6 sm:space-y-8">
             <Badge variant="secondary" className="px-4 py-1 text-sm">
-              EDUKASI TERANG INDONESIA
+              EDUKASI TERANG INDONESIA (EDUTINDO) FOUNDATION
             </Badge>
 
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground">
-              Building Futures, <br />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">
-                Breaking Barriers
+            <h1 className="text-5xl md:text-6xl lg:text-6xl xl:text-7xl font-extrabold tracking-tight text-foreground">
+              Breaking Barriers, <br />
+              <span className="inline-block whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">
+                Building The Future
               </span>
             </h1>
 
@@ -92,61 +92,177 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* Quick Pathways */}
-      <Section id="pathways" className="bg-white dark:bg-slate-950">
-        <div className="grid md:grid-cols-3 gap-8">
-          <Card className="bg-orange-500 text-white border-none card-hover cursor-pointer">
-            <CardHeader>
-              <CardTitle>School Partnership</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-6 text-orange-50">
-                Collaborate with us to redesign your curriculum using our STEAM–C++ framework, training, and mentoring.
-              </p>
-              <Button variant="secondary" className="w-full bg-white text-orange-600 hover:bg-orange-50 cursor-pointer" asChild>
-                <Link href="/principal">For Principals</Link>
-              </Button>
-            </CardContent>
-          </Card>
+      {/* Why School + STEAM + Christian */}
+      <Section id="pathways" className="bg-slate-50 dark:bg-slate-900/40">
+        <div className="space-y-8">
+          <h2 className="text-center text-3xl md:text-5xl font-bold tracking-tight text-slate-700 dark:text-slate-100">
+            Why SCHOOL + STEAM + CHRISTIAN?
+          </h2>
 
-          <Card className="bg-cyan-500 text-white border-none card-hover cursor-pointer">
-            <CardHeader>
-              <CardTitle>Teacher Growth</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-6 text-cyan-50">
-                Workshops, coaching, and ready-to-use lesson designs that make STEAM & character-building practical.
-              </p>
-              <Button variant="secondary" className="w-full bg-white text-cyan-600 hover:bg-cyan-50 cursor-pointer" asChild>
-                <Link href="/teacher">For Teachers</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-3xl bg-white/90 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-8 md:p-10">
+            <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-6">OUR VISION</h3>
+            <p className="text-base md:text-lg leading-relaxed text-slate-700 dark:text-slate-200">
+              Transforming rural Indonesia by unlocking STEAM learning opportunities through SCHOOL partnerships that empower teachers and families to raise a skilled and impact-driven generation, rooted in CHRISTIAN values
+              <br />
+              and capable of driving INNOVATION that uplifts their local communities.
+            </p>
+            <p className="mt-5 text-base md:text-lg leading-relaxed text-slate-700 dark:text-slate-200">
+              We are committed to rigorous RESEARCH and continuous REFINEMENT to discover and implement the most effective interventions for advancing science education delivery to the unreached.
+            </p>
+          </div>
 
-          <Card className="bg-yellow-400 text-slate-900 border-none card-hover cursor-pointer">
-            <CardHeader>
-              <CardTitle>Learner Experience</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-6 text-slate-800/80">
-                Joyful projects, clubs, and programs where students explore science, tech, arts, and faith in everyday life.
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="border-none shadow-none bg-orange-500">
+              <CardHeader className="bg-orange-400/30 rounded-t-xl flex items-center justify-center py-3">
+                <School className="h-6 w-6 text-white" />
+              </CardHeader>
+              <CardContent className="pt-6 space-y-3">
+                <CardTitle className="text-3xl leading-tight text-white">
+                  School offers optimum ENGAGEMENT
+                </CardTitle>
+                <p className="text-orange-50">Higher commitment from parents and students</p>
+                <p className="text-orange-50">The widest reach to youths</p>
+                <p className="text-orange-50">Opportunity for dormitory school</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-none bg-cyan-500">
+              <CardHeader className="bg-cyan-400/30 rounded-t-xl flex items-center justify-center py-3">
+                <Lightbulb className="h-6 w-6 text-white" />
+              </CardHeader>
+              <CardContent className="pt-6 space-y-3">
+                <CardTitle className="text-3xl leading-tight text-white">
+                  Critical need for local INNOVATORS
+                </CardTitle>
+                <p className="text-cyan-50">Jobless challenge and low income</p>
+                <p className="text-cyan-50">Raising champions for local change</p>
+                <p className="text-cyan-50">
+                  Improving families + local economy (e.g. productivity gain, export)
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-none bg-yellow-400">
+              <CardHeader className="bg-yellow-300/80 rounded-t-xl flex items-center justify-center py-3">
+                <Plus className="h-6 w-6 text-slate-900" />
+              </CardHeader>
+              <CardContent className="pt-6 space-y-3">
+                <CardTitle className="text-2xl leading-tight text-slate-900">
+                  <span className="whitespace-nowrap">Encountering Jesus brings</span>
+                  <br />
+                  TRANSFORMATION
+                </CardTitle>
+                <p className="text-slate-900/85">Adolescence is the &apos;golden&apos; period</p>
+                <p className="text-slate-900/85">30h+/week character formation</p>
+                <p className="text-slate-900/85">Mission to the 21st century world</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="rounded-3xl border border-sky-200 dark:border-sky-800 bg-white/90 dark:bg-slate-950 p-6 md:p-10">
+            <h3 className="text-center text-4xl md:text-5xl font-bold tracking-tight text-slate-700 dark:text-slate-100">
+              Building Blocks
+            </h3>
+
+            <div className="mt-6 grid gap-3 md:gap-6 md:grid-cols-2 text-center md:text-left">
+              <p className="text-lg md:text-3xl font-semibold text-slate-700 dark:text-slate-200">
+                1. <span className="underline">Breaking Barriers</span> in Rural Education
               </p>
-              <Button variant="secondary" className="w-full bg-slate-900 text-yellow-400 hover:bg-slate-800 cursor-pointer" asChild>
-                <Link href="/parent">For Parents</Link>
-              </Button>
-            </CardContent>
-          </Card>
+              <p className="text-lg md:text-3xl font-semibold text-slate-700 dark:text-slate-200">
+                2. <span className="underline">Building The Future</span> for The Next Generation
+              </p>
+            </div>
+
+            <div className="mt-10 hidden md:grid grid-cols-3 gap-5 items-center justify-items-center">
+              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
+                Partnership
+                <br />
+                Model
+              </div>
+              <div />
+              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
+                Curriculum4.0
+              </div>
+
+              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
+                Empowering
+                <br />
+                Teachers
+              </div>
+              <div className="h-[220px] w-[220px] rounded-full bg-sky-300 dark:bg-sky-600 flex items-center justify-center text-center px-6">
+                <span className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-white">
+                  EDUTINDO
+                  <br />
+                  CHRISTIAN
+                  <br />
+                  STEAM
+                  <br />
+                  SCHOOL
+                </span>
+              </div>
+              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
+                Real World
+                <br />
+                Experience
+              </div>
+
+              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
+                Accessible
+                <br />
+                Resources
+              </div>
+              <div />
+              <div className="w-full max-w-[260px] rounded-3xl border border-sky-200 dark:border-sky-800 p-6 text-center text-4xl font-semibold text-slate-700 dark:text-slate-200 min-h-[160px]">
+                Transformative
+                <br />
+                Character
+              </div>
+            </div>
+
+            <div className="mt-10 md:hidden space-y-4">
+              <div className="mx-auto h-[180px] w-[180px] rounded-full bg-sky-300 dark:bg-sky-600 flex items-center justify-center text-center px-5">
+                <span className="text-2xl font-extrabold leading-tight text-slate-900 dark:text-white">
+                  EDUTINDO
+                  <br />
+                  CHRISTIAN
+                  <br />
+                  STEAM
+                  <br />
+                  SCHOOL
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  "Partnership Model",
+                  "Curriculum4.0",
+                  "Empowering Teachers",
+                  "Real World Experience",
+                  "Accessible Resources",
+                  "Transformative Character",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-sky-200 dark:border-sky-800 p-4 text-center text-lg font-semibold text-slate-700 dark:text-slate-200 min-h-[110px] flex items-center justify-center"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </Section>
 
       {/* Why It's Needed */}
       <Section className="bg-slate-50 dark:bg-slate-900/50">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Indonesia Needs This Now</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">The Urgency in Rural Indonesia</h2>
           <p className="text-lg text-muted-foreground">
             Indonesia has world-class potential in its young people. But gaps in critical thinking, confidence, and character formation mean many students never fully grow into the innovators and leaders they could be.
           </p>
         </div>
+
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
@@ -194,5 +310,6 @@ export default function HomePage() {
         </div>
       </Section>
     </div>
+  
   );
 }

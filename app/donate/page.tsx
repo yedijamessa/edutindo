@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { CreditCard, Heart, Landmark, Package, TrendingUp, Users } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Heart, Landmark, Package, Users, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getEquipmentNeeds, createDonation, getRecentDonors } from "@/lib/firestore-services";
 import type { Equipment, Donation } from "@/types/lms";
 
+type ReceiptUploadStatus = "idle" | "uploading" | "success" | "error";
+
 export default function DonatePage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [recentDonors, setRecentDonors] = useState<Donation[]>([]);
@@ -29,6 +31,9 @@ export default function DonatePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [receiptStatus, setReceiptStatus] = useState<ReceiptUploadStatus>("idle");
+  const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -144,15 +149,51 @@ export default function DonatePage() {
     }
   };
 
+  const uploadReceipt = async (file: File) => {
+    setReceiptStatus("uploading");
+    setReceiptMessage(null);
+
+    try {
+      const payload = new FormData();
+      payload.append("receipt", file);
+      if (formData.donorName.trim()) payload.append("donorName", formData.donorName.trim());
+      if (formData.donorEmail.trim()) payload.append("donorEmail", formData.donorEmail.trim());
+
+      const res = await fetch("/api/donate/receipt", {
+        method: "POST",
+        body: payload,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed to upload receipt.");
+      }
+
+      setReceiptStatus("success");
+      setReceiptMessage(data?.message || "Receipt received. Our team has been notified.");
+    } catch (error) {
+      console.error("Receipt upload error:", error);
+      setReceiptStatus("error");
+      setReceiptMessage(
+        error instanceof Error ? error.message : "Failed to upload receipt. Please try again."
+      );
+    }
+  };
+
+  const handleReceiptSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    await uploadReceipt(file);
+    event.target.value = "";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-slate-50 dark:from-slate-950 dark:via-orange-950/10 dark:to-slate-950">
       <Section>
         <div className="max-w-7xl mx-auto space-y-16">
           {/* Hero Section */}
           <div className="text-center space-y-6">
-            <Badge className="bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 hover:from-orange-200 hover:to-orange-300 border-orange-300 px-4 py-1.5 text-sm font-semibold">
-              Support Our Mission
-            </Badge>
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-orange-800 to-slate-900 dark:from-slate-100 dark:via-orange-400 dark:to-slate-100 bg-clip-text text-transparent">
               Equip the Future
             </h1>
@@ -463,27 +504,58 @@ export default function DonatePage() {
                 <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
                   <Landmark className="w-6 h-6" />
                 </div>
-                <CardTitle>Bank Transfer (Indonesia)</CardTitle>
+                <CardTitle>Bank Transfer (Rupiah)</CardTitle>
                 <CardDescription>Direct transfer to our foundation account.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg space-y-2 border border-slate-100 dark:border-slate-700">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Bank Name</span>
-                    <span className="font-semibold">[Bank Name]</span>
+                    <span className="font-semibold">Bank Central Asia (BCA)</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Account Name</span>
-                    <span className="font-semibold">Yayasan Edutindo</span>
+                    <span className="font-semibold">Yayasan Edukasi Terang Indonesia</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Account Number</span>
-                    <span className="font-mono font-bold text-blue-600">123 456 7890</span>
+                    <span className="font-mono font-bold text-blue-600">731 556 3399</span>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Please confirm your transfer by sending the receipt to our WhatsApp.
-                </p>
+                <div className="space-y-3 pt-1">
+                  <input
+                    ref={receiptInputRef}
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    className="hidden"
+                    onChange={handleReceiptSelected}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={receiptStatus === "uploading"}
+                    onClick={() => receiptInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {receiptStatus === "uploading" ? "Uploading Receipt..." : "Attach Receipt Here"}
+                  </Button>
+
+
+                  {receiptStatus === "success" && receiptMessage && (
+                    <div className="rounded-md bg-green-50 dark:bg-green-900/30 px-3 py-2 text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>{receiptMessage}</span>
+                    </div>
+                  )}
+
+                  {receiptStatus === "error" && receiptMessage && (
+                    <div className="rounded-md bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{receiptMessage}</span>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -501,9 +573,8 @@ export default function DonatePage() {
                 </p>
                 <ul className="space-y-2">
                   {[
-                    "Wisdom for our leaders and mentors",
+                    "Wisdom for our leaders and advisers",
                     "Strength for teachers and students",
-                    "Open doors for outreach opportunities",
                     "Resources to sustain the ministry",
                   ].map((item, i) => (
                     <li

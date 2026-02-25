@@ -147,62 +147,7 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Vision / Intro */}
-      <Section className="pb-12">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">
-              About Edukasi Terang Indonesia
-            </Badge>
 
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
-              Shaping a generation of <br />
-              <span className="text-blue-600">bright Indonesian learners</span>
-            </h1>
-
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Edukasi Terang Indonesia exists to guide students to become <strong>faith-driven, innovative, and resilient</strong> learners. We want them to master STEAM knowledge, think critically and creatively, collaborate with others, and live out <strong>Christian values</strong> in every area of life.
-            </p>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 p-6 rounded-r-xl">
-              <p className="text-foreground italic">
-                "Our vision is to see Indonesian learners who combine <strong>academic excellence</strong> in STEAM, <strong>creative problem-solving</strong>, and <strong>Christ-like character</strong>."
-              </p>
-            </div>
-          </div>
-
-          <div className="relative">
-            <Card className="border-none shadow-2xl rotate-1 hover:rotate-0 transition-transform duration-500">
-              <CardContent className="p-4">
-                <div className="relative rounded-xl overflow-hidden aspect-video bg-slate-100">
-                  <Image
-                    src="/homepage/eti-about-team.png"
-                    alt="Edukasi Terang Indonesia team"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="mt-6 grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2 text-blue-600">
-                      <Users className="w-5 h-5" />
-                      <span className="font-bold">6+ Leaders</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Across ministry, education, and business</p>
-                  </div>
-                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2 text-green-600">
-                      <Globe className="w-5 h-5" />
-                      <span className="font-bold">3 Continents</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Experience in Indonesia, UK, and beyond</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </Section>
 
       {/* Founders */}
       <Section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(14,116,144,0.10),_transparent_48%),linear-gradient(to_bottom,_#f8fbff,_#f1f5f9)] dark:bg-slate-900">
