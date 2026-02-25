@@ -22,6 +22,7 @@ import { getEquipmentNeeds, createDonation, getRecentDonors } from "@/lib/firest
 import type { Equipment, Donation } from "@/types/lms";
 
 type ReceiptUploadStatus = "idle" | "uploading" | "success" | "error";
+const MAX_RECEIPT_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 export default function DonatePage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -181,8 +182,23 @@ export default function DonatePage() {
   };
 
   const handleReceiptSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    if (files.length > 1) {
+      setReceiptStatus("error");
+      setReceiptMessage("Please upload exactly one receipt file.");
+      event.target.value = "";
+      return;
+    }
+
+    const file = files[0];
+    if (file.size > MAX_RECEIPT_SIZE_BYTES) {
+      setReceiptStatus("error");
+      setReceiptMessage("Receipt file is too large. Maximum size is 2 MB.");
+      event.target.value = "";
+      return;
+    }
 
     await uploadReceipt(file);
     event.target.value = "";
@@ -541,7 +557,7 @@ export default function DonatePage() {
                     {receiptStatus === "uploading" ? "Uploading Receipt..." : "Attach Receipt Here"}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Upload your transfer receipt here.
+                    Upload 1 receipt file only (max 2 MB).
                   </p>
 
                   {receiptStatus === "success" && receiptMessage && (

@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 export const runtime = "nodejs";
 const RECEIPT_NOTIFICATION_RECIPIENTS = ["hello@edutindo.org", "ymsp@edutindo.org"];
 
-const MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_RECEIPT_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const receipt = formData.get("receipt");
+    const fileCount = formData.getAll("receipt").length;
     const donorName = String(formData.get("donorName") || "").trim();
     const donorEmail = String(formData.get("donorEmail") || "").trim();
 
@@ -28,9 +29,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (fileCount !== 1) {
+      return NextResponse.json(
+        { ok: false, error: "Please upload exactly one receipt file." },
+        { status: 400 }
+      );
+    }
+
     if (receipt.size > MAX_RECEIPT_SIZE_BYTES) {
       return NextResponse.json(
-        { ok: false, error: "Receipt file is too large. Maximum size is 10 MB." },
+        { ok: false, error: "Receipt file is too large. Maximum size is 2 MB." },
         { status: 400 }
       );
     }
