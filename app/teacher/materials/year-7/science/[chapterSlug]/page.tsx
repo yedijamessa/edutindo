@@ -1,4 +1,6 @@
-import { Year7ScienceChapterPage } from "@/components/lms/year7-science-chapter-page";
+import { CurriculumChapterPage } from "@/components/lms/curriculum-chapter-page";
+
+export const dynamic = "force-dynamic";
 
 type ChapterPageProps = {
   params: Promise<{ chapterSlug: string }>;
@@ -6,5 +8,13 @@ type ChapterPageProps = {
 
 export default async function TeacherYear7ScienceChapterPage({ params }: ChapterPageProps) {
   const { chapterSlug } = await params;
-  return <Year7ScienceChapterPage chapterSlug={chapterSlug} role="teacher" />;
+
+  return (
+    <CurriculumChapterPage
+      yearSlug="year-7"
+      subjectSlug="science"
+      chapterSlug={chapterSlug}
+      role="teacher"
+    />
+  );
 }

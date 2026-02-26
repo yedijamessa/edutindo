@@ -1,4 +1,4 @@
-import { Year7ScienceLessonPage } from "@/components/lms/year7-science-lesson-page";
+import { CurriculumLessonPage } from "@/components/lms/curriculum-lesson-page";
 
 export const dynamic = "force-dynamic";
 
@@ -9,5 +9,13 @@ type LessonPageProps = {
 export default async function AdminYear7ScienceLessonPage({ params }: LessonPageProps) {
   const { chapterSlug, lessonSlug } = await params;
 
-  return <Year7ScienceLessonPage chapterSlug={chapterSlug} lessonSlug={lessonSlug} role="admin" />;
+  return (
+    <CurriculumLessonPage
+      yearSlug="year-7"
+      subjectSlug="science"
+      chapterSlug={chapterSlug}
+      lessonSlug={lessonSlug}
+      role="admin"
+    />
+  );
 }

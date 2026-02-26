@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AuthError,
   getUserFromSessionToken,
+  hasAdminPortalAccess,
   listUsersWithPortals,
 } from "@/lib/auth";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-shared";
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
     }
 
-    if (!requester.isAdmin) {
+    if (!hasAdminPortalAccess(requester)) {
       return NextResponse.json({ ok: false, error: "Forbidden." }, { status: 403 });
     }
 

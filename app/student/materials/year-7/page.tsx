@@ -4,9 +4,15 @@ import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { YEAR7_SCIENCE_TOTAL_LESSONS, year7ScienceChapters } from "@/lib/curriculum/year7/science";
+import { listCurriculumOutline } from "@/lib/curriculum-portal";
 
-export default function Year7MaterialsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function Year7MaterialsPage() {
+  const years = await listCurriculumOutline();
+  const year = years.find((item) => item.slug === "year-7");
+  const science = year?.subjects.find((item) => item.slug === "science");
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="flex">
@@ -53,11 +59,11 @@ export default function Year7MaterialsPage() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="rounded-xl bg-slate-100 p-3">
                       <p className="text-muted-foreground">Chapters</p>
-                      <p className="text-xl font-bold">{year7ScienceChapters.length}</p>
+                      <p className="text-xl font-bold">{science?.chapterCount ?? 0}</p>
                     </div>
                     <div className="rounded-xl bg-slate-100 p-3">
                       <p className="text-muted-foreground">Lessons</p>
-                      <p className="text-xl font-bold">{YEAR7_SCIENCE_TOTAL_LESSONS}</p>
+                      <p className="text-xl font-bold">{science?.lessonCount ?? 0}</p>
                     </div>
                   </div>
 
@@ -74,12 +80,12 @@ export default function Year7MaterialsPage() {
                   </div>
                   <CardTitle>More Subjects</CardTitle>
                   <CardDescription>
-                    Add additional Year 7 subjects here later using the same structure as Science.
+                    Additional Year 7 subjects from Curriculum Portal appear automatically here.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    This slot is ready for Maths, English, and other subjects when you are ready to add them.
+                    Current Year 7 subjects: {Math.max(0, (year?.subjects.length ?? 0) - 1)} besides Science.
                   </p>
                 </CardContent>
               </Card>

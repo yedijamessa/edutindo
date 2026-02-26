@@ -1,16 +1,21 @@
-import { Year7ScienceLessonPage } from "@/components/lms/year7-science-lesson-page";
-import { getYear7ScienceLessonRouteParams } from "@/lib/curriculum/year7/science";
+import { CurriculumLessonPage } from "@/components/lms/curriculum-lesson-page";
+
+export const dynamic = "force-dynamic";
 
 type LessonPageProps = {
   params: Promise<{ chapterSlug: string; lessonSlug: string }>;
 };
 
-export function generateStaticParams() {
-  return getYear7ScienceLessonRouteParams();
-}
-
 export default async function StudentYear7ScienceLessonPage({ params }: LessonPageProps) {
   const { chapterSlug, lessonSlug } = await params;
 
-  return <Year7ScienceLessonPage chapterSlug={chapterSlug} lessonSlug={lessonSlug} role="student" />;
+  return (
+    <CurriculumLessonPage
+      yearSlug="year-7"
+      subjectSlug="science"
+      chapterSlug={chapterSlug}
+      lessonSlug={lessonSlug}
+      role="student"
+    />
+  );
 }

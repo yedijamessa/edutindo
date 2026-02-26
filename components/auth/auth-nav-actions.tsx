@@ -119,6 +119,8 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
   }
 
   if (mobile) {
+    const hasAdminAccess = user.isAdmin || user.portals.includes("admin");
+
     return (
       <div className="space-y-2">
         <Button asChild variant="outline" className="w-full">
@@ -126,7 +128,7 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
             Dashboard
           </Link>
         </Button>
-        {user.isAdmin && (
+        {hasAdminAccess && (
           <Button asChild variant="outline" className="w-full">
             <Link href="/admin" onClick={onNavigate}>
               Admin Dashboard
@@ -140,12 +142,14 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     );
   }
 
+  const hasAdminAccess = user.isAdmin || user.portals.includes("admin");
+
   return (
     <div className="flex items-center gap-2">
       <Button asChild variant="outline" size="sm">
         <Link href="/dashboard">Dashboard</Link>
       </Button>
-      {user.isAdmin && (
+      {hasAdminAccess && (
         <Button asChild variant="outline" size="sm">
           <Link href="/admin">Admin</Link>
         </Button>

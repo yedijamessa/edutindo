@@ -45,7 +45,12 @@ export function Navbar() {
                 const data = await res.json()
                 if (!isMounted) return
                 setIsAuthenticated(Boolean(data?.authenticated))
-                setIsAdminUser(Boolean(data?.authenticated && data?.user?.isAdmin))
+                setIsAdminUser(
+                    Boolean(
+                        data?.authenticated &&
+                        (data?.user?.isAdmin || data?.user?.portals?.includes("admin"))
+                    )
+                )
             } catch (error) {
                 console.error("navbar auth state load error:", error)
                 if (isMounted) {

@@ -1,15 +1,20 @@
-import { Year7ScienceChapterPage } from "@/components/lms/year7-science-chapter-page";
-import { year7ScienceChapters } from "@/lib/curriculum/year7/science";
+import { CurriculumChapterPage } from "@/components/lms/curriculum-chapter-page";
+
+export const dynamic = "force-dynamic";
 
 type ChapterPageProps = {
   params: Promise<{ chapterSlug: string }>;
 };
 
-export function generateStaticParams() {
-  return year7ScienceChapters.map((chapter) => ({ chapterSlug: chapter.slug }));
-}
-
 export default async function StudentYear7ScienceChapterPage({ params }: ChapterPageProps) {
   const { chapterSlug } = await params;
-  return <Year7ScienceChapterPage chapterSlug={chapterSlug} role="student" />;
+
+  return (
+    <CurriculumChapterPage
+      yearSlug="year-7"
+      subjectSlug="science"
+      chapterSlug={chapterSlug}
+      role="student"
+    />
+  );
 }

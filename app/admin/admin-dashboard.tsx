@@ -171,7 +171,6 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     {PORTAL_OPTIONS.map((portal) => {
                       const checked = selectedPortals.has(portal);
-                      const isDisabled = user.isAdmin && portal === "admin";
 
                       return (
                         <label
@@ -181,7 +180,6 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
                           <input
                             type="checkbox"
                             checked={checked}
-                            disabled={isDisabled}
                             onChange={() => togglePortal(user.id, portal)}
                             className="h-4 w-4"
                           />

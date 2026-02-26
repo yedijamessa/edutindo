@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, applySessionCookie, loginWithPassword, sanitizeNextPath } from "@/lib/auth";
+import {
+  AuthError,
+  applySessionCookie,
+  hasAdminPortalAccess,
+  loginWithPassword,
+  sanitizeNextPath,
+} from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -12,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const { user, sessionToken } = await loginWithPassword({ email, password });
 
-    const fallback = user.isAdmin ? "/admin" : "/dashboard";
+    const fallback = hasAdminPortalAccess(user) ? "/admin" : "/dashboard";
     const redirectTo = sanitizeNextPath(requestedNextPath, fallback);
 
     const response = NextResponse.json({

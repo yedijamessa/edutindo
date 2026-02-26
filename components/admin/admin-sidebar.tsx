@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cn } from "@/components/ui/button";
 
 interface AdminSidebarProps {
-  activeSection?: "users" | "materials";
+  activeSection?: "users" | "materials" | "curriculum";
 }
 
 const baseLinkClass =
@@ -28,6 +28,12 @@ export function AdminSidebar({ activeSection = "users" }: AdminSidebarProps) {
           href="/admin/materials"
         >
           Learning Materials
+        </Link>
+        <Link
+          className={cn(baseLinkClass, activeSection === "curriculum" && activeLinkClass)}
+          href="/admin/curriculum"
+        >
+          Curriculum Portal
         </Link>
         <Link className={baseLinkClass} href="/">
           Public Site

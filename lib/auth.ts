@@ -540,6 +540,7 @@ async function getPortalsForUser(userId: string) {
 
 async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
   const portals = await getPortalsForUser(userRow.id);
+  const isAdmin = userRow.is_admin || portals.includes("admin");
 
   return {
     id: userRow.id,
@@ -547,10 +548,15 @@ async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
     firstName: userRow.first_name ?? "",
     lastName: userRow.last_name ?? "",
     emailVerified: userRow.email_verified,
-    isAdmin: userRow.is_admin,
+    isAdmin,
     portals,
     createdAt: new Date(userRow.created_at),
   };
+}
+
+export function hasAdminPortalAccess(user: Pick<AuthUser, "isAdmin" | "portals"> | null | undefined) {
+  if (!user) return false;
+  return user.isAdmin || user.portals.includes("admin");
 }
 
 function sanitizePortals(input: string[]): PortalKey[] {
@@ -685,8 +691,17 @@ export async function setUserPortals(userId: string, portals: PortalKey[]) {
   }
 
   const cleanedPortals = sanitizePortals(portals);
-  if (userRow.is_admin && !cleanedPortals.includes("admin")) {
+  const shouldBeAdmin = cleanedPortals.includes("admin") || isAllowlistedAdmin(userRow.email);
+  if (shouldBeAdmin && !cleanedPortals.includes("admin")) {
     cleanedPortals.push("admin");
+  }
+
+  if (userRow.is_admin !== shouldBeAdmin) {
+    await sql`
+      UPDATE auth_users
+      SET is_admin = ${shouldBeAdmin}, updated_at = NOW()
+      WHERE id = ${userId}
+    `;
   }
 
   await sql`
@@ -1238,7 +1253,7 @@ export async function listUsersWithPortals() {
     firstName: row.first_name ?? "",
     lastName: row.last_name ?? "",
     emailVerified: row.email_verified,
-    isAdmin: row.is_admin,
+    isAdmin: row.is_admin || (portalsByUser.get(row.id) ?? []).includes("admin"),
     createdAt: new Date(row.created_at),
     portals: portalsByUser.get(row.id) ?? [],
   }));
