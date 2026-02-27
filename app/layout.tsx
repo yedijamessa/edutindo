@@ -9,6 +9,9 @@ import { InactivitySignOut } from "@/components/auth/inactivity-signout";
 export const metadata: Metadata = {
   title: "Edutindo",
   description: "Yayasan Edutindo – Education with Light",
+  other: {
+    google: "notranslate",
+  },
   icons: {
     icon: [
       { url: "/favicon_io/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -26,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="font-sans" suppressHydrationWarning>
+    <html lang="en" translate="no" className="notranslate" suppressHydrationWarning>
+      <body className="font-sans notranslate" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

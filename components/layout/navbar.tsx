@@ -10,6 +10,7 @@ import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
 import { LanguageSwitcher } from "../language-switcher"
 import { AuthNavActions } from "../auth/auth-nav-actions"
+import { AdminNavMenu } from "../admin/admin-nav-menu"
 
 const navItems = [
     { name: "Home", href: "/" },
@@ -34,6 +35,7 @@ export function Navbar() {
     const pathname = usePathname()
     const isFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
+    const isAdminRoute = pathname.startsWith("/admin")
     const showAdminBackButton = isPortalRoute && isAdminUser
 
     React.useEffect(() => {
@@ -86,16 +88,19 @@ export function Navbar() {
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container-custom flex h-16 items-center justify-between">
-                <Link href="/" className="group flex items-center">
-                    <Image
-                        src="/logo-edutindo.png"
-                        alt="Edutindo"
-                        width={180}
-                        height={44}
-                        priority
-                        className="h-8 w-auto md:h-9 transition-all group-hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.35)]"
-                    />
-                </Link>
+                <div className="flex items-center gap-2">
+                    {isAdminRoute && <AdminNavMenu />}
+                    <Link href="/" className="group flex items-center">
+                        <Image
+                            src="/logo-edutindo.png"
+                            alt="Edutindo"
+                            width={180}
+                            height={44}
+                            priority
+                            className="h-8 w-auto md:h-9 transition-all group-hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.35)]"
+                        />
+                    </Link>
+                </div>
 
                 {/* Desktop Nav */}
                 <nav className="hidden md:flex items-center gap-6">

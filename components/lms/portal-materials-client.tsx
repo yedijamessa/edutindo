@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, ChevronRight, Search } from "lucide-react";
 import { SidebarNav } from "@/components/lms/sidebar-nav";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { MaterialCard } from "@/components/lms/material-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -182,9 +181,7 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="flex">
-        {role === "admin" ? (
-          <AdminSidebar activeSection="materials" />
-        ) : (
+        {role !== "admin" && (
           <aside className="hidden lg:block w-64 border-r bg-card p-6 min-h-screen sticky top-0">
             <div className="mb-8">
               <h2 className="text-lg font-bold">{roleLabels[role]}</h2>

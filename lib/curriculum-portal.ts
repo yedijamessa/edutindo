@@ -228,6 +228,80 @@ function extractLearningOutcomes(metadata: Record<string, unknown>) {
     .slice(0, 20);
 }
 
+function parseFirstNumber(value: unknown) {
+  const cleaned = sanitizeText(value, 280);
+  const match = cleaned.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseNumberSequence(value: unknown) {
+  const cleaned = sanitizeText(value, 120);
+  const tokens = cleaned.match(/\d+/g);
+  if (!tokens) return [];
+
+  return tokens
+    .map((token) => Number(token))
+    .filter((token) => Number.isFinite(token));
+}
+
+function compareNullableNumber(left: number | null, right: number | null) {
+  if (left == null && right == null) return 0;
+  if (left == null) return 1;
+  if (right == null) return -1;
+  return left - right;
+}
+
+function compareNumberSequence(left: number[], right: number[]) {
+  const maxLength = Math.max(left.length, right.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftValue = left[index];
+    const rightValue = right[index];
+
+    if (leftValue == null && rightValue == null) return 0;
+    if (leftValue == null) return 1;
+    if (rightValue == null) return -1;
+    if (leftValue !== rightValue) return leftValue - rightValue;
+  }
+
+  return 0;
+}
+
+function sortChapterNodes(nodes: CurriculumNode[]) {
+  return [...nodes].sort((left, right) => {
+    const weekCompare = compareNullableNumber(
+      parseFirstNumber(left.metadata.weekRange),
+      parseFirstNumber(right.metadata.weekRange)
+    );
+    if (weekCompare !== 0) return weekCompare;
+
+    if (left.position !== right.position) return left.position - right.position;
+    return left.title.localeCompare(right.title);
+  });
+}
+
+function sortLessonNodes(nodes: CurriculumNode[]) {
+  return [...nodes].sort((left, right) => {
+    const weekCompare = compareNullableNumber(
+      parseFirstNumber(left.metadata.week),
+      parseFirstNumber(right.metadata.week)
+    );
+    if (weekCompare !== 0) return weekCompare;
+
+    const codeCompare = compareNumberSequence(
+      parseNumberSequence(left.metadata.lessonCode),
+      parseNumberSequence(right.metadata.lessonCode)
+    );
+    if (codeCompare !== 0) return codeCompare;
+
+    if (left.position !== right.position) return left.position - right.position;
+    return left.title.localeCompare(right.title);
+  });
+}
+
 function slugify(value: string) {
   const base = value
     .toLowerCase()
@@ -800,8 +874,9 @@ function mapChapter(node: CurriculumNode): CurriculumChapterSummary {
 }
 
 function mapSubject(node: CurriculumNode): CurriculumSubjectSummary {
-  const chapters = node.children.map(mapChapter);
-  const lessonCount = node.children.reduce((sum, chapter) => sum + chapter.children.length, 0);
+  const sortedChapters = sortChapterNodes(node.children);
+  const chapters = sortedChapters.map(mapChapter);
+  const lessonCount = sortedChapters.reduce((sum, chapter) => sum + chapter.children.length, 0);
 
   return {
     id: node.id,
@@ -848,17 +923,18 @@ export async function getCurriculumChapterContext(input: {
   const subjectNode = yearNode.children.find((node) => node.slug === subjectSlug);
   if (!subjectNode) return null;
 
-  const chapters = subjectNode.children;
+  const chapters = sortChapterNodes(subjectNode.children);
   const chapterIndex = chapters.findIndex((node) => node.slug === chapterSlug);
   if (chapterIndex < 0) return null;
 
   const chapterNode = chapters[chapterIndex];
   const previousChapter = chapterIndex > 0 ? mapChapter(chapters[chapterIndex - 1]) : null;
   const nextChapter = chapterIndex < chapters.length - 1 ? mapChapter(chapters[chapterIndex + 1]) : null;
+  const lessons = sortLessonNodes(chapterNode.children);
 
   const chapter = {
     ...mapChapter(chapterNode),
-    lessons: chapterNode.children.map(mapLesson),
+    lessons: lessons.map(mapLesson),
     strand: extractString(chapterNode.metadata.strand),
     unitTitle: extractString(chapterNode.metadata.unitTitle),
     learningOutcomes: extractLearningOutcomes(chapterNode.metadata),

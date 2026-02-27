@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import Link from "next/link";
+import { ArrowLeft, GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,9 @@ const childHintByType: Record<NodeType, string> = {
   lesson: "items",
 };
 
+const YEAR_OPTIONS = ["Year 7", "Year 8", "Year 9"] as const;
+const SUBJECT_OPTIONS = ["Science", "IT", "Christian Studies", "Math", "English"] as const;
+
 function reorderIds(ids: string[], draggedId: string, targetId: string | null) {
   const next = ids.filter((id) => id !== draggedId);
   const targetIndex = targetId ? next.indexOf(targetId) : next.length;
@@ -58,10 +62,15 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function sameLabel(left: string, right: string) {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
 interface NodeColumnProps {
   title: string;
   description: string;
   nodeType: NodeType;
+  parentId: string | null;
   nodes: CurriculumNode[];
   selectedId: string | null;
   disabled: boolean;
@@ -71,7 +80,6 @@ interface NodeColumnProps {
   draftWeek: string;
   draftLessonCode: string;
   busy: boolean;
-  dragState: DragState | null;
   onDraftTitleChange: (value: string) => void;
   onDraftWeekRangeChange: (value: string) => void;
   onDraftWeekChange: (value: string) => void;
@@ -80,16 +88,24 @@ interface NodeColumnProps {
   onCreate: () => void;
   onRename: (node: CurriculumNode) => void;
   onDelete: (node: CurriculumNode) => void;
-  onDragStart: (node: CurriculumNode) => void;
+  onDragStart: (node: CurriculumNode, event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
+  canDropOnNode: (targetNode: CurriculumNode) => boolean;
+  canDropAtEnd: (parentId: string | null) => boolean;
   onDropOnNode: (targetNode: CurriculumNode, siblingNodes: CurriculumNode[]) => void;
   onDropAtEnd: (parentId: string | null, siblingNodes: CurriculumNode[]) => void;
+  chapterWeekDrafts?: Record<string, string>;
+  chapterWeekBusyId?: string | null;
+  onChapterWeekDraftChange?: (chapterId: string, value: string) => void;
+  onSaveChapterWeek?: (chapter: CurriculumNode) => void;
+  lessonPreviewBasePath?: string | null;
 }
 
 function NodeColumn({
   title,
   description,
   nodeType,
+  parentId,
   nodes,
   selectedId,
   disabled,
@@ -99,7 +115,6 @@ function NodeColumn({
   draftWeek,
   draftLessonCode,
   busy,
-  dragState,
   onDraftTitleChange,
   onDraftWeekRangeChange,
   onDraftWeekChange,
@@ -110,8 +125,15 @@ function NodeColumn({
   onDelete,
   onDragStart,
   onDragEnd,
+  canDropOnNode,
+  canDropAtEnd,
   onDropOnNode,
   onDropAtEnd,
+  chapterWeekDrafts,
+  chapterWeekBusyId,
+  onChapterWeekDraftChange,
+  onSaveChapterWeek,
+  lessonPreviewBasePath,
 }: NodeColumnProps) {
   const label = nodeLabelByType[nodeType];
 
@@ -124,7 +146,6 @@ function NodeColumn({
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-
       <CardContent className="space-y-4">
         <form
           onSubmit={(event) => {
@@ -181,17 +202,17 @@ function NodeColumn({
 
         <div
           className={cn(
-            "space-y-2 rounded-xl border border-dashed p-2",
+            "max-h-[48vh] overflow-y-auto space-y-2 rounded-xl border border-dashed p-2",
             disabled ? "bg-slate-50" : "bg-white"
           )}
           onDragOver={(event) => {
-            if (disabled) return;
+            if (disabled || !canDropAtEnd(parentId)) return;
             event.preventDefault();
           }}
           onDrop={(event) => {
-            if (disabled) return;
+            if (disabled || !canDropAtEnd(parentId)) return;
             event.preventDefault();
-            onDropAtEnd(nodes[0]?.parentId ?? null, nodes);
+            onDropAtEnd(parentId, nodes);
           }}
         >
           {nodes.length === 0 ? (
@@ -201,11 +222,7 @@ function NodeColumn({
           ) : (
             nodes.map((node) => {
               const isSelected = selectedId === node.id;
-              const canDropHere =
-                dragState &&
-                dragState.parentId === node.parentId &&
-                dragState.nodeType === node.nodeType &&
-                dragState.nodeId !== node.id;
+              const canDropHere = canDropOnNode(node);
 
               const chapterWeekRange = text(node.metadata.weekRange);
               const lessonWeek = text(node.metadata.week);
@@ -215,7 +232,7 @@ function NodeColumn({
                 <div
                   key={node.id}
                   draggable={!busy}
-                  onDragStart={() => onDragStart(node)}
+                  onDragStart={(event) => onDragStart(node, event)}
                   onDragEnd={onDragEnd}
                   onDragOver={(event) => {
                     if (!canDropHere) return;
@@ -241,9 +258,13 @@ function NodeColumn({
                       <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-slate-900">{node.title}</p>
-                        <p className="text-xs text-slate-500">
-                          {node.children.length} {childHintByType[nodeType]}
-                        </p>
+                        {nodeType === "lesson" ? (
+                          <p className="text-xs text-slate-500">Lesson page</p>
+                        ) : (
+                          <p className="text-xs text-slate-500">
+                            {node.children.length} {childHintByType[nodeType]}
+                          </p>
+                        )}
                         {nodeType === "chapter" && chapterWeekRange && (
                           <p className="text-xs text-slate-500">{chapterWeekRange}</p>
                         )}
@@ -257,6 +278,11 @@ function NodeColumn({
                     </button>
 
                     <div className="flex items-center gap-1">
+                      {nodeType === "lesson" && lessonPreviewBasePath && (
+                        <Button type="button" variant="ghost" size="sm" asChild className="h-8 px-2 text-xs">
+                          <Link href={`${lessonPreviewBasePath}/${node.slug}`}>Open</Link>
+                        </Button>
+                      )}
                       <Button type="button" variant="ghost" size="icon" onClick={() => onRename(node)} disabled={busy}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -272,6 +298,37 @@ function NodeColumn({
                       </Button>
                     </div>
                   </div>
+
+                  {nodeType === "chapter" && onChapterWeekDraftChange && onSaveChapterWeek && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Input
+                        value={chapterWeekDrafts?.[node.id] ?? chapterWeekRange}
+                        onChange={(event) => onChapterWeekDraftChange(node.id, event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter") return;
+                          event.preventDefault();
+                          onSaveChapterWeek(node);
+                        }}
+                        placeholder="Set week range (example: Weeks 2-4)"
+                        disabled={busy || chapterWeekBusyId === node.id}
+                        className="h-8 text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSaveChapterWeek(node)}
+                        disabled={busy || chapterWeekBusyId === node.id}
+                        className="h-8 shrink-0 px-2 text-xs"
+                      >
+                        {chapterWeekBusyId === node.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          "Save"
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -291,11 +348,16 @@ export function CurriculumPortal() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  const [selectedYearTitle, setSelectedYearTitle] = useState<(typeof YEAR_OPTIONS)[number]>(YEAR_OPTIONS[0]);
+  const [selectedSubjectTitle, setSelectedSubjectTitle] = useState<(typeof SUBJECT_OPTIONS)[number]>(
+    SUBJECT_OPTIONS[0]
+  );
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, string>>({});
+  const [chapterWeekBusyId, setChapterWeekBusyId] = useState<string | null>(null);
 
-  const [dragState, setDragState] = useState<DragState | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
 
   const [drafts, setDrafts] = useState<Record<NodeType, string>>({
     year: "",
@@ -337,41 +399,27 @@ export function CurriculumPortal() {
 
   const years = tree;
 
-  useEffect(() => {
-    if (years.length === 0) {
-      setSelectedYearId(null);
-      return;
-    }
-
-    if (!selectedYearId || !years.some((item) => item.id === selectedYearId)) {
-      setSelectedYearId(years[0].id);
-    }
-  }, [years, selectedYearId]);
-
   const selectedYear = useMemo(
-    () => years.find((item) => item.id === selectedYearId) ?? null,
-    [years, selectedYearId]
+    () => years.find((item) => sameLabel(item.title, selectedYearTitle)) ?? null,
+    [years, selectedYearTitle]
   );
 
   const subjects = selectedYear?.children ?? [];
 
-  useEffect(() => {
-    if (subjects.length === 0) {
-      setSelectedSubjectId(null);
-      return;
-    }
-
-    if (!selectedSubjectId || !subjects.some((item) => item.id === selectedSubjectId)) {
-      setSelectedSubjectId(subjects[0].id);
-    }
-  }, [subjects, selectedSubjectId]);
-
   const selectedSubject = useMemo(
-    () => subjects.find((item) => item.id === selectedSubjectId) ?? null,
-    [subjects, selectedSubjectId]
+    () => subjects.find((item) => sameLabel(item.title, selectedSubjectTitle)) ?? null,
+    [subjects, selectedSubjectTitle]
   );
 
   const chapters = selectedSubject?.children ?? [];
+
+  useEffect(() => {
+    const nextDrafts: Record<string, string> = {};
+    for (const chapter of chapters) {
+      nextDrafts[chapter.id] = text(chapter.metadata.weekRange);
+    }
+    setChapterWeekDrafts(nextDrafts);
+  }, [chapters]);
 
   useEffect(() => {
     if (chapters.length === 0) {
@@ -390,6 +438,37 @@ export function CurriculumPortal() {
   );
 
   const lessons = selectedChapter?.children ?? [];
+  const lessonPreviewBasePath = useMemo(() => {
+    if (!selectedYear || !selectedSubject || !selectedChapter) return null;
+    return `/admin/materials/curriculum/${selectedYear.slug}/${selectedSubject.slug}/${selectedChapter.slug}`;
+  }, [selectedYear, selectedSubject, selectedChapter]);
+
+  useEffect(() => {
+    if (wizardStep === 1) return;
+    if (!selectedYear) {
+      setWizardStep(1);
+    }
+  }, [selectedYear, wizardStep]);
+
+  useEffect(() => {
+    if (wizardStep < 2) return;
+    if (wizardStep === 3 && !selectedSubject) {
+      setWizardStep(2);
+    }
+  }, [selectedSubject, wizardStep]);
+
+  const canDropOnNode = useCallback((targetNode: CurriculumNode) => {
+    const dragState = dragStateRef.current;
+    if (!dragState) return false;
+    if (dragState.parentId !== targetNode.parentId) return false;
+    if (dragState.nodeType !== targetNode.nodeType) return false;
+    return dragState.nodeId !== targetNode.id;
+  }, []);
+
+  const canDropAtEnd = useCallback((parentId: string | null) => {
+    const dragState = dragStateRef.current;
+    return Boolean(dragState && dragState.parentId === parentId);
+  }, []);
 
   const setDraft = (nodeType: NodeType, value: string) => {
     setDrafts((prev) => ({
@@ -398,11 +477,18 @@ export function CurriculumPortal() {
     }));
   };
 
-  const createNode = async (nodeType: NodeType, parentId: string | null) => {
-    const title = drafts[nodeType].trim();
-    if (!title) return;
+  const createNode = async (
+    nodeType: NodeType,
+    parentId: string | null,
+    overrides?: {
+      title?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<string | null> => {
+    const title = (overrides?.title ?? drafts[nodeType]).trim();
+    if (!title) return null;
 
-    const metadata: Record<string, unknown> = {};
+    const metadata: Record<string, unknown> = { ...(overrides?.metadata ?? {}) };
     if (nodeType === "chapter") {
       metadata.weekRange = chapterWeekRangeDraft.trim();
     }
@@ -425,11 +511,13 @@ export function CurriculumPortal() {
 
       if (!response.ok || !data.ok) {
         setError(data.error || "Failed to create node.");
-        return;
+        return null;
       }
 
       const createdId = String(data?.node?.id || "");
-      setDraft(nodeType, "");
+      if (!overrides?.title) {
+        setDraft(nodeType, "");
+      }
       if (nodeType === "chapter") {
         setChapterWeekRangeDraft("");
       }
@@ -441,22 +529,94 @@ export function CurriculumPortal() {
 
       await loadTree();
 
-      if (createdId) {
-        if (nodeType === "year") {
-          setSelectedYearId(createdId);
-        }
-        if (nodeType === "subject") {
-          setSelectedSubjectId(createdId);
-        }
-        if (nodeType === "chapter") {
-          setSelectedChapterId(createdId);
-        }
+      if (createdId && nodeType === "chapter") {
+        setSelectedChapterId(createdId);
       }
+      return createdId || null;
     } catch (createError) {
       console.error(createError);
       setError("Failed to create node.");
+      return null;
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleYearChange = (value: (typeof YEAR_OPTIONS)[number]) => {
+    setSelectedYearTitle(value);
+    const matched = years.find((item) => sameLabel(item.title, value));
+    setWizardStep(matched ? 2 : 1);
+    setSelectedChapterId(null);
+  };
+
+  const handleSubjectChange = (value: (typeof SUBJECT_OPTIONS)[number]) => {
+    setSelectedSubjectTitle(value);
+    const matched = subjects.find((item) => sameLabel(item.title, value));
+    if (matched) {
+      setWizardStep(3);
+      return;
+    }
+    setWizardStep(2);
+    setSelectedChapterId(null);
+  };
+
+  const createSelectedYear = async () => {
+    if (selectedYear) return;
+    const createdId = await createNode("year", null, { title: selectedYearTitle });
+    if (createdId) {
+      setWizardStep(2);
+    }
+  };
+
+  const createSelectedSubject = async () => {
+    if (!selectedYear || selectedSubject) return;
+    const createdId = await createNode("subject", selectedYear.id, { title: selectedSubjectTitle });
+    if (createdId) {
+      setWizardStep(3);
+    }
+  };
+
+  const updateChapterWeekDraft = (chapterId: string, value: string) => {
+    setChapterWeekDrafts((prev) => ({
+      ...prev,
+      [chapterId]: value,
+    }));
+  };
+
+  const saveChapterWeek = async (chapter: CurriculumNode) => {
+    const nextWeekRange = (chapterWeekDrafts[chapter.id] ?? "").trim();
+    const currentWeekRange = text(chapter.metadata.weekRange);
+    if (nextWeekRange === currentWeekRange) return;
+
+    setChapterWeekBusyId(chapter.id);
+    setError("");
+    setMessage("");
+
+    const metadata: Record<string, unknown> = {
+      ...(chapter.metadata ?? {}),
+      weekRange: nextWeekRange,
+    };
+
+    try {
+      const response = await fetch(`/api/admin/curriculum/${chapter.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: chapter.title, metadata }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setError(data.error || "Failed to update chapter week range.");
+        return;
+      }
+
+      setMessage("Chapter week range updated.");
+      await loadTree();
+    } catch (saveError) {
+      console.error(saveError);
+      setError("Failed to update chapter week range.");
+    } finally {
+      setChapterWeekBusyId(null);
     }
   };
 
@@ -570,11 +730,12 @@ export function CurriculumPortal() {
       setError("Failed to reorder nodes.");
     } finally {
       setBusy(false);
-      setDragState(null);
+      dragStateRef.current = null;
     }
   };
 
   const dropOnNode = async (targetNode: CurriculumNode, siblingNodes: CurriculumNode[]) => {
+    const dragState = dragStateRef.current;
     if (!dragState) return;
     if (dragState.parentId !== targetNode.parentId) return;
     if (dragState.nodeType !== targetNode.nodeType) return;
@@ -583,7 +744,7 @@ export function CurriculumPortal() {
     const nextIds = reorderIds(currentIds, dragState.nodeId, targetNode.id);
 
     if (hasSameOrder(currentIds, nextIds)) {
-      setDragState(null);
+      dragStateRef.current = null;
       return;
     }
 
@@ -591,6 +752,7 @@ export function CurriculumPortal() {
   };
 
   const dropAtEnd = async (parentId: string | null, siblingNodes: CurriculumNode[]) => {
+    const dragState = dragStateRef.current;
     if (!dragState) return;
     if (dragState.parentId !== parentId) return;
 
@@ -598,20 +760,30 @@ export function CurriculumPortal() {
     const nextIds = reorderIds(currentIds, dragState.nodeId, null);
 
     if (hasSameOrder(currentIds, nextIds)) {
-      setDragState(null);
+      dragStateRef.current = null;
       return;
     }
 
     await persistOrder(parentId, nextIds);
   };
 
+  const handleDragStart = (node: CurriculumNode, event: DragEvent<HTMLDivElement>) => {
+    dragStateRef.current = { nodeId: node.id, parentId: node.parentId, nodeType: node.nodeType };
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", node.id);
+  };
+
+  const handleDragEnd = () => {
+    dragStateRef.current = null;
+  };
+
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="flex h-full flex-col gap-4 overflow-hidden">
+      <Card className="shrink-0">
         <CardHeader>
           <CardTitle className="text-2xl">Curriculum Portal</CardTitle>
           <CardDescription>
-            Manage hierarchy and order manually: Year -&gt; Subject -&gt; Chapter -&gt; Lesson. Set lesson week and code (e.g., 2.1, 2.2) directly here.
+            One-screen wizard: choose year, then subject, then manage chapters and lessons.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -625,118 +797,211 @@ export function CurriculumPortal() {
           Loading curriculum...
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-4">
-          <NodeColumn
-            title="Years"
-            description="Top level year buckets."
-            nodeType="year"
-            nodes={years}
-            selectedId={selectedYearId}
-            disabled={false}
-            addDisabledReason=""
-            draftTitle={drafts.year}
-            draftWeekRange=""
-            draftWeek=""
-            draftLessonCode=""
-            busy={busy}
-            dragState={dragState}
-            onDraftTitleChange={(value) => setDraft("year", value)}
-            onDraftWeekRangeChange={() => undefined}
-            onDraftWeekChange={() => undefined}
-            onDraftLessonCodeChange={() => undefined}
-            onSelect={(nodeId) => setSelectedYearId(nodeId)}
-            onCreate={() => createNode("year", null)}
-            onRename={renameNode}
-            onDelete={deleteNode}
-            onDragStart={(node) => setDragState({ nodeId: node.id, parentId: node.parentId, nodeType: node.nodeType })}
-            onDragEnd={() => setDragState(null)}
-            onDropOnNode={dropOnNode}
-            onDropAtEnd={dropAtEnd}
-          />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {wizardStep === 1 && (
+            <Card className="border-slate-200">
+              <CardHeader className="space-y-2">
+                <Badge className="w-fit bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">
+                  Step 1
+                </Badge>
+                <CardTitle className="text-base">Choose Year</CardTitle>
+                <CardDescription>Only Year 7, Year 8, and Year 9 are allowed.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <select
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                  value={selectedYearTitle}
+                  onChange={(event) => handleYearChange(event.target.value as (typeof YEAR_OPTIONS)[number])}
+                  disabled={busy}
+                >
+                  {YEAR_OPTIONS.map((yearTitle) => (
+                    <option key={yearTitle} value={yearTitle}>
+                      {yearTitle}
+                    </option>
+                  ))}
+                </select>
 
-          <NodeColumn
-            title="Subjects"
-            description={selectedYear ? `Inside year: ${selectedYear.title}` : "Select a year first."}
-            nodeType="subject"
-            nodes={subjects}
-            selectedId={selectedSubjectId}
-            disabled={!selectedYear}
-            addDisabledReason="Choose a year to add subjects."
-            draftTitle={drafts.subject}
-            draftWeekRange=""
-            draftWeek=""
-            draftLessonCode=""
-            busy={busy}
-            dragState={dragState}
-            onDraftTitleChange={(value) => setDraft("subject", value)}
-            onDraftWeekRangeChange={() => undefined}
-            onDraftWeekChange={() => undefined}
-            onDraftLessonCodeChange={() => undefined}
-            onSelect={(nodeId) => setSelectedSubjectId(nodeId)}
-            onCreate={() => createNode("subject", selectedYear?.id ?? null)}
-            onRename={renameNode}
-            onDelete={deleteNode}
-            onDragStart={(node) => setDragState({ nodeId: node.id, parentId: node.parentId, nodeType: node.nodeType })}
-            onDragEnd={() => setDragState(null)}
-            onDropOnNode={dropOnNode}
-            onDropAtEnd={dropAtEnd}
-          />
+                {selectedYear ? (
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-sm text-slate-700">Selected: {selectedYear.title}</p>
+                    <Button type="button" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
+                      Continue to Subject
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                    <p>{selectedYearTitle} has not been created in curriculum yet.</p>
+                    <Button type="button" size="sm" onClick={createSelectedYear} disabled={busy}>
+                      {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Create {selectedYearTitle}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-          <NodeColumn
-            title="Chapters"
-            description={selectedSubject ? `Inside subject: ${selectedSubject.title}` : "Select a subject first."}
-            nodeType="chapter"
-            nodes={chapters}
-            selectedId={selectedChapterId}
-            disabled={!selectedSubject}
-            addDisabledReason="Choose a subject to add chapters."
-            draftTitle={drafts.chapter}
-            draftWeekRange={chapterWeekRangeDraft}
-            draftWeek=""
-            draftLessonCode=""
-            busy={busy}
-            dragState={dragState}
-            onDraftTitleChange={(value) => setDraft("chapter", value)}
-            onDraftWeekRangeChange={setChapterWeekRangeDraft}
-            onDraftWeekChange={() => undefined}
-            onDraftLessonCodeChange={() => undefined}
-            onSelect={(nodeId) => setSelectedChapterId(nodeId)}
-            onCreate={() => createNode("chapter", selectedSubject?.id ?? null)}
-            onRename={renameNode}
-            onDelete={deleteNode}
-            onDragStart={(node) => setDragState({ nodeId: node.id, parentId: node.parentId, nodeType: node.nodeType })}
-            onDragEnd={() => setDragState(null)}
-            onDropOnNode={dropOnNode}
-            onDropAtEnd={dropAtEnd}
-          />
+          {wizardStep === 2 && (
+            <Card className="border-slate-200">
+              <CardHeader className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge className="w-fit bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">
+                    Step 2
+                  </Badge>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(1)} disabled={busy}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Year
+                  </Button>
+                </div>
+                <CardTitle className="text-base">Choose Subject</CardTitle>
+                <CardDescription>
+                  {selectedYear
+                    ? `Inside year: ${selectedYear.title}.`
+                    : "Select or create the chosen year in Step 1 first."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <select
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
+                  value={selectedSubjectTitle}
+                  onChange={(event) => handleSubjectChange(event.target.value as (typeof SUBJECT_OPTIONS)[number])}
+                  disabled={!selectedYear || busy}
+                >
+                  {SUBJECT_OPTIONS.map((subjectTitle) => (
+                    <option key={subjectTitle} value={subjectTitle}>
+                      {subjectTitle}
+                    </option>
+                  ))}
+                </select>
 
-          <NodeColumn
-            title="Lessons"
-            description={selectedChapter ? `Inside chapter: ${selectedChapter.title}` : "Select a chapter first."}
-            nodeType="lesson"
-            nodes={lessons}
-            selectedId={null}
-            disabled={!selectedChapter}
-            addDisabledReason="Choose a chapter to add lessons."
-            draftTitle={drafts.lesson}
-            draftWeekRange=""
-            draftWeek={lessonWeekDraft}
-            draftLessonCode={lessonCodeDraft}
-            busy={busy}
-            dragState={dragState}
-            onDraftTitleChange={(value) => setDraft("lesson", value)}
-            onDraftWeekRangeChange={() => undefined}
-            onDraftWeekChange={setLessonWeekDraft}
-            onDraftLessonCodeChange={setLessonCodeDraft}
-            onSelect={() => undefined}
-            onCreate={() => createNode("lesson", selectedChapter?.id ?? null)}
-            onRename={renameNode}
-            onDelete={deleteNode}
-            onDragStart={(node) => setDragState({ nodeId: node.id, parentId: node.parentId, nodeType: node.nodeType })}
-            onDragEnd={() => setDragState(null)}
-            onDropOnNode={dropOnNode}
-            onDropAtEnd={dropAtEnd}
-          />
+                {!selectedYear ? (
+                  <p className="text-xs text-muted-foreground">
+                    This step requires a valid year from Step 1.
+                  </p>
+                ) : selectedSubject ? (
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-sm text-slate-700">Selected: {selectedSubject.title}</p>
+                    <Button type="button" size="sm" onClick={() => setWizardStep(3)} disabled={busy}>
+                      Continue to Chapters
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                    <p>
+                      {selectedSubjectTitle} has not been created in {selectedYear.title} yet.
+                    </p>
+                    <Button type="button" size="sm" onClick={createSelectedSubject} disabled={busy}>
+                      {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Add {selectedSubjectTitle}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {wizardStep === 3 && (
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant="secondary">{selectedYear?.title ?? selectedYearTitle}</Badge>
+                  <Badge variant="secondary">{selectedSubject?.title ?? selectedSubjectTitle}</Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Change Subject
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(1)} disabled={busy}>
+                    Change Year
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-2">
+                {selectedSubject ? (
+                  <NodeColumn
+                    title="Choose Chapter"
+                    description={`Drag to reorder chapters. Update week range inline and save.`}
+                    nodeType="chapter"
+                    parentId={selectedSubject.id}
+                    nodes={chapters}
+                    selectedId={selectedChapterId}
+                    disabled={false}
+                    addDisabledReason=""
+                    draftTitle={drafts.chapter}
+                    draftWeekRange={chapterWeekRangeDraft}
+                    draftWeek=""
+                    draftLessonCode=""
+                    busy={busy}
+                    onDraftTitleChange={(value) => setDraft("chapter", value)}
+                    onDraftWeekRangeChange={setChapterWeekRangeDraft}
+                    onDraftWeekChange={() => undefined}
+                    onDraftLessonCodeChange={() => undefined}
+                    onSelect={(nodeId) => setSelectedChapterId(nodeId)}
+                    onCreate={() => createNode("chapter", selectedSubject.id)}
+                    onRename={renameNode}
+                    onDelete={deleteNode}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    canDropOnNode={canDropOnNode}
+                    canDropAtEnd={canDropAtEnd}
+                    onDropOnNode={dropOnNode}
+                    onDropAtEnd={dropAtEnd}
+                    chapterWeekDrafts={chapterWeekDrafts}
+                    chapterWeekBusyId={chapterWeekBusyId}
+                    onChapterWeekDraftChange={updateChapterWeekDraft}
+                    onSaveChapterWeek={saveChapterWeek}
+                  />
+                ) : (
+                  <Card className="border-dashed border-slate-300 bg-slate-50">
+                    <CardContent className="p-4 text-sm text-muted-foreground">
+                      Select a valid subject first.
+                    </CardContent>
+                  </Card>
+                )}
+
+                {selectedChapter ? (
+                  <NodeColumn
+                    title="Manage Lessons"
+                    description={`Inside chapter: ${selectedChapter.title}. Add, edit, delete, and reorder lessons here.`}
+                    nodeType="lesson"
+                    parentId={selectedChapter.id}
+                    nodes={lessons}
+                    selectedId={null}
+                    disabled={false}
+                    addDisabledReason=""
+                    draftTitle={drafts.lesson}
+                    draftWeekRange=""
+                    draftWeek={lessonWeekDraft}
+                    draftLessonCode={lessonCodeDraft}
+                    busy={busy}
+                    onDraftTitleChange={(value) => setDraft("lesson", value)}
+                    onDraftWeekRangeChange={() => undefined}
+                    onDraftWeekChange={setLessonWeekDraft}
+                    onDraftLessonCodeChange={setLessonCodeDraft}
+                    onSelect={() => undefined}
+                    onCreate={() => createNode("lesson", selectedChapter.id)}
+                    onRename={renameNode}
+                    onDelete={deleteNode}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    canDropOnNode={canDropOnNode}
+                    canDropAtEnd={canDropAtEnd}
+                    onDropOnNode={dropOnNode}
+                    onDropAtEnd={dropAtEnd}
+                    lessonPreviewBasePath={lessonPreviewBasePath}
+                  />
+                ) : (
+                  <Card className="border-dashed border-slate-300 bg-slate-50">
+                    <CardContent className="p-4 text-sm text-muted-foreground">
+                      Select a chapter to manage lessons.
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
