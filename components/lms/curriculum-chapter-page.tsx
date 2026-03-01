@@ -10,6 +10,7 @@ import { getCurriculumChapterContext } from "@/lib/curriculum-portal";
 export type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
 
 interface CurriculumChapterPageProps {
+  schoolSlug?: string;
   yearSlug: string;
   subjectSlug: string;
   chapterSlug: string;
@@ -27,12 +28,14 @@ function resolveYearLevel(title: string, fallback: number | null) {
 }
 
 export async function CurriculumChapterPage({
+  schoolSlug,
   yearSlug,
   subjectSlug,
   chapterSlug,
   role,
 }: CurriculumChapterPageProps) {
   const context = await getCurriculumChapterContext({
+    schoolSlug,
     yearSlug,
     subjectSlug,
     chapterSlug,
@@ -42,8 +45,8 @@ export async function CurriculumChapterPage({
     notFound();
   }
 
-  const { year, subject, chapter, previousChapter, nextChapter } = context;
-  const chapterBasePath = `/${role}/materials/curriculum/${year.slug}/${subject.slug}`;
+  const { school, year, subject, chapter, previousChapter, nextChapter } = context;
+  const chapterBasePath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}`;
   const materialsPath = `/${role}/materials`;
   const canManageResources = role === "teacher" || role === "principal" || role === "admin";
   const yearLevel = resolveYearLevel(year.title, year.yearLevel);
@@ -56,6 +59,8 @@ export async function CurriculumChapterPage({
             <Link href={materialsPath} className="hover:text-foreground transition-colors whitespace-nowrap">
               Learning Materials
             </Link>
+            <ChevronRight className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap">{school.title}</span>
             <ChevronRight className="w-4 h-4 shrink-0" />
             <span className="whitespace-nowrap">{year.title}</span>
             <ChevronRight className="w-4 h-4 shrink-0" />

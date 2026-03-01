@@ -48,6 +48,14 @@ type CurriculumYear = {
   subjects: CurriculumSubject[];
 };
 
+type CurriculumSchool = {
+  id: string;
+  title: string;
+  slug: string;
+  position: number;
+  years: CurriculumYear[];
+};
+
 const roleLabels: Record<PortalRole, string> = {
   student: "Student Portal",
   teacher: "Teacher Portal",
@@ -67,12 +75,25 @@ function subjectMatches(materialSubject: string, subject: CurriculumSubject) {
   return false;
 }
 
+function dedupeYearsByTitle(years: CurriculumYear[]) {
+  const seen = new Set<string>();
+
+  return years.filter((year) => {
+    const key = year.title.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function PortalMaterialsClient({ role, materials }: PortalMaterialsClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [outlineLoading, setOutlineLoading] = useState(true);
   const [outlineError, setOutlineError] = useState("");
-  const [years, setYears] = useState<CurriculumYear[]>([]);
+  const [schools, setSchools] = useState<CurriculumSchool[]>([]);
+  const [defaultSchoolSlug, setDefaultSchoolSlug] = useState("");
 
+  const [selectedSchoolSlug, setSelectedSchoolSlug] = useState("");
   const [selectedYearSlug, setSelectedYearSlug] = useState("");
   const [selectedSubjectSlug, setSelectedSubjectSlug] = useState("");
 
@@ -91,16 +112,19 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
 
         if (!response.ok || !data.ok) {
           setOutlineError(data.error || "Failed to load curriculum outline.");
-          setYears([]);
+          setSchools([]);
+          setDefaultSchoolSlug("");
           return;
         }
 
-        setYears(Array.isArray(data.years) ? data.years : []);
+        setSchools(Array.isArray(data.schools) ? data.schools : []);
+        setDefaultSchoolSlug(typeof data.defaultSchoolSlug === "string" ? data.defaultSchoolSlug : "");
       } catch (error) {
         console.error(error);
         if (!mounted) return;
         setOutlineError("Failed to load curriculum outline.");
-        setYears([]);
+        setSchools([]);
+        setDefaultSchoolSlug("");
       } finally {
         if (mounted) setOutlineLoading(false);
       }
@@ -112,6 +136,28 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (schools.length === 0) {
+      setSelectedSchoolSlug("");
+      setSelectedYearSlug("");
+      setSelectedSubjectSlug("");
+      return;
+    }
+
+    if (!selectedSchoolSlug || !schools.some((school) => school.slug === selectedSchoolSlug)) {
+      const preferredSchool =
+        schools.find((school) => school.slug === defaultSchoolSlug) ?? schools[0];
+      setSelectedSchoolSlug(preferredSchool?.slug ?? "");
+    }
+  }, [defaultSchoolSlug, schools, selectedSchoolSlug]);
+
+  const selectedSchool = useMemo(
+    () => schools.find((school) => school.slug === selectedSchoolSlug) ?? null,
+    [schools, selectedSchoolSlug]
+  );
+
+  const years = useMemo(() => dedupeYearsByTitle(selectedSchool?.years ?? []), [selectedSchool]);
 
   useEffect(() => {
     if (years.length === 0) {
@@ -167,14 +213,16 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
   const subjectMaterialCounts = useMemo(() => {
     const counts: Record<string, number> = {};
 
-    for (const year of years) {
-      for (const subject of year.subjects) {
-        counts[subject.id] = materials.filter((material) => subjectMatches(material.subject, subject)).length;
+    for (const school of schools) {
+      for (const year of school.years) {
+        for (const subject of year.subjects) {
+          counts[subject.id] = materials.filter((material) => subjectMatches(material.subject, subject)).length;
+        }
       }
     }
 
     return counts;
-  }, [materials, years]);
+  }, [materials, schools]);
 
   const cardRole = role === "teacher" ? "teacher" : "student";
 
@@ -195,7 +243,7 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Learning Materials</h1>
               <p className="text-muted-foreground mt-2">
-                Curriculum structure is loaded from Curriculum Portal (Year -&gt; Subject -&gt; Chapter -&gt; Lesson).
+                Curriculum structure is loaded from Curriculum Portal (School -&gt; Year -&gt; Subject -&gt; Chapter -&gt; Lesson).
               </p>
             </div>
 
@@ -207,18 +255,41 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
               <Card>
                 <CardContent className="p-6 text-sm text-red-600">{outlineError}</CardContent>
               </Card>
-            ) : years.length === 0 ? (
+            ) : schools.length === 0 ? (
               <Card>
                 <CardContent className="p-6 text-sm text-muted-foreground">
-                  No curriculum found yet. Create years, subjects, chapters, and lessons in Admin Curriculum Portal first.
+                  No curriculum found yet. Create a school, then add years, subjects, chapters, and lessons in Admin Curriculum Portal.
                 </CardContent>
               </Card>
             ) : (
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Step 1: Choose Year</CardTitle>
-                    <CardDescription>All available year levels are managed from Curriculum Portal.</CardDescription>
+                    <CardTitle>Step 1: Choose School</CardTitle>
+                    <CardDescription>Curriculum is organized by school first.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    {schools.map((school) => (
+                      <Button
+                        key={school.id}
+                        type="button"
+                        variant={school.slug === selectedSchoolSlug ? "default" : "outline"}
+                        onClick={() => setSelectedSchoolSlug(school.slug)}
+                      >
+                        {school.title}
+                      </Button>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Step 2: Choose Year</CardTitle>
+                    <CardDescription>
+                      {selectedSchool
+                        ? `All available year levels inside ${selectedSchool.title} are managed from Curriculum Portal.`
+                        : "Select a school first."}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">
                     {years.map((year) => (
@@ -231,15 +302,22 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
                         {year.title}
                       </Button>
                     ))}
+                    {years.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No years configured for this school yet.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
 
                 <section className="space-y-4">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">Step 2</Badge>
-                    <span className="text-muted-foreground">Choose subject in {selectedYear?.title}</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">Step 3</Badge>
+                    <span className="text-muted-foreground">
+                      Choose subject in {selectedSchool?.title ?? "selected school"} {selectedYear ? `· ${selectedYear.title}` : ""}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">Step 4</Badge>
                     <span className="text-muted-foreground">Open chapter lesson plan</span>
                   </div>
 
@@ -274,13 +352,13 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
                   </div>
                 </section>
 
-                {selectedYear && selectedSubject && (
+                {selectedSchool && selectedYear && selectedSubject && (
                   <Card className="border-sky-200 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.18),_transparent_55%),linear-gradient(to_bottom_right,_#ffffff,_#f8fbff)]">
                     <CardHeader>
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <CardTitle className="text-slate-900">
-                            {selectedYear.title} {selectedSubject.title} Chapters
+                            {selectedSchool.title} · {selectedYear.title} {selectedSubject.title} Chapters
                           </CardTitle>
                           <CardDescription>
                             Lesson plans and ordering are fully managed from Curriculum Portal.
@@ -310,7 +388,7 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
                                 <p className="text-xs text-slate-500">{chapter.lessonCount} lessons</p>
                                 <Button asChild size="sm" className="w-full mt-2">
                                   <Link
-                                    href={`/${role}/materials/curriculum/${selectedYear.slug}/${selectedSubject.slug}/${chapter.slug}`}
+                                    href={`/${role}/materials/curriculum/${selectedSchool.slug}/${selectedYear.slug}/${selectedSubject.slug}/${chapter.slug}`}
                                   >
                                     Open Chapter
                                   </Link>

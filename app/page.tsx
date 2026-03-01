@@ -22,9 +22,9 @@ export default function HomePage() {
               EDUKASI TERANG INDONESIA (EDUTINDO) FOUNDATION
             </Badge>
 
-            <h1 className="text-5xl md:text-6xl lg:text-6xl xl:text-7xl font-extrabold tracking-tight text-foreground">
+            <h1 className="text-5xl md:text-6xl lg:text-6xl xl:text-7xl font-extrabold tracking-tight leading-[1.08] text-foreground">
               Breaking Barriers, <br />
-              <span className="inline-block whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">
+              <span className="inline-block whitespace-nowrap pb-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">
                 Building The Future
               </span>
             </h1>

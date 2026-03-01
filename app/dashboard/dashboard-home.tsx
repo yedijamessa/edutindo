@@ -52,7 +52,7 @@ const portalMeta: Record<string, { title: string; href: string; description: str
   admin: {
     title: "Admin Portal",
     href: "/admin",
-    description: "Manage users and configure portal access permissions.",
+    description: "Open the admin dashboard and choose an admin tool.",
   },
 };
 

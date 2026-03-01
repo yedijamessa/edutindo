@@ -4,7 +4,12 @@ import { createHash, pbkdf2Sync, randomBytes, randomInt, randomUUID, timingSafeE
 import nodemailer from "nodemailer";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { PORTAL_OPTIONS, SESSION_COOKIE_NAME, type PortalKey } from "@/lib/auth-shared";
+import {
+  PORTAL_OPTIONS,
+  SESSION_COOKIE_NAME,
+  resolveAuthenticatedHomePath,
+  type PortalKey,
+} from "@/lib/auth-shared";
 import { sqlQuery as sql } from "@/lib/postgres-query";
 
 export interface AuthUser {
@@ -1223,7 +1228,7 @@ export async function requirePortalAccess(portal: PortalKey, nextPath: string) {
       }
     }
 
-    redirect("/dashboard?pending=1");
+    redirect(resolveAuthenticatedHomePath(user));
   }
 
   return user;

@@ -8,7 +8,6 @@ import { Menu, X, ArrowLeft } from "lucide-react"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
-import { LanguageSwitcher } from "../language-switcher"
 import { AuthNavActions } from "../auth/auth-nav-actions"
 import { AdminNavMenu } from "../admin/admin-nav-menu"
 
@@ -36,7 +35,7 @@ export function Navbar() {
     const isFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
     const isAdminRoute = pathname.startsWith("/admin")
-    const showAdminBackButton = isPortalRoute && isAdminUser
+    const showAdminBackButton = isAdminRoute && pathname !== "/admin" && isAdminUser
 
     React.useEffect(() => {
         let isMounted = true
@@ -134,7 +133,6 @@ export function Navbar() {
                         </Button>
                     )}
                     <AuthNavActions />
-                    <LanguageSwitcher />
                     <ModeToggle />
                 </nav>
 
@@ -212,9 +210,6 @@ export function Navbar() {
                             </Button>
                         )}
                         <AuthNavActions mobile onNavigate={() => setIsOpen(false)} />
-                        <div className="flex justify-center pt-2">
-                            <LanguageSwitcher />
-                        </div>
                         <div className="flex justify-center pt-2">
                             <ModeToggle />
                         </div>

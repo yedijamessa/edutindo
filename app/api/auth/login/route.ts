@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AuthError,
   applySessionCookie,
-  hasAdminPortalAccess,
   loginWithPassword,
   sanitizeNextPath,
 } from "@/lib/auth";
+import { resolveAuthenticatedHomePath } from "@/lib/auth-shared";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const { user, sessionToken } = await loginWithPassword({ email, password });
 
-    const fallback = hasAdminPortalAccess(user) ? "/admin" : "/dashboard";
+    const fallback = resolveAuthenticatedHomePath(user);
     const redirectTo = sanitizeNextPath(requestedNextPath, fallback);
 
     const response = NextResponse.json({

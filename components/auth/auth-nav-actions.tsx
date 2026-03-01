@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { resolveAuthenticatedHomePath } from "@/lib/auth-shared";
 
 type CurrentUser = {
   id: string;
@@ -33,6 +34,8 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     pathname.startsWith("/parent") ||
     pathname.startsWith("/principal") ||
     pathname.startsWith("/admin");
+
+  const shouldHideHomeAction = (homePath: string) => homePath === "/admin" && pathname.startsWith("/admin");
 
   useEffect(() => {
     let isMounted = true;
@@ -119,19 +122,15 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
   }
 
   if (mobile) {
-    const hasAdminAccess = user.isAdmin || user.portals.includes("admin");
+    const homePath = resolveAuthenticatedHomePath(user, "/dashboard");
+    const homeLabel = homePath === "/admin" ? "Admin Dashboard" : "Dashboard";
 
     return (
       <div className="space-y-2">
-        <Button asChild variant="outline" className="w-full">
-          <Link href="/dashboard" onClick={onNavigate}>
-            Dashboard
-          </Link>
-        </Button>
-        {hasAdminAccess && (
+        {!shouldHideHomeAction(homePath) && (
           <Button asChild variant="outline" className="w-full">
-            <Link href="/admin" onClick={onNavigate}>
-              Admin Dashboard
+            <Link href={homePath} onClick={onNavigate}>
+              {homeLabel}
             </Link>
           </Button>
         )}
@@ -142,16 +141,14 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     );
   }
 
-  const hasAdminAccess = user.isAdmin || user.portals.includes("admin");
+  const homePath = resolveAuthenticatedHomePath(user, "/dashboard");
+  const homeLabel = homePath === "/admin" ? "Admin Dashboard" : "Dashboard";
 
   return (
     <div className="flex items-center gap-2">
-      <Button asChild variant="outline" size="sm">
-        <Link href="/dashboard">Dashboard</Link>
-      </Button>
-      {hasAdminAccess && (
+      {!shouldHideHomeAction(homePath) && (
         <Button asChild variant="outline" size="sm">
-          <Link href="/admin">Admin</Link>
+          <Link href={homePath}>{homeLabel}</Link>
         </Button>
       )}
       <Button variant="outline" size="sm" onClick={logout} disabled={loggingOut}>

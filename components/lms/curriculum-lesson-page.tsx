@@ -47,6 +47,7 @@ const lessonGuides: Record<
 };
 
 interface CurriculumLessonPageProps {
+  schoolSlug?: string;
   yearSlug: string;
   subjectSlug: string;
   chapterSlug: string;
@@ -55,6 +56,7 @@ interface CurriculumLessonPageProps {
 }
 
 export async function CurriculumLessonPage({
+  schoolSlug,
   yearSlug,
   subjectSlug,
   chapterSlug,
@@ -62,6 +64,7 @@ export async function CurriculumLessonPage({
   role,
 }: CurriculumLessonPageProps) {
   const context = await getCurriculumLessonContext({
+    schoolSlug,
     yearSlug,
     subjectSlug,
     chapterSlug,
@@ -72,9 +75,9 @@ export async function CurriculumLessonPage({
     notFound();
   }
 
-  const { year, subject, chapter, lesson, previousLesson, nextLesson } = context;
+  const { school, year, subject, chapter, lesson, previousLesson, nextLesson } = context;
 
-  const chapterPath = `/${role}/materials/curriculum/${year.slug}/${subject.slug}/${chapter.slug}`;
+  const chapterPath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}`;
   const materialsPath = `/${role}/materials`;
   const guide = lessonGuides[lesson.slug] ?? null;
   const isIntroCellsLesson = subject.slug === "science" && lesson.slug === "introduction-to-cells";
@@ -87,6 +90,8 @@ export async function CurriculumLessonPage({
             <Link href={materialsPath} className="hover:text-foreground transition-colors whitespace-nowrap">
               Learning Materials
             </Link>
+            <ChevronRight className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap">{school.title}</span>
             <ChevronRight className="h-4 w-4 shrink-0" />
             <span className="whitespace-nowrap">{year.title}</span>
             <ChevronRight className="h-4 w-4 shrink-0" />

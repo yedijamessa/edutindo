@@ -3,14 +3,15 @@ import { CurriculumChapterPage } from "@/components/lms/curriculum-chapter-page"
 export const dynamic = "force-dynamic";
 
 type ChapterPageProps = {
-  params: Promise<{ yearSlug: string; subjectSlug: string; chapterSlug: string }>;
+  params: Promise<{ schoolSlug: string; yearSlug: string; subjectSlug: string; chapterSlug: string }>;
 };
 
-export default async function TeacherCurriculumChapterPage({ params }: ChapterPageProps) {
-  const { yearSlug, subjectSlug, chapterSlug } = await params;
+export default async function TeacherSchoolCurriculumChapterPage({ params }: ChapterPageProps) {
+  const { schoolSlug, yearSlug, subjectSlug, chapterSlug } = await params;
 
   return (
     <CurriculumChapterPage
+      schoolSlug={schoolSlug}
       yearSlug={yearSlug}
       subjectSlug={subjectSlug}
       chapterSlug={chapterSlug}

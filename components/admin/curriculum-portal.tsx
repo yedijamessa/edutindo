@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-type NodeType = "year" | "subject" | "chapter" | "lesson";
+type NodeType = "school" | "year" | "subject" | "chapter" | "lesson";
 
 type CurriculumNode = {
   id: string;
@@ -28,7 +28,13 @@ type DragState = {
   nodeType: NodeType;
 };
 
+type ChapterWeekDraft = {
+  start: string;
+  end: string;
+};
+
 const nodeLabelByType: Record<NodeType, string> = {
+  school: "School",
   year: "Year",
   subject: "Subject",
   chapter: "Chapter",
@@ -36,12 +42,14 @@ const nodeLabelByType: Record<NodeType, string> = {
 };
 
 const childHintByType: Record<NodeType, string> = {
+  school: "years",
   year: "subjects",
   subject: "chapters",
   chapter: "modules",
   lesson: "items",
 };
 
+const DEFAULT_SCHOOL_SLUG = "edutindo";
 const YEAR_OPTIONS = ["Year 7", "Year 8", "Year 9"] as const;
 const SUBJECT_OPTIONS = ["Science", "IT", "Christian Studies", "Math", "English"] as const;
 
@@ -66,6 +74,56 @@ function sameLabel(left: string, right: string) {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
+function normalizeWeekInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, 3);
+}
+
+function parseChapterWeekDraft(value: unknown): ChapterWeekDraft {
+  const matches = text(value).match(/\d+/g) ?? [];
+
+  if (matches.length === 0) {
+    return { start: "", end: "" };
+  }
+
+  if (matches.length === 1) {
+    return { start: matches[0], end: matches[0] };
+  }
+
+  return { start: matches[0] ?? "", end: matches[1] ?? matches[0] ?? "" };
+}
+
+function formatChapterWeekRange(startInput: string, endInput: string) {
+  const normalizedStart = normalizeWeekInput(startInput);
+  const normalizedEnd = normalizeWeekInput(endInput);
+
+  if (!normalizedStart && !normalizedEnd) {
+    return "";
+  }
+
+  const startValue = normalizedStart || normalizedEnd;
+  const endValue = normalizedEnd || normalizedStart;
+
+  const startNumber = Number(startValue);
+  const endNumber = Number(endValue);
+
+  if (Number.isFinite(startNumber) && Number.isFinite(endNumber) && startNumber > endNumber) {
+    return startNumber === endNumber ? `Week ${startValue}` : `Weeks ${endValue}-${startValue}`;
+  }
+
+  return startValue === endValue ? `Week ${startValue}` : `Weeks ${startValue}-${endValue}`;
+}
+
+function sameDraftMap(left: Record<string, ChapterWeekDraft>, right: Record<string, ChapterWeekDraft>) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+
+  if (leftKeys.length !== rightKeys.length) return false;
+
+  return leftKeys.every(
+    (key) => left[key]?.start === right[key]?.start && left[key]?.end === right[key]?.end
+  );
+}
+
 interface NodeColumnProps {
   title: string;
   description: string;
@@ -76,12 +134,14 @@ interface NodeColumnProps {
   disabled: boolean;
   addDisabledReason: string;
   draftTitle: string;
-  draftWeekRange: string;
+  draftWeekRangeStart: string;
+  draftWeekRangeEnd: string;
   draftWeek: string;
   draftLessonCode: string;
   busy: boolean;
   onDraftTitleChange: (value: string) => void;
-  onDraftWeekRangeChange: (value: string) => void;
+  onDraftWeekRangeStartChange: (value: string) => void;
+  onDraftWeekRangeEndChange: (value: string) => void;
   onDraftWeekChange: (value: string) => void;
   onDraftLessonCodeChange: (value: string) => void;
   onSelect: (nodeId: string) => void;
@@ -94,9 +154,9 @@ interface NodeColumnProps {
   canDropAtEnd: (parentId: string | null) => boolean;
   onDropOnNode: (targetNode: CurriculumNode, siblingNodes: CurriculumNode[]) => void;
   onDropAtEnd: (parentId: string | null, siblingNodes: CurriculumNode[]) => void;
-  chapterWeekDrafts?: Record<string, string>;
+  chapterWeekDrafts?: Record<string, ChapterWeekDraft>;
   chapterWeekBusyId?: string | null;
-  onChapterWeekDraftChange?: (chapterId: string, value: string) => void;
+  onChapterWeekDraftChange?: (chapterId: string, field: "start" | "end", value: string) => void;
   onSaveChapterWeek?: (chapter: CurriculumNode) => void;
   lessonPreviewBasePath?: string | null;
 }
@@ -111,12 +171,14 @@ function NodeColumn({
   disabled,
   addDisabledReason,
   draftTitle,
-  draftWeekRange,
+  draftWeekRangeStart,
+  draftWeekRangeEnd,
   draftWeek,
   draftLessonCode,
   busy,
   onDraftTitleChange,
-  onDraftWeekRangeChange,
+  onDraftWeekRangeStartChange,
+  onDraftWeekRangeEndChange,
   onDraftWeekChange,
   onDraftLessonCodeChange,
   onSelect,
@@ -163,12 +225,28 @@ function NodeColumn({
           />
 
           {nodeType === "chapter" && (
-            <Input
-              value={draftWeekRange}
-              onChange={(event) => onDraftWeekRangeChange(event.target.value)}
-              placeholder="Week range (example: Weeks 2-4)"
-              disabled={disabled || busy}
-            />
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <span className="text-xs font-medium text-slate-600">Weeks</span>
+              <Input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={draftWeekRangeStart}
+                onChange={(event) => onDraftWeekRangeStartChange(event.target.value)}
+                placeholder="2"
+                disabled={disabled || busy}
+              />
+              <span className="text-xs font-medium text-slate-600">to</span>
+              <Input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={draftWeekRangeEnd}
+                onChange={(event) => onDraftWeekRangeEndChange(event.target.value)}
+                placeholder="4"
+                disabled={disabled || busy}
+              />
+            </div>
           )}
 
           {nodeType === "lesson" && (
@@ -225,6 +303,7 @@ function NodeColumn({
               const canDropHere = canDropOnNode(node);
 
               const chapterWeekRange = text(node.metadata.weekRange);
+              const chapterWeekDraft = chapterWeekDrafts?.[node.id] ?? parseChapterWeekDraft(chapterWeekRange);
               const lessonWeek = text(node.metadata.week);
               const lessonCode = text(node.metadata.lessonCode);
 
@@ -301,18 +380,40 @@ function NodeColumn({
 
                   {nodeType === "chapter" && onChapterWeekDraftChange && onSaveChapterWeek && (
                     <div className="mt-3 flex items-center gap-2">
-                      <Input
-                        value={chapterWeekDrafts?.[node.id] ?? chapterWeekRange}
-                        onChange={(event) => onChapterWeekDraftChange(node.id, event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter") return;
-                          event.preventDefault();
-                          onSaveChapterWeek(node);
-                        }}
-                        placeholder="Set week range (example: Weeks 2-4)"
-                        disabled={busy || chapterWeekBusyId === node.id}
-                        className="h-8 text-xs"
-                      />
+                      <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                        <span className="text-[11px] font-medium text-slate-600">Weeks</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={chapterWeekDraft.start}
+                          onChange={(event) => onChapterWeekDraftChange(node.id, "start", event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter") return;
+                            event.preventDefault();
+                            onSaveChapterWeek(node);
+                          }}
+                          placeholder="2"
+                          disabled={busy || chapterWeekBusyId === node.id}
+                          className="h-8 text-xs"
+                        />
+                        <span className="text-[11px] font-medium text-slate-600">to</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={chapterWeekDraft.end}
+                          onChange={(event) => onChapterWeekDraftChange(node.id, "end", event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter") return;
+                            event.preventDefault();
+                            onSaveChapterWeek(node);
+                          }}
+                          placeholder="4"
+                          disabled={busy || chapterWeekBusyId === node.id}
+                          className="h-8 text-xs"
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
@@ -348,22 +449,25 @@ export function CurriculumPortal() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
   const [selectedYearTitle, setSelectedYearTitle] = useState<(typeof YEAR_OPTIONS)[number]>(YEAR_OPTIONS[0]);
   const [selectedSubjectTitle, setSelectedSubjectTitle] = useState<string>(SUBJECT_OPTIONS[0]);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
-  const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, string>>({});
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+  const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, ChapterWeekDraft>>({});
   const [chapterWeekBusyId, setChapterWeekBusyId] = useState<string | null>(null);
 
   const dragStateRef = useRef<DragState | null>(null);
 
   const [drafts, setDrafts] = useState<Record<NodeType, string>>({
+    school: "",
     year: "",
     subject: "",
     chapter: "",
     lesson: "",
   });
-  const [chapterWeekRangeDraft, setChapterWeekRangeDraft] = useState("");
+  const [chapterWeekStartDraft, setChapterWeekStartDraft] = useState("");
+  const [chapterWeekEndDraft, setChapterWeekEndDraft] = useState("");
   const [lessonWeekDraft, setLessonWeekDraft] = useState("");
   const [lessonCodeDraft, setLessonCodeDraft] = useState("");
 
@@ -395,21 +499,40 @@ export function CurriculumPortal() {
     loadTree();
   }, [loadTree]);
 
-  const years = tree;
+  const schools = tree;
+
+  useEffect(() => {
+    if (schools.length === 0) {
+      setSelectedSchoolId(null);
+      return;
+    }
+
+    if (!selectedSchoolId || !schools.some((item) => item.id === selectedSchoolId)) {
+      const defaultSchool = schools.find((item) => item.slug === DEFAULT_SCHOOL_SLUG) ?? schools[0];
+      setSelectedSchoolId(defaultSchool?.id ?? null);
+    }
+  }, [schools, selectedSchoolId]);
+
+  const selectedSchool = useMemo(
+    () => schools.find((item) => item.id === selectedSchoolId) ?? null,
+    [schools, selectedSchoolId]
+  );
+
+  const years = useMemo(() => selectedSchool?.children ?? [], [selectedSchool]);
 
   const selectedYear = useMemo(
     () => years.find((item) => sameLabel(item.title, selectedYearTitle)) ?? null,
     [years, selectedYearTitle]
   );
 
-  const subjects = selectedYear?.children ?? [];
+  const subjects = useMemo(() => selectedYear?.children ?? [], [selectedYear]);
 
   const selectedSubject = useMemo(
     () => subjects.find((item) => sameLabel(item.title, selectedSubjectTitle)) ?? null,
     [subjects, selectedSubjectTitle]
   );
 
-  const chapters = selectedSubject?.children ?? [];
+  const chapters = useMemo(() => selectedSubject?.children ?? [], [selectedSubject]);
 
   useEffect(() => {
     if (subjects.length === 0) return;
@@ -420,11 +543,13 @@ export function CurriculumPortal() {
   }, [selectedSubject, selectedSubjectTitle, subjects]);
 
   useEffect(() => {
-    const nextDrafts: Record<string, string> = {};
+    const nextDrafts: Record<string, ChapterWeekDraft> = {};
     for (const chapter of chapters) {
-      nextDrafts[chapter.id] = text(chapter.metadata.weekRange);
+      nextDrafts[chapter.id] = parseChapterWeekDraft(chapter.metadata.weekRange);
     }
-    setChapterWeekDrafts(nextDrafts);
+    setChapterWeekDrafts((currentDrafts) =>
+      sameDraftMap(currentDrafts, nextDrafts) ? currentDrafts : nextDrafts
+    );
   }, [chapters]);
 
   useEffect(() => {
@@ -443,16 +568,23 @@ export function CurriculumPortal() {
     [chapters, selectedChapterId]
   );
 
-  const lessons = selectedChapter?.children ?? [];
+  const lessons = useMemo(() => selectedChapter?.children ?? [], [selectedChapter]);
   const lessonPreviewBasePath = useMemo(() => {
-    if (!selectedYear || !selectedSubject || !selectedChapter) return null;
-    return `/admin/materials/curriculum/${selectedYear.slug}/${selectedSubject.slug}/${selectedChapter.slug}`;
-  }, [selectedYear, selectedSubject, selectedChapter]);
+    if (!selectedSchool || !selectedYear || !selectedSubject || !selectedChapter) return null;
+    return `/admin/materials/curriculum/${selectedSchool.slug}/${selectedYear.slug}/${selectedSubject.slug}/${selectedChapter.slug}`;
+  }, [selectedSchool, selectedYear, selectedSubject, selectedChapter]);
 
   useEffect(() => {
     if (wizardStep === 1) return;
-    if (!selectedYear) {
+    if (!selectedSchool) {
       setWizardStep(1);
+    }
+  }, [selectedSchool, wizardStep]);
+
+  useEffect(() => {
+    if (wizardStep <= 2) return;
+    if (!selectedYear) {
+      setWizardStep(2);
     }
   }, [selectedYear, wizardStep]);
 
@@ -489,7 +621,7 @@ export function CurriculumPortal() {
 
     const metadata: Record<string, unknown> = { ...(overrides?.metadata ?? {}) };
     if (nodeType === "chapter") {
-      metadata.weekRange = chapterWeekRangeDraft.trim();
+      metadata.weekRange = formatChapterWeekRange(chapterWeekStartDraft, chapterWeekEndDraft);
     }
     if (nodeType === "lesson") {
       metadata.week = lessonWeekDraft.trim();
@@ -518,7 +650,8 @@ export function CurriculumPortal() {
         setDraft(nodeType, "");
       }
       if (nodeType === "chapter") {
-        setChapterWeekRangeDraft("");
+        setChapterWeekStartDraft("");
+        setChapterWeekEndDraft("");
       }
       if (nodeType === "lesson") {
         setLessonWeekDraft("");
@@ -528,6 +661,13 @@ export function CurriculumPortal() {
 
       await loadTree();
 
+      if (createdId && nodeType === "school") {
+        setSelectedSchoolId(createdId);
+        setSelectedChapterId(null);
+      }
+      if (createdId && nodeType === "year") {
+        setSelectedChapterId(null);
+      }
       if (createdId && nodeType === "subject") {
         setSelectedSubjectTitle(title);
         setSelectedChapterId(null);
@@ -548,7 +688,7 @@ export function CurriculumPortal() {
   const handleYearChange = (value: (typeof YEAR_OPTIONS)[number]) => {
     setSelectedYearTitle(value);
     const matched = years.find((item) => sameLabel(item.title, value));
-    setWizardStep(matched ? 2 : 1);
+    setWizardStep(matched ? 3 : 2);
     setSelectedChapterId(null);
   };
 
@@ -556,18 +696,18 @@ export function CurriculumPortal() {
     setSelectedSubjectTitle(value);
     const matched = subjects.find((item) => sameLabel(item.title, value));
     if (matched) {
-      setWizardStep(3);
+      setWizardStep(4);
       return;
     }
-    setWizardStep(2);
+    setWizardStep(3);
     setSelectedChapterId(null);
   };
 
   const createSelectedYear = async () => {
-    if (selectedYear) return;
-    const createdId = await createNode("year", null, { title: selectedYearTitle });
+    if (!selectedSchool || selectedYear) return;
+    const createdId = await createNode("year", selectedSchool.id, { title: selectedYearTitle });
     if (createdId) {
-      setWizardStep(2);
+      setWizardStep(3);
     }
   };
 
@@ -575,19 +715,23 @@ export function CurriculumPortal() {
     if (!selectedYear || selectedSubject) return;
     const createdId = await createNode("subject", selectedYear.id, { title: selectedSubjectTitle });
     if (createdId) {
-      setWizardStep(3);
+      setWizardStep(4);
     }
   };
 
-  const updateChapterWeekDraft = (chapterId: string, value: string) => {
+  const updateChapterWeekDraft = (chapterId: string, field: "start" | "end", value: string) => {
     setChapterWeekDrafts((prev) => ({
       ...prev,
-      [chapterId]: value,
+      [chapterId]: {
+        ...(prev[chapterId] ?? { start: "", end: "" }),
+        [field]: normalizeWeekInput(value),
+      },
     }));
   };
 
   const saveChapterWeek = async (chapter: CurriculumNode) => {
-    const nextWeekRange = (chapterWeekDrafts[chapter.id] ?? "").trim();
+    const draft = chapterWeekDrafts[chapter.id] ?? parseChapterWeekDraft(chapter.metadata.weekRange);
+    const nextWeekRange = formatChapterWeekRange(draft.start, draft.end);
     const currentWeekRange = text(chapter.metadata.weekRange);
     if (nextWeekRange === currentWeekRange) return;
 
@@ -630,9 +774,14 @@ export function CurriculumPortal() {
     const metadata: Record<string, unknown> = { ...(node.metadata ?? {}) };
 
     if (node.nodeType === "chapter") {
-      const nextWeekRange = window.prompt("Week range", text(metadata.weekRange));
-      if (nextWeekRange === null) return;
-      metadata.weekRange = nextWeekRange;
+      const currentDraft = parseChapterWeekDraft(metadata.weekRange);
+      const nextStart = window.prompt("Start week", currentDraft.start);
+      if (nextStart === null) return;
+
+      const nextEnd = window.prompt("End week", currentDraft.end);
+      if (nextEnd === null) return;
+
+      metadata.weekRange = formatChapterWeekRange(nextStart, nextEnd);
     }
 
     if (node.nodeType === "lesson") {
@@ -786,7 +935,7 @@ export function CurriculumPortal() {
         <CardHeader>
           <CardTitle className="text-2xl">Curriculum Portal</CardTitle>
           <CardDescription>
-            Choose a year, then manage subjects, chapters, and modules from one screen.
+            Choose a school first, then manage years, subjects, chapters, and modules from one screen.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -802,46 +951,66 @@ export function CurriculumPortal() {
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           {wizardStep === 1 && (
-            <Card className="border-slate-200">
-              <CardHeader className="space-y-2">
-                <Badge className="w-fit bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">
-                  Step 1
-                </Badge>
-                <CardTitle className="text-base">Choose Year</CardTitle>
-                <CardDescription>Only Year 7, Year 8, and Year 9 are allowed.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <select
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                  value={selectedYearTitle}
-                  onChange={(event) => handleYearChange(event.target.value as (typeof YEAR_OPTIONS)[number])}
-                  disabled={busy}
-                >
-                  {YEAR_OPTIONS.map((yearTitle) => (
-                    <option key={yearTitle} value={yearTitle}>
-                      {yearTitle}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+              <NodeColumn
+                title="Manage Schools"
+                description="Curriculum is grouped by school first. EDUTINDO School is seeded by default, and you can add other schools here."
+                nodeType="school"
+                parentId={null}
+                nodes={schools}
+                selectedId={selectedSchool?.id ?? null}
+                disabled={false}
+                addDisabledReason=""
+                draftTitle={drafts.school}
+                draftWeekRangeStart=""
+                draftWeekRangeEnd=""
+                draftWeek=""
+                draftLessonCode=""
+                busy={busy}
+                onDraftTitleChange={(value) => setDraft("school", value)}
+                onDraftWeekRangeStartChange={() => undefined}
+                onDraftWeekRangeEndChange={() => undefined}
+                onDraftWeekChange={() => undefined}
+                onDraftLessonCodeChange={() => undefined}
+                onSelect={(nodeId) => {
+                  setSelectedSchoolId(nodeId);
+                  setSelectedChapterId(null);
+                }}
+                onCreate={() => createNode("school", null)}
+                onRename={renameNode}
+                onDelete={deleteNode}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                canDropOnNode={canDropOnNode}
+                canDropAtEnd={canDropAtEnd}
+                onDropOnNode={dropOnNode}
+                onDropAtEnd={dropAtEnd}
+              />
 
-                {selectedYear ? (
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-                    <p className="text-sm text-slate-700">Selected: {selectedYear.title}</p>
-                    <Button type="button" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
-                      Continue to Subject
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2 rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
-                    <p>{selectedYearTitle} has not been created in curriculum yet.</p>
-                    <Button type="button" size="sm" onClick={createSelectedYear} disabled={busy}>
-                      {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                      Create {selectedYearTitle}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              <Card className="border-slate-200">
+                <CardHeader className="space-y-2">
+                  <Badge className="w-fit border border-blue-200 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                    Step 1
+                  </Badge>
+                  <CardTitle className="text-base">Choose School</CardTitle>
+                  <CardDescription>Every curriculum tree now starts with the school it belongs to.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedSchool ? (
+                    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                      <p className="text-sm text-slate-700">Selected school: {selectedSchool.title}</p>
+                      <Button type="button" className="w-full" onClick={() => setWizardStep(2)} disabled={busy}>
+                        Continue to Year Setup
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                      Add or select a school to start organizing its curriculum.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {wizardStep === 2 && (
@@ -853,14 +1022,82 @@ export function CurriculumPortal() {
                   </Badge>
                   <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(1)} disabled={busy}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to School
+                  </Button>
+                </div>
+                <CardTitle className="text-base">Choose Year</CardTitle>
+                <CardDescription>
+                  {selectedSchool
+                    ? `Inside school: ${selectedSchool.title}. Only Year 7, Year 8, and Year 9 are allowed.`
+                    : "Select a school in Step 1 first."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <select
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
+                  value={selectedYearTitle}
+                  onChange={(event) => handleYearChange(event.target.value as (typeof YEAR_OPTIONS)[number])}
+                  disabled={!selectedSchool || busy}
+                >
+                  {YEAR_OPTIONS.map((yearTitle) => (
+                    <option key={yearTitle} value={yearTitle}>
+                      {yearTitle}
+                    </option>
+                  ))}
+                </select>
+
+                {!selectedSchool ? (
+                  <p className="text-xs text-muted-foreground">
+                    This step requires a valid school from Step 1.
+                  </p>
+                ) : (
+                  <div className="space-y-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
+                    {selectedYear ? (
+                      <p className="text-sm text-slate-700">Selected year: {selectedYear.title}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {selectedYearTitle} has not been created in {selectedSchool.title} yet.
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      {!selectedYear && (
+                        <Button type="button" size="sm" variant="outline" onClick={createSelectedYear} disabled={busy}>
+                          {busy ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="mr-2 h-4 w-4" />
+                          )}
+                          Create {selectedYearTitle}
+                        </Button>
+                      )}
+                      <Button type="button" size="sm" onClick={() => setWizardStep(3)} disabled={busy || !selectedYear}>
+                        Continue to Subject Setup
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {wizardStep === 3 && (
+            <Card className="border-slate-200">
+              <CardHeader className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge className="w-fit bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">
+                    Step 3
+                  </Badge>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Year
                   </Button>
                 </div>
                 <CardTitle className="text-base">Subject Setup</CardTitle>
                 <CardDescription>
-                  {selectedYear
-                    ? `Inside year: ${selectedYear.title}. You can quick-add a common subject here, then manage all subjects, chapters, and modules in the builder.`
-                    : "Select or create the chosen year in Step 1 first."}
+                  {selectedSchool && selectedYear
+                    ? `Inside ${selectedSchool.title} / ${selectedYear.title}. You can quick-add a common subject here, then open the full builder.`
+                    : "Select or create the chosen year in Step 2 first."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -879,12 +1116,12 @@ export function CurriculumPortal() {
 
                 {!selectedYear ? (
                   <p className="text-xs text-muted-foreground">
-                    This step requires a valid year from Step 1.
+                    This step requires a valid year from Step 2.
                   </p>
                 ) : (
                   <div className="space-y-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
                     {selectedSubject ? (
-                      <p className="text-sm text-slate-700">Selected: {selectedSubject.title}</p>
+                      <p className="text-sm text-slate-700">Selected subject: {selectedSubject.title}</p>
                     ) : (
                       <p className="text-sm text-muted-foreground">
                         {selectedSubjectTitle} has not been created in {selectedYear.title} yet.
@@ -902,7 +1139,7 @@ export function CurriculumPortal() {
                           Add {selectedSubjectTitle}
                         </Button>
                       )}
-                      <Button type="button" size="sm" onClick={() => setWizardStep(3)} disabled={busy}>
+                      <Button type="button" size="sm" onClick={() => setWizardStep(4)} disabled={busy || !selectedYear}>
                         Open Curriculum Builder
                       </Button>
                     </div>
@@ -912,20 +1149,24 @@ export function CurriculumPortal() {
             </Card>
           )}
 
-          {wizardStep === 3 && (
+          {wizardStep === 4 && (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant="secondary">{selectedSchool?.title ?? "No school selected"}</Badge>
                   <Badge variant="secondary">{selectedYear?.title ?? selectedYearTitle}</Badge>
                   <Badge variant="secondary">{selectedSubject?.title ?? "No subject selected"}</Badge>
                   <Badge variant="secondary">{selectedChapter?.title ?? "No chapter selected"}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(3)} disabled={busy}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Setup
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(1)} disabled={busy}>
+                    Change School
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
                     Change Year
                   </Button>
                 </div>
@@ -943,12 +1184,14 @@ export function CurriculumPortal() {
                     disabled={false}
                     addDisabledReason=""
                     draftTitle={drafts.subject}
-                    draftWeekRange=""
+                    draftWeekRangeStart=""
+                    draftWeekRangeEnd=""
                     draftWeek=""
                     draftLessonCode=""
                     busy={busy}
                     onDraftTitleChange={(value) => setDraft("subject", value)}
-                    onDraftWeekRangeChange={() => undefined}
+                    onDraftWeekRangeStartChange={() => undefined}
+                    onDraftWeekRangeEndChange={() => undefined}
                     onDraftWeekChange={() => undefined}
                     onDraftLessonCodeChange={() => undefined}
                     onSelect={(nodeId) => {
@@ -986,12 +1229,14 @@ export function CurriculumPortal() {
                     disabled={false}
                     addDisabledReason=""
                     draftTitle={drafts.chapter}
-                    draftWeekRange={chapterWeekRangeDraft}
+                    draftWeekRangeStart={chapterWeekStartDraft}
+                    draftWeekRangeEnd={chapterWeekEndDraft}
                     draftWeek=""
                     draftLessonCode=""
                     busy={busy}
                     onDraftTitleChange={(value) => setDraft("chapter", value)}
-                    onDraftWeekRangeChange={setChapterWeekRangeDraft}
+                    onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
+                    onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
                     onDraftWeekChange={() => undefined}
                     onDraftLessonCodeChange={() => undefined}
                     onSelect={(nodeId) => setSelectedChapterId(nodeId)}
@@ -1028,12 +1273,14 @@ export function CurriculumPortal() {
                     disabled={false}
                     addDisabledReason=""
                     draftTitle={drafts.lesson}
-                    draftWeekRange=""
+                    draftWeekRangeStart=""
+                    draftWeekRangeEnd=""
                     draftWeek={lessonWeekDraft}
                     draftLessonCode={lessonCodeDraft}
                     busy={busy}
                     onDraftTitleChange={(value) => setDraft("lesson", value)}
-                    onDraftWeekRangeChange={() => undefined}
+                    onDraftWeekRangeStartChange={() => undefined}
+                    onDraftWeekRangeEndChange={() => undefined}
                     onDraftWeekChange={setLessonWeekDraft}
                     onDraftLessonCodeChange={setLessonCodeDraft}
                     onSelect={() => undefined}

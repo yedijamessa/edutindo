@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/dialog";
 
 const adminMenuItems = [
-  { label: "User Access", href: "/admin" },
+  { label: "Admin Dashboard", href: "/admin" },
+  { label: "Admin Access Control", href: "/admin/access" },
   { label: "Learning Materials", href: "/admin/materials" },
   { label: "Curriculum Portal", href: "/admin/curriculum" },
   { label: "Public Site", href: "/" },
@@ -35,7 +36,7 @@ export function AdminNavMenu() {
           <Menu className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-sm p-0">
+      <DialogContent className="left-0 top-0 h-full w-[22rem] max-w-[86vw] translate-x-0 translate-y-0 gap-0 rounded-none rounded-r-2xl border-l-0 p-0 data-[state=closed]:slide-out-to-left-full data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-left-full data-[state=open]:slide-in-from-top-0">
         <DialogHeader className="border-b px-4 py-3">
           <DialogTitle className="text-base">Admin Navigation</DialogTitle>
         </DialogHeader>
