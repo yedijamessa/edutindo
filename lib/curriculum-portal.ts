@@ -1,8 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { sql } from "@vercel/postgres";
 import { year7ScienceChapters } from "@/lib/curriculum/year7/science";
+import { sqlQuery as sql } from "@/lib/postgres-query";
 
 export type CurriculumNodeType = "year" | "subject" | "chapter" | "lesson";
 
@@ -347,57 +347,62 @@ async function ensureCurriculumSchema() {
   if (curriculumSchemaReady) return curriculumSchemaReady;
 
   curriculumSchemaReady = (async () => {
-    await sql`
-      CREATE TABLE IF NOT EXISTS curriculum_nodes (
-        id TEXT PRIMARY KEY,
-        parent_id TEXT REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
-        node_type TEXT NOT NULL,
-        title TEXT NOT NULL,
-        slug TEXT NOT NULL DEFAULT '',
-        position INTEGER NOT NULL DEFAULT 0,
-        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-        created_by_user_id TEXT,
-        updated_by_user_id TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS curriculum_nodes (
+          id TEXT PRIMARY KEY,
+          parent_id TEXT REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
+          node_type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          slug TEXT NOT NULL DEFAULT '',
+          position INTEGER NOT NULL DEFAULT 0,
+          metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+          created_by_user_id TEXT,
+          updated_by_user_id TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
 
-    await sql`ALTER TABLE curriculum_nodes ADD COLUMN IF NOT EXISTS slug TEXT;`;
-    await sql`ALTER TABLE curriculum_nodes ADD COLUMN IF NOT EXISTS metadata JSONB;`;
-    await sql`UPDATE curriculum_nodes SET slug = '' WHERE slug IS NULL;`;
-    await sql`UPDATE curriculum_nodes SET metadata = '{}'::jsonb WHERE metadata IS NULL;`;
-    await sql`ALTER TABLE curriculum_nodes ALTER COLUMN slug SET DEFAULT '';`;
-    await sql`ALTER TABLE curriculum_nodes ALTER COLUMN slug SET NOT NULL;`;
-    await sql`ALTER TABLE curriculum_nodes ALTER COLUMN metadata SET DEFAULT '{}'::jsonb;`;
-    await sql`ALTER TABLE curriculum_nodes ALTER COLUMN metadata SET NOT NULL;`;
+      await sql`ALTER TABLE curriculum_nodes ADD COLUMN IF NOT EXISTS slug TEXT;`;
+      await sql`ALTER TABLE curriculum_nodes ADD COLUMN IF NOT EXISTS metadata JSONB;`;
+      await sql`UPDATE curriculum_nodes SET slug = '' WHERE slug IS NULL;`;
+      await sql`UPDATE curriculum_nodes SET metadata = '{}'::jsonb WHERE metadata IS NULL;`;
+      await sql`ALTER TABLE curriculum_nodes ALTER COLUMN slug SET DEFAULT '';`;
+      await sql`ALTER TABLE curriculum_nodes ALTER COLUMN slug SET NOT NULL;`;
+      await sql`ALTER TABLE curriculum_nodes ALTER COLUMN metadata SET DEFAULT '{}'::jsonb;`;
+      await sql`ALTER TABLE curriculum_nodes ALTER COLUMN metadata SET NOT NULL;`;
 
-    await sql`UPDATE curriculum_nodes SET node_type = 'year' WHERE node_type = 'class';`;
-    await sql`UPDATE curriculum_nodes SET node_type = 'chapter' WHERE node_type = 'module';`;
-    await sql`UPDATE curriculum_nodes SET node_type = 'lesson' WHERE node_type = 'material';`;
-    await sql`
-      UPDATE curriculum_nodes AS node
-      SET node_type = 'subject'
-      FROM curriculum_nodes AS parent
-      WHERE node.node_type = 'chapter'
-        AND parent.id = node.parent_id
-        AND parent.node_type = 'year'
-    `;
+      await sql`UPDATE curriculum_nodes SET node_type = 'year' WHERE node_type = 'class';`;
+      await sql`UPDATE curriculum_nodes SET node_type = 'chapter' WHERE node_type = 'module';`;
+      await sql`UPDATE curriculum_nodes SET node_type = 'lesson' WHERE node_type = 'material';`;
+      await sql`
+        UPDATE curriculum_nodes AS node
+        SET node_type = 'subject'
+        FROM curriculum_nodes AS parent
+        WHERE node.node_type = 'chapter'
+          AND parent.id = node.parent_id
+          AND parent.node_type = 'year'
+      `;
 
-    await sql`
-      CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_position_idx
-      ON curriculum_nodes (parent_id, position, created_at)
-    `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_position_idx
+        ON curriculum_nodes (parent_id, position, created_at)
+      `;
 
-    await sql`
-      CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_type_idx
-      ON curriculum_nodes (parent_id, node_type)
-    `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_type_idx
+        ON curriculum_nodes (parent_id, node_type)
+      `;
 
-    await sql`
-      CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_slug_idx
-      ON curriculum_nodes (parent_id, slug)
-    `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_slug_idx
+        ON curriculum_nodes (parent_id, slug)
+      `;
+    } catch (error) {
+      curriculumSchemaReady = null;
+      throw error;
+    }
   })();
 
   return curriculumSchemaReady;

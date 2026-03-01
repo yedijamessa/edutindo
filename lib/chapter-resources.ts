@@ -1,6 +1,6 @@
 import "server-only";
 
-import { sql } from "@vercel/postgres";
+import { sqlQuery as sql } from "@/lib/postgres-query";
 
 export type ChapterResourceType = "pdf" | "video" | "document" | "link" | "other";
 
@@ -91,26 +91,31 @@ async function ensureChapterResourcesSchema() {
   if (chapterResourcesSchemaReady) return chapterResourcesSchemaReady;
 
   chapterResourcesSchemaReady = (async () => {
-    await sql`
-      CREATE TABLE IF NOT EXISTS chapter_resources (
-        id BIGSERIAL PRIMARY KEY,
-        chapter_slug TEXT NOT NULL,
-        subject TEXT NOT NULL DEFAULT 'science',
-        year_level INTEGER NOT NULL DEFAULT 7,
-        title TEXT NOT NULL,
-        resource_type TEXT NOT NULL,
-        url TEXT NOT NULL,
-        description TEXT,
-        created_by_user_id TEXT,
-        created_by_email TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS chapter_resources (
+          id BIGSERIAL PRIMARY KEY,
+          chapter_slug TEXT NOT NULL,
+          subject TEXT NOT NULL DEFAULT 'science',
+          year_level INTEGER NOT NULL DEFAULT 7,
+          title TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          url TEXT NOT NULL,
+          description TEXT,
+          created_by_user_id TEXT,
+          created_by_email TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
 
-    await sql`
-      CREATE INDEX IF NOT EXISTS chapter_resources_lookup_idx
-      ON chapter_resources (chapter_slug, subject, year_level, created_at DESC)
-    `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS chapter_resources_lookup_idx
+        ON chapter_resources (chapter_slug, subject, year_level, created_at DESC)
+      `;
+    } catch (error) {
+      chapterResourcesSchemaReady = null;
+      throw error;
+    }
   })();
 
   return chapterResourcesSchemaReady;
