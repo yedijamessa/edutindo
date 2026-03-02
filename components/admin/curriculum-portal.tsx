@@ -1740,264 +1740,266 @@ export function CurriculumPortal() {
                 </div>
               </div>
 
-              <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-3">
-                {selectedYear ? (
-                  <NodeColumn
-                    title="Manage Subjects"
-                    description={`Add and reorder subjects inside ${selectedYear.title}. Select one to manage its chapters.`}
-                    nodeType="subject"
-                    parentId={selectedYear.id}
-                    nodes={subjects}
-                    selectedId={selectedSubject?.id ?? null}
-                    disabled={false}
-                    addDisabledReason=""
-                    draftTitle={drafts.subject}
-                    draftWeekRangeStart=""
-                    draftWeekRangeEnd=""
-                    draftWeek=""
-                    draftLessonCode=""
-                    busy={busy}
-                    onDraftTitleChange={(value) => setDraft("subject", value)}
-                    onDraftWeekRangeStartChange={() => undefined}
-                    onDraftWeekRangeEndChange={() => undefined}
-                    onDraftWeekChange={() => undefined}
-                    onDraftLessonCodeChange={() => undefined}
-                    onSelect={(nodeId) => {
-                      const nextSubject = subjects.find((item) => item.id === nodeId);
-                      if (!nextSubject) return;
-                      setSelectedSubjectTitle(nextSubject.title);
-                      setSelectedChapterId(null);
-                    }}
-                    onCreate={() => createNode("subject", selectedYear.id)}
-                    onRename={renameNode}
-                    onDelete={deleteNode}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    canDropOnNode={canDropOnNode}
-                    canDropAtEnd={canDropAtEnd}
-                    onDropOnNode={dropOnNode}
-                    onDropAtEnd={dropAtEnd}
-                  />
-                ) : (
-                  <Card className="border-dashed border-slate-300 bg-slate-50">
-                    <CardContent className="p-4 text-sm text-muted-foreground">
-                      Select a valid year first.
-                    </CardContent>
-                  </Card>
-                )}
+              <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+                <div className="grid gap-4 xl:grid-cols-3">
+                  {selectedYear ? (
+                    <NodeColumn
+                      title="Manage Subjects"
+                      description={`Add and reorder subjects inside ${selectedYear.title}. Select one to manage its chapters.`}
+                      nodeType="subject"
+                      parentId={selectedYear.id}
+                      nodes={subjects}
+                      selectedId={selectedSubject?.id ?? null}
+                      disabled={false}
+                      addDisabledReason=""
+                      draftTitle={drafts.subject}
+                      draftWeekRangeStart=""
+                      draftWeekRangeEnd=""
+                      draftWeek=""
+                      draftLessonCode=""
+                      busy={busy}
+                      onDraftTitleChange={(value) => setDraft("subject", value)}
+                      onDraftWeekRangeStartChange={() => undefined}
+                      onDraftWeekRangeEndChange={() => undefined}
+                      onDraftWeekChange={() => undefined}
+                      onDraftLessonCodeChange={() => undefined}
+                      onSelect={(nodeId) => {
+                        const nextSubject = subjects.find((item) => item.id === nodeId);
+                        if (!nextSubject) return;
+                        setSelectedSubjectTitle(nextSubject.title);
+                        setSelectedChapterId(null);
+                      }}
+                      onCreate={() => createNode("subject", selectedYear.id)}
+                      onRename={renameNode}
+                      onDelete={deleteNode}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      canDropOnNode={canDropOnNode}
+                      canDropAtEnd={canDropAtEnd}
+                      onDropOnNode={dropOnNode}
+                      onDropAtEnd={dropAtEnd}
+                    />
+                  ) : (
+                    <Card className="border-dashed border-slate-300 bg-slate-50">
+                      <CardContent className="p-4 text-sm text-muted-foreground">
+                        Select a valid year first.
+                      </CardContent>
+                    </Card>
+                  )}
 
-                {selectedSubject ? (
-                  <NodeColumn
-                    title="Manage Chapters"
-                    description={`Inside subject: ${selectedSubject.title}. Add chapters, reorder them, and update week ranges inline.`}
-                    nodeType="chapter"
-                    parentId={selectedSubject.id}
-                    nodes={chapters}
-                    selectedId={selectedChapterId}
-                    disabled={false}
-                    addDisabledReason=""
-                    draftTitle={drafts.chapter}
-                    draftWeekRangeStart={chapterWeekStartDraft}
-                    draftWeekRangeEnd={chapterWeekEndDraft}
-                    draftWeek=""
-                    draftLessonCode=""
-                    busy={busy}
-                    onDraftTitleChange={(value) => setDraft("chapter", value)}
-                    onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
-                    onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
-                    onDraftWeekChange={() => undefined}
-                    onDraftLessonCodeChange={() => undefined}
-                    onSelect={(nodeId) => setSelectedChapterId(nodeId)}
-                    onCreate={() => createNode("chapter", selectedSubject.id)}
-                    onRename={renameNode}
-                    onDelete={deleteNode}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    canDropOnNode={canDropOnNode}
-                    canDropAtEnd={canDropAtEnd}
-                    onDropOnNode={dropOnNode}
-                    onDropAtEnd={dropAtEnd}
-                    chapterWeekDrafts={chapterWeekDrafts}
-                    chapterWeekBusyId={chapterWeekBusyId}
-                    onChapterWeekDraftChange={updateChapterWeekDraft}
-                    onSaveChapterWeek={saveChapterWeek}
-                  />
-                ) : (
-                  <Card className="border-dashed border-slate-300 bg-slate-50">
-                    <CardContent className="p-4 text-sm text-muted-foreground">
-                      Select or add a subject to manage its chapters.
-                    </CardContent>
-                  </Card>
-                )}
+                  {selectedSubject ? (
+                    <NodeColumn
+                      title="Manage Chapters"
+                      description={`Inside subject: ${selectedSubject.title}. Add chapters, reorder them, and update week ranges inline.`}
+                      nodeType="chapter"
+                      parentId={selectedSubject.id}
+                      nodes={chapters}
+                      selectedId={selectedChapterId}
+                      disabled={false}
+                      addDisabledReason=""
+                      draftTitle={drafts.chapter}
+                      draftWeekRangeStart={chapterWeekStartDraft}
+                      draftWeekRangeEnd={chapterWeekEndDraft}
+                      draftWeek=""
+                      draftLessonCode=""
+                      busy={busy}
+                      onDraftTitleChange={(value) => setDraft("chapter", value)}
+                      onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
+                      onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
+                      onDraftWeekChange={() => undefined}
+                      onDraftLessonCodeChange={() => undefined}
+                      onSelect={(nodeId) => setSelectedChapterId(nodeId)}
+                      onCreate={() => createNode("chapter", selectedSubject.id)}
+                      onRename={renameNode}
+                      onDelete={deleteNode}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      canDropOnNode={canDropOnNode}
+                      canDropAtEnd={canDropAtEnd}
+                      onDropOnNode={dropOnNode}
+                      onDropAtEnd={dropAtEnd}
+                      chapterWeekDrafts={chapterWeekDrafts}
+                      chapterWeekBusyId={chapterWeekBusyId}
+                      onChapterWeekDraftChange={updateChapterWeekDraft}
+                      onSaveChapterWeek={saveChapterWeek}
+                    />
+                  ) : (
+                    <Card className="border-dashed border-slate-300 bg-slate-50">
+                      <CardContent className="p-4 text-sm text-muted-foreground">
+                        Select or add a subject to manage its chapters.
+                      </CardContent>
+                    </Card>
+                  )}
 
-                {selectedChapter ? (
-                  <NodeColumn
-                    title="Manage Modules"
-                    description={`Inside chapter: ${selectedChapter.title}. Add, edit, delete, and reorder modules here.`}
-                    nodeType="lesson"
-                    parentId={selectedChapter.id}
-                    nodes={lessons}
-                    selectedId={null}
-                    disabled={false}
-                    addDisabledReason=""
-                    draftTitle={drafts.lesson}
-                    draftWeekRangeStart=""
-                    draftWeekRangeEnd=""
-                    draftWeek={lessonWeekDraft}
-                    draftLessonCode={lessonCodeDraft}
-                    busy={busy}
-                    onDraftTitleChange={(value) => setDraft("lesson", value)}
-                    onDraftWeekRangeStartChange={() => undefined}
-                    onDraftWeekRangeEndChange={() => undefined}
-                    onDraftWeekChange={setLessonWeekDraft}
-                    onDraftLessonCodeChange={setLessonCodeDraft}
-                    onSelect={() => undefined}
-                    onCreate={() => createNode("lesson", selectedChapter.id)}
-                    onRename={renameNode}
-                    onDelete={deleteNode}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    canDropOnNode={canDropOnNode}
-                    canDropAtEnd={canDropAtEnd}
-                    onDropOnNode={dropOnNode}
-                    onDropAtEnd={dropAtEnd}
-                    lessonPreviewBasePath={lessonPreviewBasePath}
-                  />
-                ) : (
-                  <Card className="border-dashed border-slate-300 bg-slate-50">
-                    <CardContent className="p-4 text-sm text-muted-foreground">
-                      Select or add a chapter to manage its modules.
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                  {selectedChapter ? (
+                    <NodeColumn
+                      title="Manage Modules"
+                      description={`Inside chapter: ${selectedChapter.title}. Add, edit, delete, and reorder modules here.`}
+                      nodeType="lesson"
+                      parentId={selectedChapter.id}
+                      nodes={lessons}
+                      selectedId={null}
+                      disabled={false}
+                      addDisabledReason=""
+                      draftTitle={drafts.lesson}
+                      draftWeekRangeStart=""
+                      draftWeekRangeEnd=""
+                      draftWeek={lessonWeekDraft}
+                      draftLessonCode={lessonCodeDraft}
+                      busy={busy}
+                      onDraftTitleChange={(value) => setDraft("lesson", value)}
+                      onDraftWeekRangeStartChange={() => undefined}
+                      onDraftWeekRangeEndChange={() => undefined}
+                      onDraftWeekChange={setLessonWeekDraft}
+                      onDraftLessonCodeChange={setLessonCodeDraft}
+                      onSelect={() => undefined}
+                      onCreate={() => createNode("lesson", selectedChapter.id)}
+                      onRename={renameNode}
+                      onDelete={deleteNode}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      canDropOnNode={canDropOnNode}
+                      canDropAtEnd={canDropAtEnd}
+                      onDropOnNode={dropOnNode}
+                      onDropAtEnd={dropAtEnd}
+                      lessonPreviewBasePath={lessonPreviewBasePath}
+                    />
+                  ) : (
+                    <Card className="border-dashed border-slate-300 bg-slate-50">
+                      <CardContent className="p-4 text-sm text-muted-foreground">
+                        Select or add a chapter to manage its modules.
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
 
-              {selectedChapter && selectedAssessmentDraft && (
-                <Card className="border-slate-200">
-                  <CardHeader>
-                    <CardTitle className="text-base">Chapter Assessments</CardTitle>
-                    <CardDescription>
-                      Link pre-tests and post-tests to this chapter. Students see the pre-test before starting,
-                      and the post-test after finishing the last lesson.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {([
-                        {
-                          type: "pre" as AssessmentType,
-                          title: "Pre-test",
-                          helper: "Shown when students start this chapter.",
-                          enabled: selectedAssessmentDraft.preTestEnabled,
-                          quizId: selectedAssessmentDraft.preTestQuizId,
-                        },
-                        {
-                          type: "post" as AssessmentType,
-                          title: "Post-test",
-                          helper: "Shown after students finish the final lesson.",
-                          enabled: selectedAssessmentDraft.postTestEnabled,
-                          quizId: selectedAssessmentDraft.postTestQuizId,
-                        },
-                      ] as const).map((assessment) => (
-                        <div
-                          key={assessment.type}
-                          className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{assessment.title}</p>
-                              <p className="text-xs text-slate-500">{assessment.helper}</p>
-                            </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={assessment.enabled ? "default" : "outline"}
-                              disabled={busy || assessmentBusyId === selectedChapter.id}
-                              onClick={() =>
-                                applyAssessmentUpdate(selectedChapter, {
-                                  ...(assessment.type === "pre"
-                                    ? { preTestEnabled: !assessment.enabled }
-                                    : { postTestEnabled: !assessment.enabled }),
-                                })
-                              }
-                            >
-                              {assessment.enabled ? "Enabled" : "Disabled"}
-                            </Button>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-slate-600">Linked quiz</label>
-                            <select
-                              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
-                              value={assessment.quizId}
-                              disabled={busy || assessmentBusyId === selectedChapter.id || quizzesLoading}
-                              onChange={(event) => {
-                                const nextId = event.target.value;
-                                applyAssessmentUpdate(selectedChapter, {
-                                  ...(assessment.type === "pre"
-                                    ? { preTestQuizId: nextId }
-                                    : { postTestQuizId: nextId }),
-                                });
-                              }}
-                            >
-                              <option value="">Select a quiz...</option>
-                              {sortedQuizzes.map((quiz) => (
-                                <option key={quiz.id} value={quiz.id}>
-                                  {quiz.title}
-                                </option>
-                              ))}
-                            </select>
-                            {assessment.quizId ? (
-                              <p className="text-[11px] text-slate-500">Quiz ID: {assessment.quizId}</p>
-                            ) : (
-                              <p className="text-[11px] text-slate-400">No quiz linked yet.</p>
-                            )}
-                            {assessment.enabled && !assessment.quizId && (
-                              <p className="text-[11px] text-amber-600">
-                                Link a quiz so this assessment appears for students.
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={busy || assessmentBusyId === selectedChapter.id}
-                              onClick={() => openAssessmentDialog(selectedChapter, assessment.type)}
-                            >
-                              Create {assessment.title}
-                            </Button>
-                            {assessment.quizId && (
+                {selectedChapter && selectedAssessmentDraft && (
+                  <Card className="border-slate-200 mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-base">Chapter Assessments</CardTitle>
+                      <CardDescription>
+                        Link pre-tests and post-tests to this chapter. Students see the pre-test before starting,
+                        and the post-test after finishing the last lesson.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {([
+                          {
+                            type: "pre" as AssessmentType,
+                            title: "Pre-test",
+                            helper: "Shown when students start this chapter.",
+                            enabled: selectedAssessmentDraft.preTestEnabled,
+                            quizId: selectedAssessmentDraft.preTestQuizId,
+                          },
+                          {
+                            type: "post" as AssessmentType,
+                            title: "Post-test",
+                            helper: "Shown after students finish the final lesson.",
+                            enabled: selectedAssessmentDraft.postTestEnabled,
+                            quizId: selectedAssessmentDraft.postTestQuizId,
+                          },
+                        ] as const).map((assessment) => (
+                          <div
+                            key={assessment.type}
+                            className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{assessment.title}</p>
+                                <p className="text-xs text-slate-500">{assessment.helper}</p>
+                              </div>
                               <Button
                                 type="button"
                                 size="sm"
-                                variant="ghost"
+                                variant={assessment.enabled ? "default" : "outline"}
                                 disabled={busy || assessmentBusyId === selectedChapter.id}
                                 onClick={() =>
                                   applyAssessmentUpdate(selectedChapter, {
                                     ...(assessment.type === "pre"
-                                      ? { preTestQuizId: "" }
-                                      : { postTestQuizId: "" }),
+                                      ? { preTestEnabled: !assessment.enabled }
+                                      : { postTestEnabled: !assessment.enabled }),
                                   })
                                 }
                               >
-                                Clear Quiz
+                                {assessment.enabled ? "Enabled" : "Disabled"}
                               </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                            </div>
 
-                    {quizzesLoading && (
-                      <p className="text-xs text-muted-foreground">Loading quizzes...</p>
-                    )}
-                    {quizError && <p className="text-xs text-red-600">{quizError}</p>}
-                  </CardContent>
-                </Card>
-              )}
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-slate-600">Linked quiz</label>
+                              <select
+                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
+                                value={assessment.quizId}
+                                disabled={busy || assessmentBusyId === selectedChapter.id || quizzesLoading}
+                                onChange={(event) => {
+                                  const nextId = event.target.value;
+                                  applyAssessmentUpdate(selectedChapter, {
+                                    ...(assessment.type === "pre"
+                                      ? { preTestQuizId: nextId }
+                                      : { postTestQuizId: nextId }),
+                                  });
+                                }}
+                              >
+                                <option value="">Select a quiz...</option>
+                                {sortedQuizzes.map((quiz) => (
+                                  <option key={quiz.id} value={quiz.id}>
+                                    {quiz.title}
+                                  </option>
+                                ))}
+                              </select>
+                              {assessment.quizId ? (
+                                <p className="text-[11px] text-slate-500">Quiz ID: {assessment.quizId}</p>
+                              ) : (
+                                <p className="text-[11px] text-slate-400">No quiz linked yet.</p>
+                              )}
+                              {assessment.enabled && !assessment.quizId && (
+                                <p className="text-[11px] text-amber-600">
+                                  Link a quiz so this assessment appears for students.
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={busy || assessmentBusyId === selectedChapter.id}
+                                onClick={() => openAssessmentDialog(selectedChapter, assessment.type)}
+                              >
+                                Create {assessment.title}
+                              </Button>
+                              {assessment.quizId && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={busy || assessmentBusyId === selectedChapter.id}
+                                  onClick={() =>
+                                    applyAssessmentUpdate(selectedChapter, {
+                                      ...(assessment.type === "pre"
+                                        ? { preTestQuizId: "" }
+                                        : { postTestQuizId: "" }),
+                                    })
+                                  }
+                                >
+                                  Clear Quiz
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {quizzesLoading && (
+                        <p className="text-xs text-muted-foreground">Loading quizzes...</p>
+                      )}
+                      {quizError && <p className="text-xs text-red-600">{quizError}</p>}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           )}
         </div>
