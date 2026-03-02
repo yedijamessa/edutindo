@@ -6,6 +6,11 @@ import { sqlQuery as sql } from "@/lib/postgres-query";
 
 export const DEFAULT_CURRICULUM_SCHOOL_TITLE = "EDUTINDO School";
 export const DEFAULT_CURRICULUM_SCHOOL_SLUG = "edutindo";
+export const CURRICULUM_YEAR_OPTIONS = [
+  { slug: "year-7", title: "Year 7", level: 7, position: 0 },
+  { slug: "year-8", title: "Year 8", level: 8, position: 1 },
+  { slug: "year-9", title: "Year 9", level: 9, position: 2 },
+] as const;
 
 export type CurriculumNodeType = "school" | "year" | "subject" | "chapter" | "lesson";
 
@@ -26,6 +31,11 @@ export interface CurriculumNode {
   createdAt: Date;
   updatedAt: Date;
   children: CurriculumNode[];
+}
+
+export interface CurriculumAssignmentTag {
+  schoolSlug: string;
+  yearSlug: string;
 }
 
 export interface CurriculumSchoolSummary {
@@ -127,7 +137,7 @@ const LEGACY_TYPE_MAP: Record<LegacyNodeType, CurriculumNodeType> = {
 const parentTypeByNode: Record<CurriculumNodeType, CurriculumNodeType | null> = {
   school: null,
   year: "school",
-  subject: "year",
+  subject: null,
   chapter: "subject",
   lesson: "chapter",
 };
@@ -183,6 +193,38 @@ function parseYearLevelFromTitle(title: string) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
 }
 
+function getYearOptionBySlug(yearSlugInput: string) {
+  const yearSlug = slugify(yearSlugInput);
+  return CURRICULUM_YEAR_OPTIONS.find((option) => option.slug === yearSlug) ?? null;
+}
+
+function normalizeAssignmentTags(input: unknown): CurriculumAssignmentTag[] {
+  if (!Array.isArray(input)) return [];
+
+  const seen = new Set<string>();
+  const normalized: CurriculumAssignmentTag[] = [];
+
+  for (const item of input) {
+    if (!isObjectRecord(item)) continue;
+
+    const schoolSlug = slugify(sanitizeText(item.schoolSlug, 180));
+    const yearOption = getYearOptionBySlug(sanitizeText(item.yearSlug, 120));
+
+    if (!schoolSlug || !yearOption) continue;
+
+    const key = `${schoolSlug}:${yearOption.slug}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    normalized.push({
+      schoolSlug,
+      yearSlug: yearOption.slug,
+    });
+  }
+
+  return normalized;
+}
+
 function toJsonbString(value: unknown): string {
   const serialized = JSON.stringify(value ?? {});
   return serialized ?? "{}";
@@ -228,12 +270,14 @@ function normalizeMetadata(
       postTestQuizId: sanitizeText(input.postTestQuizId, 180),
       preTestEnabled: parseBoolean(input.preTestEnabled),
       postTestEnabled: parseBoolean(input.postTestEnabled),
+      assignmentTags: normalizeAssignmentTags(input.assignmentTags),
     };
   }
 
   return {
     week: sanitizeText(input.week, 40),
     lessonCode: sanitizeText(input.lessonCode, 40),
+    assignmentTags: normalizeAssignmentTags(input.assignmentTags),
   };
 }
 
@@ -253,6 +297,10 @@ function parseBoolean(value: unknown) {
 
 function extractBoolean(value: unknown) {
   return parseBoolean(value);
+}
+
+function extractAssignmentTags(metadata: Record<string, unknown>) {
+  return normalizeAssignmentTags(metadata.assignmentTags);
 }
 
 function extractYearLevel(metadata: Record<string, unknown>) {
@@ -515,6 +563,199 @@ async function ensureDefaultSchool() {
   return schoolId;
 }
 
+async function findNodeBySlug(parentId: string | null, nodeType: CurriculumNodeType, slug: string) {
+  const result = await sql<CurriculumNodeRow>`
+    SELECT
+      id,
+      parent_id,
+      node_type,
+      title,
+      slug,
+      position,
+      metadata,
+      created_by_user_id,
+      updated_by_user_id,
+      created_at,
+      updated_at
+    FROM curriculum_nodes
+    WHERE parent_id IS NOT DISTINCT FROM ${parentId}
+      AND node_type = ${nodeType}
+      AND slug = ${slug}
+    LIMIT 1
+  `;
+
+  const row = result.rows[0];
+  return row ? mapRow(row) : null;
+}
+
+async function createNodeRecord(input: {
+  parentId: string | null;
+  nodeType: CurriculumNodeType;
+  title: string;
+  slug: string;
+  position: number;
+  metadata: Record<string, unknown>;
+}) {
+  const id = randomUUID();
+
+  await sql`
+    INSERT INTO curriculum_nodes (id, parent_id, node_type, title, slug, position, metadata)
+    VALUES (
+      ${id},
+      ${input.parentId},
+      ${input.nodeType},
+      ${input.title},
+      ${input.slug},
+      ${input.position},
+      ${toJsonbString(input.metadata)}::jsonb
+    )
+  `;
+
+  return id;
+}
+
+function mergeUniqueAssignmentTags(
+  left: CurriculumAssignmentTag[],
+  right: CurriculumAssignmentTag[]
+) {
+  return normalizeAssignmentTags([...left, ...right]);
+}
+
+function hasAssignmentTag(
+  tags: CurriculumAssignmentTag[],
+  schoolSlug: string,
+  yearSlug: string
+) {
+  return tags.some((tag) => tag.schoolSlug === schoolSlug && tag.yearSlug === yearSlug);
+}
+
+async function migrateLegacyCurriculumStructure() {
+  const flatNodes = await listAllCurriculumNodesFlat();
+
+  const schoolNodes = flatNodes.filter((node) => node.nodeType === "school" && node.parentId === null);
+  const topLevelSubjects = flatNodes.filter((node) => node.nodeType === "subject" && node.parentId === null);
+  if (topLevelSubjects.length > 0) {
+    return;
+  }
+
+  const byParentId = new Map<string | null, CurriculumNode[]>();
+  for (const node of flatNodes) {
+    const siblings = byParentId.get(node.parentId) ?? [];
+    siblings.push({ ...node, children: [] });
+    byParentId.set(node.parentId, siblings);
+  }
+
+  const defaultSchool = schoolNodes.find((node) => node.slug === DEFAULT_CURRICULUM_SCHOOL_SLUG) ?? schoolNodes[0] ?? null;
+  const schoolScope = defaultSchool
+    ? { slug: defaultSchool.slug, title: defaultSchool.title }
+    : { slug: DEFAULT_CURRICULUM_SCHOOL_SLUG, title: DEFAULT_CURRICULUM_SCHOOL_TITLE };
+
+  const yearNodes = flatNodes.filter((node) => node.nodeType === "year");
+
+  for (const yearNode of yearNodes) {
+    const yearOption =
+      getYearOptionBySlug(yearNode.slug) ??
+      CURRICULUM_YEAR_OPTIONS.find((option) => option.level === extractYearLevel(yearNode.metadata));
+    if (!yearOption) continue;
+
+    const schoolNode =
+      schoolNodes.find((node) => node.id === yearNode.parentId) ??
+      schoolNodes.find((node) => node.slug === schoolScope.slug) ??
+      null;
+    const schoolSlug = schoolNode?.slug ?? schoolScope.slug;
+
+    const legacySubjects = (byParentId.get(yearNode.id) ?? []).filter((node) => node.nodeType === "subject");
+
+    for (const legacySubject of legacySubjects) {
+      let subjectNode = await findNodeBySlug(null, "subject", legacySubject.slug);
+      if (!subjectNode) {
+        const subjectId = await createNodeRecord({
+          parentId: null,
+          nodeType: "subject",
+          title: legacySubject.title,
+          slug: legacySubject.slug,
+          position: await getNextPosition(null),
+          metadata: {
+            description: extractString(legacySubject.metadata.description),
+          },
+        });
+        const created = await findNodeBySlug(null, "subject", legacySubject.slug);
+        subjectNode = created ?? {
+          ...legacySubject,
+          id: subjectId,
+          parentId: null,
+        };
+      }
+
+      const legacyChapters = (byParentId.get(legacySubject.id) ?? []).filter((node) => node.nodeType === "chapter");
+
+      for (const legacyChapter of legacyChapters) {
+        let chapterNode = await findNodeBySlug(subjectNode.id, "chapter", legacyChapter.slug);
+        const nextChapterTags = mergeUniqueAssignmentTags(
+          extractAssignmentTags(legacyChapter.metadata),
+          [{ schoolSlug, yearSlug: yearOption.slug }]
+        );
+
+        if (!chapterNode) {
+          await createNodeRecord({
+            parentId: subjectNode.id,
+            nodeType: "chapter",
+            title: legacyChapter.title,
+            slug: legacyChapter.slug,
+            position: await getNextPosition(subjectNode.id),
+            metadata: {
+              weekRange: extractString(legacyChapter.metadata.weekRange),
+              strand: extractString(legacyChapter.metadata.strand),
+              unitTitle: extractString(legacyChapter.metadata.unitTitle),
+              learningOutcomes: extractLearningOutcomes(legacyChapter.metadata),
+              preTestQuizId: extractString(legacyChapter.metadata.preTestQuizId),
+              postTestQuizId: extractString(legacyChapter.metadata.postTestQuizId),
+              preTestEnabled: extractBoolean(legacyChapter.metadata.preTestEnabled),
+              postTestEnabled: extractBoolean(legacyChapter.metadata.postTestEnabled),
+              assignmentTags: nextChapterTags,
+            },
+          });
+          chapterNode = await findNodeBySlug(subjectNode.id, "chapter", legacyChapter.slug);
+        } else if (!hasAssignmentTag(extractAssignmentTags(chapterNode.metadata), schoolSlug, yearOption.slug)) {
+          await sql`
+            UPDATE curriculum_nodes
+            SET
+              metadata = ${toJsonbString({
+                ...chapterNode.metadata,
+                assignmentTags: nextChapterTags,
+              })}::jsonb,
+              updated_at = NOW()
+            WHERE id = ${chapterNode.id}
+          `;
+          chapterNode = await findNodeBySlug(subjectNode.id, "chapter", legacyChapter.slug);
+        }
+
+        if (!chapterNode) continue;
+
+        const legacyLessons = (byParentId.get(legacyChapter.id) ?? []).filter((node) => node.nodeType === "lesson");
+
+        for (const legacyLesson of legacyLessons) {
+          const existingLesson = await findNodeBySlug(chapterNode.id, "lesson", legacyLesson.slug);
+          if (existingLesson) continue;
+
+          await createNodeRecord({
+            parentId: chapterNode.id,
+            nodeType: "lesson",
+            title: legacyLesson.title,
+            slug: legacyLesson.slug,
+            position: await getNextPosition(chapterNode.id),
+            metadata: {
+              week: extractString(legacyLesson.metadata.week),
+              lessonCode: extractString(legacyLesson.metadata.lessonCode),
+              assignmentTags: extractAssignmentTags(legacyLesson.metadata),
+            },
+          });
+        }
+      }
+    }
+  }
+}
+
 function mapRow(row: CurriculumNodeRow): Omit<CurriculumNode, "children"> {
   let metadata: Record<string, unknown> = {};
 
@@ -595,129 +836,7 @@ function buildTree(
   }));
 }
 
-async function seedDefaultCurriculumIfEmpty() {
-  if (curriculumSeedReady) return curriculumSeedReady;
-
-  curriculumSeedReady = (async () => {
-    const schoolId = await ensureDefaultSchool();
-
-    const yearResult = await sql<{ id: string }>`
-      SELECT id
-      FROM curriculum_nodes
-      WHERE parent_id = ${schoolId}
-        AND node_type = 'year'
-        AND slug = 'year-7'
-      LIMIT 1
-    `;
-
-    const yearId = yearResult.rows[0]?.id ?? randomUUID();
-
-    if (!yearResult.rows[0]) {
-      await sql`
-        INSERT INTO curriculum_nodes (id, parent_id, node_type, title, slug, position, metadata)
-        VALUES (
-          ${yearId},
-          ${schoolId},
-          ${"year"},
-          ${"Year 7"},
-          ${"year-7"},
-          ${0},
-          ${toJsonbString({ yearLevel: 7 })}::jsonb
-        )
-      `;
-    }
-
-    const subjectResult = await sql<{ id: string }>`
-      SELECT id
-      FROM curriculum_nodes
-      WHERE parent_id = ${yearId}
-        AND node_type = 'subject'
-        AND slug = 'science'
-      LIMIT 1
-    `;
-
-    const subjectId = subjectResult.rows[0]?.id ?? randomUUID();
-
-    if (!subjectResult.rows[0]) {
-      await sql`
-        INSERT INTO curriculum_nodes (id, parent_id, node_type, title, slug, position, metadata)
-        VALUES (
-          ${subjectId},
-          ${yearId},
-          ${"subject"},
-          ${"Science"},
-          ${"science"},
-          ${0},
-          ${toJsonbString({
-            description: "Physics, chemistry, biology, and scientific inquiry.",
-          })}::jsonb
-        )
-      `;
-    }
-
-    const existingChapterCountResult = await sql<{ count: string }>`
-      SELECT COUNT(*)::text AS count
-      FROM curriculum_nodes
-      WHERE parent_id = ${subjectId}
-        AND node_type = 'chapter'
-    `;
-    const existingChapterCount = Number(existingChapterCountResult.rows[0]?.count ?? 0);
-    if (existingChapterCount > 0) return;
-
-    for (const [chapterIndex, chapter] of year7ScienceChapters.entries()) {
-      const chapterId = randomUUID();
-      await sql`
-        INSERT INTO curriculum_nodes (id, parent_id, node_type, title, slug, position, metadata)
-        VALUES (
-          ${chapterId},
-          ${subjectId},
-          ${"chapter"},
-          ${chapter.shortTitle},
-          ${chapter.slug},
-          ${chapterIndex},
-          ${toJsonbString({
-            weekRange: chapter.weekRange,
-            strand: chapter.strand,
-            unitTitle: chapter.unitTitle,
-            learningOutcomes: chapter.learningOutcomes,
-          })}::jsonb
-        )
-      `;
-
-      for (const [lessonIndex, lesson] of chapter.lessons.entries()) {
-        const lessonId = randomUUID();
-        const lessonSlug = lesson.slug ?? slugify(`${lesson.lessonCode}-${lesson.title}`);
-
-        await sql`
-          INSERT INTO curriculum_nodes (id, parent_id, node_type, title, slug, position, metadata)
-          VALUES (
-            ${lessonId},
-            ${chapterId},
-            ${"lesson"},
-            ${lesson.title},
-            ${lessonSlug},
-            ${lessonIndex},
-            ${toJsonbString({
-              week: lesson.week,
-              lessonCode: lesson.lessonCode,
-            })}::jsonb
-          )
-        `;
-      }
-    }
-  })();
-
-  return curriculumSeedReady;
-}
-
-async function ensureCurriculumReady() {
-  await ensureCurriculumSchema();
-  await seedDefaultCurriculumIfEmpty();
-}
-
-export async function listCurriculumTree() {
-  await ensureCurriculumReady();
-
+async function listAllCurriculumNodesFlat() {
   const result = await sql<CurriculumNodeRow>`
     SELECT
       id,
@@ -734,7 +853,81 @@ export async function listCurriculumTree() {
     FROM curriculum_nodes
   `;
 
-  const mapped = result.rows.map((row) => mapRow(row));
+  return result.rows.map((row) => mapRow(row));
+}
+
+async function seedDefaultCurriculumIfEmpty() {
+  if (curriculumSeedReady) return curriculumSeedReady;
+
+  curriculumSeedReady = (async () => {
+    await ensureDefaultSchool();
+    await migrateLegacyCurriculumStructure();
+
+    const subjectResult = await sql<{ id: string }>`
+      SELECT id
+      FROM curriculum_nodes
+      WHERE parent_id IS NULL
+        AND node_type = 'subject'
+      LIMIT 1
+    `;
+    if (subjectResult.rows[0]) return;
+
+    const subjectId = await createNodeRecord({
+      parentId: null,
+      nodeType: "subject",
+      title: "Science",
+      slug: "science",
+      position: await getNextPosition(null),
+      metadata: {
+        description: "Physics, chemistry, biology, and scientific inquiry.",
+      },
+    });
+
+    for (const [chapterIndex, chapter] of year7ScienceChapters.entries()) {
+      const chapterId = await createNodeRecord({
+        parentId: subjectId,
+        nodeType: "chapter",
+        title: chapter.shortTitle,
+        slug: chapter.slug,
+        position: chapterIndex,
+        metadata: {
+          weekRange: chapter.weekRange,
+          strand: chapter.strand,
+          unitTitle: chapter.unitTitle,
+          learningOutcomes: chapter.learningOutcomes,
+          assignmentTags: [{ schoolSlug: DEFAULT_CURRICULUM_SCHOOL_SLUG, yearSlug: "year-7" }],
+        },
+      });
+
+      for (const [lessonIndex, lesson] of chapter.lessons.entries()) {
+        const lessonSlug = lesson.slug ?? slugify(`${lesson.lessonCode}-${lesson.title}`);
+
+        await createNodeRecord({
+          parentId: chapterId,
+          nodeType: "lesson",
+          title: lesson.title,
+          slug: lessonSlug,
+          position: lessonIndex,
+          metadata: {
+            week: lesson.week,
+            lessonCode: lesson.lessonCode,
+          },
+        });
+      }
+    }
+  })();
+
+  return curriculumSeedReady;
+}
+
+async function ensureCurriculumReady() {
+  await ensureCurriculumSchema();
+  await seedDefaultCurriculumIfEmpty();
+}
+
+export async function listCurriculumTree() {
+  await ensureCurriculumReady();
+  const mapped = await listAllCurriculumNodesFlat();
   return buildTree(mapped, null);
 }
 
@@ -959,12 +1152,14 @@ export async function deleteCurriculumNode(nodeIdInput: string) {
 
 export async function reorderCurriculumSiblings(input: {
   parentId?: string | null;
+  nodeType?: string | null;
   orderedNodeIds: string[];
   actorUserId?: string;
 }) {
   await ensureCurriculumReady();
 
   const parentId = normalizeId(input.parentId);
+  const nodeType = input.nodeType ? normalizeNodeType(input.nodeType) : null;
   const orderedNodeIds = Array.from(
     new Set(
       input.orderedNodeIds
@@ -983,6 +1178,7 @@ export async function reorderCurriculumSiblings(input: {
     SELECT id
     FROM curriculum_nodes
     WHERE parent_id IS NOT DISTINCT FROM ${parentId}
+      AND (${nodeType}::text IS NULL OR node_type = ${nodeType})
     ORDER BY position ASC, created_at ASC
   `;
 
@@ -1006,6 +1202,7 @@ export async function reorderCurriculumSiblings(input: {
         updated_at = NOW()
       WHERE id = ${nodeId}
         AND parent_id IS NOT DISTINCT FROM ${parentId}
+        AND (${nodeType}::text IS NULL OR node_type = ${nodeType})
     `;
   }
 }
@@ -1021,24 +1218,25 @@ function mapLesson(node: CurriculumNode): CurriculumLessonSummary {
   };
 }
 
-function mapSchool(node: CurriculumNode): CurriculumSchoolSummary {
+function mapSchool(node: CurriculumNode, years: CurriculumYearSummary[] = []): CurriculumSchoolSummary {
   return {
     id: node.id,
     title: node.title,
     slug: node.slug,
     position: node.position,
-    years: node.children.map(mapYear),
+    years,
   };
 }
 
-function mapChapter(node: CurriculumNode): CurriculumChapterSummary {
+function mapChapter(node: CurriculumNode, lessonNodes?: CurriculumNode[]): CurriculumChapterSummary {
+  const lessons = lessonNodes ?? node.children.filter((child) => child.nodeType === "lesson");
   return {
     id: node.id,
     title: node.title,
     slug: node.slug,
     position: node.position,
     weekRange: extractString(node.metadata.weekRange),
-    lessonCount: node.children.length,
+    lessonCount: lessons.length,
     preTestQuizId: extractString(node.metadata.preTestQuizId),
     postTestQuizId: extractString(node.metadata.postTestQuizId),
     preTestEnabled: extractBoolean(node.metadata.preTestEnabled),
@@ -1046,10 +1244,12 @@ function mapChapter(node: CurriculumNode): CurriculumChapterSummary {
   };
 }
 
-function mapSubject(node: CurriculumNode): CurriculumSubjectSummary {
-  const sortedChapters = sortChapterNodes(node.children);
-  const chapters = sortedChapters.map(mapChapter);
-  const lessonCount = sortedChapters.reduce((sum, chapter) => sum + chapter.children.length, 0);
+function mapSubject(
+  node: CurriculumNode,
+  chapters: Array<{ chapterNode: CurriculumNode; lessonNodes: CurriculumNode[] }> = []
+): CurriculumSubjectSummary {
+  const chapterSummaries = chapters.map(({ chapterNode, lessonNodes }) => mapChapter(chapterNode, lessonNodes));
+  const lessonCount = chapters.reduce((sum, chapter) => sum + chapter.lessonNodes.length, 0);
 
   return {
     id: node.id,
@@ -1057,21 +1257,88 @@ function mapSubject(node: CurriculumNode): CurriculumSubjectSummary {
     slug: node.slug,
     position: node.position,
     description: extractString(node.metadata.description),
-    chapterCount: chapters.length,
+    chapterCount: chapterSummaries.length,
     lessonCount,
-    chapters,
+    chapters: chapterSummaries,
   };
 }
 
-function mapYear(node: CurriculumNode): CurriculumYearSummary {
+function mapYear(
+  schoolNode: CurriculumNode,
+  yearSlug: string,
+  subjects: CurriculumSubjectSummary[]
+): CurriculumYearSummary {
+  const yearOption = getYearOptionBySlug(yearSlug);
+
   return {
-    id: node.id,
-    title: node.title,
-    slug: node.slug,
-    position: node.position,
-    yearLevel: extractYearLevel(node.metadata),
-    subjects: node.children.map(mapSubject),
+    id: `${schoolNode.id}:${yearSlug}`,
+    title: yearOption?.title ?? "Year",
+    slug: yearOption?.slug ?? yearSlug,
+    position: yearOption?.position ?? 0,
+    yearLevel: yearOption?.level ?? null,
+    subjects,
   };
+}
+
+function getTopLevelSchools(tree: CurriculumNode[]) {
+  return tree.filter((node) => node.nodeType === "school" && node.parentId === null);
+}
+
+function getTopLevelSubjects(tree: CurriculumNode[]) {
+  return tree.filter((node) => node.nodeType === "subject" && node.parentId === null);
+}
+
+function matchesAssignmentTag(
+  tags: CurriculumAssignmentTag[],
+  schoolSlug: string,
+  yearSlug: string
+) {
+  return tags.some((tag) => tag.schoolSlug === schoolSlug && tag.yearSlug === yearSlug);
+}
+
+function getVisibleLessonsForScope(
+  chapterNode: CurriculumNode,
+  schoolSlug: string,
+  yearSlug: string
+) {
+  const chapterTags = extractAssignmentTags(chapterNode.metadata);
+  const lessonNodes = sortLessonNodes(chapterNode.children.filter((node) => node.nodeType === "lesson"));
+
+  return lessonNodes.filter((lessonNode) => {
+    const lessonTags = extractAssignmentTags(lessonNode.metadata);
+    if (lessonTags.length > 0) {
+      return matchesAssignmentTag(lessonTags, schoolSlug, yearSlug);
+    }
+
+    if (chapterTags.length > 0) {
+      return matchesAssignmentTag(chapterTags, schoolSlug, yearSlug);
+    }
+
+    return false;
+  });
+}
+
+function getVisibleChaptersForScope(
+  subjectNode: CurriculumNode,
+  schoolSlug: string,
+  yearSlug: string
+) {
+  return sortChapterNodes(subjectNode.children.filter((node) => node.nodeType === "chapter"))
+    .map((chapterNode) => ({
+      chapterNode,
+      lessonNodes: getVisibleLessonsForScope(chapterNode, schoolSlug, yearSlug),
+    }))
+    .filter((item) => item.lessonNodes.length > 0);
+}
+
+function mapSubjectForScope(
+  subjectNode: CurriculumNode,
+  schoolSlug: string,
+  yearSlug: string
+) {
+  const visibleChapters = getVisibleChaptersForScope(subjectNode, schoolSlug, yearSlug);
+  if (visibleChapters.length === 0) return null;
+  return mapSubject(subjectNode, visibleChapters);
 }
 
 export async function listCurriculumOutline() {
@@ -1083,31 +1350,20 @@ export async function listCurriculumOutline() {
 
 export async function listCurriculumSchools() {
   const tree = await listCurriculumTree();
-  return tree.filter((node) => node.nodeType === "school").map(mapSchool);
-}
+  const schoolNodes = getTopLevelSchools(tree);
+  const subjectNodes = getTopLevelSubjects(tree);
 
-function schoolContainsPath(
-  schoolNode: CurriculumNode,
-  input: {
-    yearSlug: string;
-    subjectSlug?: string;
-    chapterSlug?: string;
-    lessonSlug?: string;
-  }
-) {
-  const yearNode = schoolNode.children.find((node) => node.slug === input.yearSlug);
-  if (!yearNode) return false;
-  if (!input.subjectSlug) return true;
+  return schoolNodes.map((schoolNode) => {
+    const years = CURRICULUM_YEAR_OPTIONS.map((yearOption) => {
+      const subjects = subjectNodes
+        .map((subjectNode) => mapSubjectForScope(subjectNode, schoolNode.slug, yearOption.slug))
+        .filter((subject): subject is CurriculumSubjectSummary => Boolean(subject));
 
-  const subjectNode = yearNode.children.find((node) => node.slug === input.subjectSlug);
-  if (!subjectNode) return false;
-  if (!input.chapterSlug) return true;
+      return mapYear(schoolNode, yearOption.slug, subjects);
+    }).filter((year) => year.subjects.length > 0);
 
-  const chapterNode = subjectNode.children.find((node) => node.slug === input.chapterSlug);
-  if (!chapterNode) return false;
-  if (!input.lessonSlug) return true;
-
-  return chapterNode.children.some((node) => node.slug === input.lessonSlug);
+    return mapSchool(schoolNode, years);
+  });
 }
 
 function findSchoolNodeForLookup(
@@ -1120,19 +1376,14 @@ function findSchoolNodeForLookup(
     lessonSlug?: string;
   }
 ) {
-  const schools = tree.filter((node) => node.nodeType === "school");
+  const schools = getTopLevelSchools(tree);
   if (schools.length === 0) return null;
 
   if (input.schoolSlug) {
     return schools.find((node) => node.slug === input.schoolSlug) ?? null;
   }
 
-  const defaultSchool = schools.find((node) => node.slug === DEFAULT_CURRICULUM_SCHOOL_SLUG) ?? null;
-  if (defaultSchool && schoolContainsPath(defaultSchool, input)) {
-    return defaultSchool;
-  }
-
-  return schools.find((node) => schoolContainsPath(node, input)) ?? defaultSchool ?? schools[0];
+  return schools.find((node) => node.slug === DEFAULT_CURRICULUM_SCHOOL_SLUG) ?? schools[0];
 }
 
 export async function getCurriculumChapterContext(input: {
@@ -1145,6 +1396,8 @@ export async function getCurriculumChapterContext(input: {
   const yearSlug = slugify(input.yearSlug);
   const subjectSlug = slugify(input.subjectSlug);
   const chapterSlug = slugify(input.chapterSlug);
+  const yearOption = getYearOptionBySlug(yearSlug);
+  if (!yearOption) return null;
 
   const tree = await listCurriculumTree();
 
@@ -1156,33 +1409,49 @@ export async function getCurriculumChapterContext(input: {
   });
   if (!schoolNode) return null;
 
-  const yearNode = schoolNode.children.find((node) => node.slug === yearSlug);
-  if (!yearNode) return null;
-
-  const subjectNode = yearNode.children.find((node) => node.slug === subjectSlug);
+  const subjectNode = getTopLevelSubjects(tree).find((node) => node.slug === subjectSlug);
   if (!subjectNode) return null;
 
-  const chapters = sortChapterNodes(subjectNode.children);
-  const chapterIndex = chapters.findIndex((node) => node.slug === chapterSlug);
+  const scopedChapters = getVisibleChaptersForScope(subjectNode, schoolNode.slug, yearOption.slug);
+  const chapterIndex = scopedChapters.findIndex((item) => item.chapterNode.slug === chapterSlug);
   if (chapterIndex < 0) return null;
 
-  const chapterNode = chapters[chapterIndex];
-  const previousChapter = chapterIndex > 0 ? mapChapter(chapters[chapterIndex - 1]) : null;
-  const nextChapter = chapterIndex < chapters.length - 1 ? mapChapter(chapters[chapterIndex + 1]) : null;
-  const lessons = sortLessonNodes(chapterNode.children);
+  const { chapterNode, lessonNodes } = scopedChapters[chapterIndex];
+  const previousChapter =
+    chapterIndex > 0
+      ? mapChapter(scopedChapters[chapterIndex - 1].chapterNode, scopedChapters[chapterIndex - 1].lessonNodes)
+      : null;
+  const nextChapter =
+    chapterIndex < scopedChapters.length - 1
+      ? mapChapter(scopedChapters[chapterIndex + 1].chapterNode, scopedChapters[chapterIndex + 1].lessonNodes)
+      : null;
 
   const chapter = {
-    ...mapChapter(chapterNode),
-    lessons: lessons.map(mapLesson),
+    ...mapChapter(chapterNode, lessonNodes),
+    lessons: lessonNodes.map(mapLesson),
     strand: extractString(chapterNode.metadata.strand),
     unitTitle: extractString(chapterNode.metadata.unitTitle),
     learningOutcomes: extractLearningOutcomes(chapterNode.metadata),
   };
 
+  const scopedSubject = mapSubjectForScope(subjectNode, schoolNode.slug, yearOption.slug);
+  if (!scopedSubject) return null;
+
+  const schoolSummary = mapSchool(
+    schoolNode,
+    CURRICULUM_YEAR_OPTIONS.map((option) => {
+      const subjects = getTopLevelSubjects(tree)
+        .map((node) => mapSubjectForScope(node, schoolNode.slug, option.slug))
+        .filter((subject): subject is CurriculumSubjectSummary => Boolean(subject));
+
+      return mapYear(schoolNode, option.slug, subjects);
+    }).filter((year) => year.subjects.length > 0)
+  );
+
   return {
-    school: mapSchool(schoolNode),
-    year: mapYear(yearNode),
-    subject: mapSubject(subjectNode),
+    school: schoolSummary,
+    year: mapYear(schoolNode, yearOption.slug, schoolSummary.years.find((year) => year.slug === yearOption.slug)?.subjects ?? []),
+    subject: scopedSubject,
     chapter,
     previousChapter,
     nextChapter,

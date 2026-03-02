@@ -20,12 +20,14 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const parentId = body?.parentId == null ? null : String(body.parentId);
+    const nodeType = body?.nodeType == null ? null : String(body.nodeType);
     const orderedNodeIds = Array.isArray(body?.orderedNodeIds)
       ? body.orderedNodeIds.map((value: unknown) => String(value))
       : [];
 
     await reorderCurriculumSiblings({
       parentId,
+      nodeType,
       orderedNodeIds,
       actorUserId: user.id,
     });

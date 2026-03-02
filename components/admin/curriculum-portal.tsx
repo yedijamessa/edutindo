@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,11 @@ type QuestionDraft = {
   correctAnswer: string | number;
 };
 
+type AssignmentTag = {
+  schoolSlug: string;
+  yearSlug: string;
+};
+
 const nodeLabelByType: Record<NodeType, string> = {
   school: "School",
   year: "Year",
@@ -78,7 +83,7 @@ const nodeLabelByType: Record<NodeType, string> = {
 };
 
 const childHintByType: Record<NodeType, string> = {
-  school: "years",
+  school: "tags",
   year: "subjects",
   subject: "chapters",
   chapter: "modules",
@@ -86,8 +91,11 @@ const childHintByType: Record<NodeType, string> = {
 };
 
 const DEFAULT_SCHOOL_SLUG = "edutindo";
-const YEAR_OPTIONS = ["Year 7", "Year 8", "Year 9"] as const;
-const SUBJECT_OPTIONS = ["Science", "IT", "Christian Studies", "Math", "English"] as const;
+const YEAR_OPTIONS = [
+  { title: "Year 7", slug: "year-7" },
+  { title: "Year 8", slug: "year-8" },
+  { title: "Year 9", slug: "year-9" },
+] as const;
 
 function reorderIds(ids: string[], draggedId: string, targetId: string | null) {
   const next = ids.filter((id) => id !== draggedId);
@@ -111,10 +119,6 @@ function toBoolean(value: unknown) {
   if (typeof value === "number") return value === 1;
   const cleaned = text(value).toLowerCase();
   return cleaned === "true" || cleaned === "1" || cleaned === "yes" || cleaned === "on";
-}
-
-function sameLabel(left: string, right: string) {
-  return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
 function normalizeWeekInput(value: string) {
@@ -195,6 +199,41 @@ function sameAssessmentDraftMap(
       leftValue?.postTestEnabled === rightValue?.postTestEnabled
     );
   });
+}
+
+function slugifyValue(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function parseAssignmentTags(metadata: Record<string, unknown>): AssignmentTag[] {
+  if (!Array.isArray(metadata.assignmentTags)) return [];
+
+  const seen = new Set<string>();
+  const next: AssignmentTag[] = [];
+
+  for (const item of metadata.assignmentTags) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) continue;
+    const schoolSlug = slugifyValue(text((item as Record<string, unknown>).schoolSlug));
+    const yearSlug = slugifyValue(text((item as Record<string, unknown>).yearSlug));
+    if (!schoolSlug || !yearSlug) continue;
+
+    const key = `${schoolSlug}:${yearSlug}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    next.push({ schoolSlug, yearSlug });
+  }
+
+  return next;
+}
+
+function hasAssignmentTag(tags: AssignmentTag[], schoolSlug: string, yearSlug: string) {
+  return tags.some((tag) => tag.schoolSlug === schoolSlug && tag.yearSlug === yearSlug);
 }
 
 interface NodeColumnProps {
@@ -412,6 +451,8 @@ function NodeColumn({
                         <p className="truncate text-sm font-medium text-slate-900">{node.title}</p>
                         {nodeType === "lesson" ? (
                           <p className="text-xs text-slate-500">Module page</p>
+                        ) : nodeType === "school" ? (
+                          <p className="text-xs text-slate-500">School tag</p>
                         ) : (
                           <p className="text-xs text-slate-500">
                             {node.children.length} {childHintByType[nodeType]}
@@ -865,18 +906,76 @@ function AssessmentQuizDialog({
   );
 }
 
+interface AssignmentTagEditorProps {
+  title: string;
+  description: string;
+  tags: AssignmentTag[];
+  schools: CurriculumNode[];
+  busy: boolean;
+  onToggle: (schoolSlug: string, yearSlug: string) => void;
+}
+
+function AssignmentTagEditor({
+  title,
+  description,
+  tags,
+  schools,
+  busy,
+  onToggle,
+}: AssignmentTagEditorProps) {
+  return (
+    <Card className="border-slate-200">
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {schools.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-muted-foreground">
+            Add at least one school first so you can tag where this content is used.
+          </div>
+        ) : (
+          schools.map((school) => (
+            <div key={school.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div>
+                <p className="font-medium text-slate-900">{school.title}</p>
+                <p className="text-xs text-slate-500">Choose which year groups use this content.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {YEAR_OPTIONS.map((year) => {
+                  const active = hasAssignmentTag(tags, school.slug, year.slug);
+                  return (
+                    <Button
+                      key={`${school.id}-${year.slug}`}
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      disabled={busy}
+                      onClick={() => onToggle(school.slug, year.slug)}
+                    >
+                      {year.title}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function CurriculumPortal() {
   const [tree, setTree] = useState<CurriculumNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
-  const [selectedYearTitle, setSelectedYearTitle] = useState<(typeof YEAR_OPTIONS)[number]>(YEAR_OPTIONS[0]);
-  const [selectedSubjectTitle, setSelectedSubjectTitle] = useState<string>(SUBJECT_OPTIONS[0]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, ChapterWeekDraft>>({});
   const [chapterWeekBusyId, setChapterWeekBusyId] = useState<string | null>(null);
   const [assessmentDrafts, setAssessmentDrafts] = useState<Record<string, ChapterAssessmentDraft>>({});
@@ -941,8 +1040,8 @@ export function CurriculumPortal() {
         const items = await getQuizzes();
         if (!active) return;
         setQuizzes(Array.isArray(items) ? items : []);
-      } catch (error) {
-        console.error(error);
+      } catch (loadError) {
+        console.error(loadError);
         if (!active) return;
         setQuizError("Failed to load quizzes.");
         setQuizzes([]);
@@ -958,7 +1057,14 @@ export function CurriculumPortal() {
     };
   }, []);
 
-  const schools = tree;
+  const schools = useMemo(
+    () => tree.filter((node) => node.nodeType === "school" && node.parentId === null),
+    [tree]
+  );
+  const subjects = useMemo(
+    () => tree.filter((node) => node.nodeType === "subject" && node.parentId === null),
+    [tree]
+  );
 
   useEffect(() => {
     if (schools.length === 0) {
@@ -972,34 +1078,67 @@ export function CurriculumPortal() {
     }
   }, [schools, selectedSchoolId]);
 
+  useEffect(() => {
+    if (subjects.length === 0) {
+      setSelectedSubjectId(null);
+      return;
+    }
+
+    if (!selectedSubjectId || !subjects.some((item) => item.id === selectedSubjectId)) {
+      setSelectedSubjectId(subjects[0].id);
+    }
+  }, [selectedSubjectId, subjects]);
+
   const selectedSchool = useMemo(
     () => schools.find((item) => item.id === selectedSchoolId) ?? null,
     [schools, selectedSchoolId]
   );
-
-  const years = useMemo(() => selectedSchool?.children ?? [], [selectedSchool]);
-
-  const selectedYear = useMemo(
-    () => years.find((item) => sameLabel(item.title, selectedYearTitle)) ?? null,
-    [years, selectedYearTitle]
-  );
-
-  const subjects = useMemo(() => selectedYear?.children ?? [], [selectedYear]);
-
   const selectedSubject = useMemo(
-    () => subjects.find((item) => sameLabel(item.title, selectedSubjectTitle)) ?? null,
-    [subjects, selectedSubjectTitle]
+    () => subjects.find((item) => item.id === selectedSubjectId) ?? null,
+    [selectedSubjectId, subjects]
   );
 
-  const chapters = useMemo(() => selectedSubject?.children ?? [], [selectedSubject]);
+  const chapters = useMemo(
+    () => selectedSubject?.children.filter((node) => node.nodeType === "chapter") ?? [],
+    [selectedSubject]
+  );
 
   useEffect(() => {
-    if (subjects.length === 0) return;
-
-    if (!selectedSubject || !subjects.some((item) => sameLabel(item.title, selectedSubjectTitle))) {
-      setSelectedSubjectTitle(subjects[0].title);
+    if (chapters.length === 0) {
+      setSelectedChapterId(null);
+      return;
     }
-  }, [selectedSubject, selectedSubjectTitle, subjects]);
+
+    if (!selectedChapterId || !chapters.some((item) => item.id === selectedChapterId)) {
+      setSelectedChapterId(chapters[0].id);
+    }
+  }, [chapters, selectedChapterId]);
+
+  const selectedChapter = useMemo(
+    () => chapters.find((item) => item.id === selectedChapterId) ?? null,
+    [chapters, selectedChapterId]
+  );
+
+  const lessons = useMemo(
+    () => selectedChapter?.children.filter((node) => node.nodeType === "lesson") ?? [],
+    [selectedChapter]
+  );
+
+  useEffect(() => {
+    if (lessons.length === 0) {
+      setSelectedModuleId(null);
+      return;
+    }
+
+    if (!selectedModuleId || !lessons.some((item) => item.id === selectedModuleId)) {
+      setSelectedModuleId(lessons[0].id);
+    }
+  }, [lessons, selectedModuleId]);
+
+  const selectedModule = useMemo(
+    () => lessons.find((item) => item.id === selectedModuleId) ?? null,
+    [lessons, selectedModuleId]
+  );
 
   useEffect(() => {
     const nextDrafts: Record<string, ChapterWeekDraft> = {};
@@ -1021,54 +1160,28 @@ export function CurriculumPortal() {
     );
   }, [chapters]);
 
-  useEffect(() => {
-    if (chapters.length === 0) {
-      setSelectedChapterId(null);
-      return;
-    }
-
-    if (!selectedChapterId || !chapters.some((item) => item.id === selectedChapterId)) {
-      setSelectedChapterId(chapters[0].id);
-    }
-  }, [chapters, selectedChapterId]);
-
-  const selectedChapter = useMemo(
-    () => chapters.find((item) => item.id === selectedChapterId) ?? null,
-    [chapters, selectedChapterId]
-  );
-
-  const lessons = useMemo(() => selectedChapter?.children ?? [], [selectedChapter]);
   const selectedAssessmentDraft = useMemo(() => {
     if (!selectedChapter) return null;
     return assessmentDrafts[selectedChapter.id] ?? parseAssessmentDraft(selectedChapter.metadata ?? {});
   }, [assessmentDrafts, selectedChapter]);
+
+  const selectedChapterTags = useMemo(
+    () => (selectedChapter ? parseAssignmentTags(selectedChapter.metadata ?? {}) : []),
+    [selectedChapter]
+  );
+  const selectedModuleTags = useMemo(
+    () => (selectedModule ? parseAssignmentTags(selectedModule.metadata ?? {}) : []),
+    [selectedModule]
+  );
+
   const sortedQuizzes = useMemo(
-    () =>
-      [...quizzes].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
+    () => [...quizzes].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
     [quizzes]
   );
   const assessmentDialogChapter = useMemo(() => {
     if (!assessmentDialogChapterId) return null;
     return chapters.find((item) => item.id === assessmentDialogChapterId) ?? null;
   }, [assessmentDialogChapterId, chapters]);
-  const lessonPreviewBasePath = useMemo(() => {
-    if (!selectedSchool || !selectedYear || !selectedSubject || !selectedChapter) return null;
-    return `/admin/materials/curriculum/${selectedSchool.slug}/${selectedYear.slug}/${selectedSubject.slug}/${selectedChapter.slug}`;
-  }, [selectedSchool, selectedYear, selectedSubject, selectedChapter]);
-
-  useEffect(() => {
-    if (wizardStep === 1) return;
-    if (!selectedSchool) {
-      setWizardStep(1);
-    }
-  }, [selectedSchool, wizardStep]);
-
-  useEffect(() => {
-    if (wizardStep <= 2) return;
-    if (!selectedYear) {
-      setWizardStep(2);
-    }
-  }, [selectedYear, wizardStep]);
 
   const canDropOnNode = useCallback((targetNode: CurriculumNode) => {
     const dragState = dragStateRef.current;
@@ -1090,18 +1203,11 @@ export function CurriculumPortal() {
     }));
   };
 
-  const createNode = async (
-    nodeType: NodeType,
-    parentId: string | null,
-    overrides?: {
-      title?: string;
-      metadata?: Record<string, unknown>;
-    }
-  ): Promise<string | null> => {
-    const title = (overrides?.title ?? drafts[nodeType]).trim();
+  const createNode = async (nodeType: NodeType, parentId: string | null) => {
+    const title = drafts[nodeType].trim();
     if (!title) return null;
 
-    const metadata: Record<string, unknown> = { ...(overrides?.metadata ?? {}) };
+    const metadata: Record<string, unknown> = {};
     if (nodeType === "chapter") {
       metadata.weekRange = formatChapterWeekRange(chapterWeekStartDraft, chapterWeekEndDraft);
     }
@@ -1128,9 +1234,7 @@ export function CurriculumPortal() {
       }
 
       const createdId = String(data?.node?.id || "");
-      if (!overrides?.title) {
-        setDraft(nodeType, "");
-      }
+      setDraft(nodeType, "");
       if (nodeType === "chapter") {
         setChapterWeekStartDraft("");
         setChapterWeekEndDraft("");
@@ -1139,24 +1243,23 @@ export function CurriculumPortal() {
         setLessonWeekDraft("");
         setLessonCodeDraft("");
       }
-      setMessage(`${nodeLabelByType[nodeType]} added.`);
 
       await loadTree();
+      setMessage(`${nodeLabelByType[nodeType]} added.`);
 
-      if (createdId && nodeType === "school") {
+      if (nodeType === "school") {
         setSelectedSchoolId(createdId);
-        setSelectedChapterId(null);
       }
-      if (createdId && nodeType === "year") {
-        setSelectedChapterId(null);
+      if (nodeType === "subject") {
+        setSelectedSubjectId(createdId);
       }
-      if (createdId && nodeType === "subject") {
-        setSelectedSubjectTitle(title);
-        setSelectedChapterId(null);
-      }
-      if (createdId && nodeType === "chapter") {
+      if (nodeType === "chapter") {
         setSelectedChapterId(createdId);
       }
+      if (nodeType === "lesson") {
+        setSelectedModuleId(createdId);
+      }
+
       return createdId || null;
     } catch (createError) {
       console.error(createError);
@@ -1167,37 +1270,38 @@ export function CurriculumPortal() {
     }
   };
 
-  const handleYearChange = (value: (typeof YEAR_OPTIONS)[number]) => {
-    setSelectedYearTitle(value);
-    const matched = years.find((item) => sameLabel(item.title, value));
-    setWizardStep(matched ? 3 : 2);
-    setSelectedChapterId(null);
-  };
+  const saveNode = async (
+    node: CurriculumNode,
+    nextTitle: string,
+    metadata: Record<string, unknown>,
+    successMessage: string
+  ) => {
+    setBusy(true);
+    setError("");
+    setMessage("");
 
-  const handleSubjectChange = (value: string) => {
-    setSelectedSubjectTitle(value);
-    const matched = subjects.find((item) => sameLabel(item.title, value));
-    if (matched) {
-      setWizardStep(4);
-      return;
-    }
-    setWizardStep(3);
-    setSelectedChapterId(null);
-  };
+    try {
+      const response = await fetch(`/api/admin/curriculum/${node.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: nextTitle, metadata }),
+      });
+      const data = await response.json();
 
-  const createSelectedYear = async () => {
-    if (!selectedSchool || selectedYear) return;
-    const createdId = await createNode("year", selectedSchool.id, { title: selectedYearTitle });
-    if (createdId) {
-      setWizardStep(3);
-    }
-  };
+      if (!response.ok || !data.ok) {
+        setError(data.error || "Failed to update node.");
+        return false;
+      }
 
-  const createSelectedSubject = async () => {
-    if (!selectedYear || selectedSubject) return;
-    const createdId = await createNode("subject", selectedYear.id, { title: selectedSubjectTitle });
-    if (createdId) {
-      setWizardStep(4);
+      setMessage(successMessage);
+      await loadTree();
+      return true;
+    } catch (saveError) {
+      console.error(saveError);
+      setError("Failed to update node.");
+      return false;
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -1218,35 +1322,13 @@ export function CurriculumPortal() {
     if (nextWeekRange === currentWeekRange) return;
 
     setChapterWeekBusyId(chapter.id);
-    setError("");
-    setMessage("");
-
-    const metadata: Record<string, unknown> = {
-      ...(chapter.metadata ?? {}),
-      weekRange: nextWeekRange,
-    };
-
-    try {
-      const response = await fetch(`/api/admin/curriculum/${chapter.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: chapter.title, metadata }),
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        setError(data.error || "Failed to update chapter week range.");
-        return;
-      }
-
-      setMessage("Chapter week range updated.");
-      await loadTree();
-    } catch (saveError) {
-      console.error(saveError);
-      setError("Failed to update chapter week range.");
-    } finally {
-      setChapterWeekBusyId(null);
-    }
+    await saveNode(
+      chapter,
+      chapter.title,
+      { ...(chapter.metadata ?? {}), weekRange: nextWeekRange },
+      "Chapter week range updated."
+    );
+    setChapterWeekBusyId(null);
   };
 
   const updateAssessmentDraft = (chapterId: string, updates: Partial<ChapterAssessmentDraft>) => {
@@ -1264,42 +1346,6 @@ export function CurriculumPortal() {
     }));
   };
 
-  const saveChapterAssessments = async (chapter: CurriculumNode, nextDraft: ChapterAssessmentDraft) => {
-    setAssessmentBusyId(chapter.id);
-    setError("");
-    setMessage("");
-
-    const metadata: Record<string, unknown> = {
-      ...(chapter.metadata ?? {}),
-      preTestQuizId: nextDraft.preTestQuizId,
-      postTestQuizId: nextDraft.postTestQuizId,
-      preTestEnabled: nextDraft.preTestEnabled,
-      postTestEnabled: nextDraft.postTestEnabled,
-    };
-
-    try {
-      const response = await fetch(`/api/admin/curriculum/${chapter.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: chapter.title, metadata }),
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        setError(data.error || "Failed to update chapter assessments.");
-        return;
-      }
-
-      setMessage("Chapter assessments updated.");
-      await loadTree();
-    } catch (saveError) {
-      console.error(saveError);
-      setError("Failed to update chapter assessments.");
-    } finally {
-      setAssessmentBusyId(null);
-    }
-  };
-
   const applyAssessmentUpdate = async (
     chapter: CurriculumNode,
     updates: Partial<ChapterAssessmentDraft>
@@ -1307,7 +1353,37 @@ export function CurriculumPortal() {
     const current = assessmentDrafts[chapter.id] ?? parseAssessmentDraft(chapter.metadata ?? {});
     const nextDraft = { ...current, ...updates };
     updateAssessmentDraft(chapter.id, updates);
-    await saveChapterAssessments(chapter, nextDraft);
+
+    setAssessmentBusyId(chapter.id);
+    await saveNode(
+      chapter,
+      chapter.title,
+      {
+        ...(chapter.metadata ?? {}),
+        preTestQuizId: nextDraft.preTestQuizId,
+        postTestQuizId: nextDraft.postTestQuizId,
+        preTestEnabled: nextDraft.preTestEnabled,
+        postTestEnabled: nextDraft.postTestEnabled,
+      },
+      "Chapter assessments updated."
+    );
+    setAssessmentBusyId(null);
+  };
+
+  const toggleAssignmentTag = async (node: CurriculumNode, schoolSlug: string, yearSlug: string) => {
+    const currentTags = parseAssignmentTags(node.metadata ?? {});
+    const nextTags = hasAssignmentTag(currentTags, schoolSlug, yearSlug)
+      ? currentTags.filter((tag) => !(tag.schoolSlug === schoolSlug && tag.yearSlug === yearSlug))
+      : [...currentTags, { schoolSlug, yearSlug }].sort((left, right) =>
+          `${left.schoolSlug}:${left.yearSlug}`.localeCompare(`${right.schoolSlug}:${right.yearSlug}`)
+        );
+
+    await saveNode(
+      node,
+      node.title,
+      { ...(node.metadata ?? {}), assignmentTags: nextTags },
+      `${nodeLabelByType[node.nodeType]} tags updated.`
+    );
   };
 
   const openAssessmentDialog = (chapter: CurriculumNode, type: AssessmentType) => {
@@ -1363,41 +1439,16 @@ export function CurriculumPortal() {
       metadata.lessonCode = nextLessonCode;
     }
 
-    setBusy(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const response = await fetch(`/api/admin/curriculum/${node.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: nextTitle, metadata }),
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        setError(data.error || "Failed to update node.");
-        return;
-      }
-
-      setMessage(`${nodeLabelByType[node.nodeType]} updated.`);
-      await loadTree();
-    } catch (renameError) {
-      console.error(renameError);
-      setError("Failed to update node.");
-    } finally {
-      setBusy(false);
-    }
+    await saveNode(node, nextTitle.trim(), metadata, `${nodeLabelByType[node.nodeType]} updated.`);
   };
 
   const deleteNode = async (node: CurriculumNode) => {
     const hasChildren = node.children.length > 0;
     const confirmed = window.confirm(
       hasChildren
-        ? `Delete \"${node.title}\" and all nested items?`
-        : `Delete \"${node.title}\"?`
+        ? `Delete "${node.title}" and all nested items?`
+        : `Delete "${node.title}"?`
     );
-
     if (!confirmed) return;
 
     setBusy(true);
@@ -1425,7 +1476,7 @@ export function CurriculumPortal() {
     }
   };
 
-  const persistOrder = async (parentId: string | null, orderedNodeIds: string[]) => {
+  const persistOrder = async (parentId: string | null, nodeType: NodeType, orderedNodeIds: string[]) => {
     setBusy(true);
     setError("");
     setMessage("");
@@ -1434,7 +1485,7 @@ export function CurriculumPortal() {
       const response = await fetch("/api/admin/curriculum/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parentId, orderedNodeIds }),
+        body: JSON.stringify({ parentId, nodeType, orderedNodeIds }),
       });
       const data = await response.json();
 
@@ -1457,8 +1508,7 @@ export function CurriculumPortal() {
   const dropOnNode = async (targetNode: CurriculumNode, siblingNodes: CurriculumNode[]) => {
     const dragState = dragStateRef.current;
     if (!dragState) return;
-    if (dragState.parentId !== targetNode.parentId) return;
-    if (dragState.nodeType !== targetNode.nodeType) return;
+    if (dragState.parentId !== targetNode.parentId || dragState.nodeType !== targetNode.nodeType) return;
 
     const currentIds = siblingNodes.map((item) => item.id);
     const nextIds = reorderIds(currentIds, dragState.nodeId, targetNode.id);
@@ -1468,7 +1518,7 @@ export function CurriculumPortal() {
       return;
     }
 
-    await persistOrder(targetNode.parentId, nextIds);
+    await persistOrder(targetNode.parentId, targetNode.nodeType, nextIds);
   };
 
   const dropAtEnd = async (parentId: string | null, siblingNodes: CurriculumNode[]) => {
@@ -1484,11 +1534,15 @@ export function CurriculumPortal() {
       return;
     }
 
-    await persistOrder(parentId, nextIds);
+    await persistOrder(parentId, dragState.nodeType, nextIds);
   };
 
   const handleDragStart = (node: CurriculumNode, event: DragEvent<HTMLDivElement>) => {
-    dragStateRef.current = { nodeId: node.id, parentId: node.parentId, nodeType: node.nodeType };
+    dragStateRef.current = {
+      nodeId: node.id,
+      parentId: node.parentId,
+      nodeType: node.nodeType,
+    };
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", node.id);
   };
@@ -1503,7 +1557,8 @@ export function CurriculumPortal() {
         <CardHeader>
           <CardTitle className="text-2xl">Curriculum Portal</CardTitle>
           <CardDescription>
-            Choose a school first, then manage years, subjects, chapters, and modules from one screen.
+            Build a global library in the order Subject, Chapter, Module. Schools and years are tagging rules,
+            not the primary hierarchy.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -1517,16 +1572,16 @@ export function CurriculumPortal() {
           Loading curriculum...
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          {wizardStep === 1 && (
-            <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+          <div className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
               <NodeColumn
                 title="Manage Schools"
-                description="Curriculum is grouped by school first. EDUTINDO School is seeded by default, and you can add other schools here."
+                description="Schools are usage tags. Add schools here, then assign content to year groups below."
                 nodeType="school"
                 parentId={null}
                 nodes={schools}
-                selectedId={selectedSchool?.id ?? null}
+                selectedId={selectedSchoolId}
                 disabled={false}
                 addDisabledReason=""
                 draftTitle={drafts.school}
@@ -1540,10 +1595,7 @@ export function CurriculumPortal() {
                 onDraftWeekRangeEndChange={() => undefined}
                 onDraftWeekChange={() => undefined}
                 onDraftLessonCodeChange={() => undefined}
-                onSelect={(nodeId) => {
-                  setSelectedSchoolId(nodeId);
-                  setSelectedChapterId(null);
-                }}
+                onSelect={setSelectedSchoolId}
                 onCreate={() => createNode("school", null)}
                 onRename={renameNode}
                 onDelete={deleteNode}
@@ -1556,333 +1608,176 @@ export function CurriculumPortal() {
               />
 
               <Card className="border-slate-200">
-                <CardHeader className="space-y-2">
-                  <Badge className="w-fit border border-blue-200 bg-blue-100 text-blue-700 hover:bg-blue-100">
-                    Step 1
-                  </Badge>
-                  <CardTitle className="text-base">Choose School</CardTitle>
-                  <CardDescription>Every curriculum tree now starts with the school it belongs to.</CardDescription>
+                <CardHeader>
+                  <CardTitle className="text-base">How This Builder Works</CardTitle>
+                  <CardDescription>
+                    Create reusable modules first, group them into chapters, then place chapters under a subject.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {selectedSchool ? (
-                    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-                      <p className="text-sm text-slate-700">Selected school: {selectedSchool.title}</p>
-                      <Button type="button" className="w-full" onClick={() => setWizardStep(2)} disabled={busy}>
-                        Continue to Year Setup
-                      </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">{selectedSchool?.title ?? "No school selected"}</Badge>
+                    <Badge variant="secondary">{selectedSubject?.title ?? "No subject selected"}</Badge>
+                    <Badge variant="secondary">{selectedChapter?.title ?? "No chapter selected"}</Badge>
+                    <Badge variant="secondary">{selectedModule?.title ?? "No module selected"}</Badge>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-medium text-slate-900">Available year tags</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {YEAR_OPTIONS.map((year) => (
+                        <Badge key={year.slug} variant="outline">
+                          {year.title}
+                        </Badge>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                      Add or select a school to start organizing its curriculum.
-                    </div>
-                  )}
+                  </div>
+
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                    Module tags override chapter tags. Use chapter tags when the whole chapter belongs to a year,
+                    and module tags when a chapter is split across years.
+                  </div>
                 </CardContent>
               </Card>
             </div>
-          )}
 
-          {wizardStep === 2 && (
-            <Card className="border-slate-200">
-              <CardHeader className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge className="w-fit bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">
-                    Step 2
-                  </Badge>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(1)} disabled={busy}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to School
-                  </Button>
-                </div>
-                <CardTitle className="text-base">Choose Year</CardTitle>
-                <CardDescription>
-                  {selectedSchool
-                    ? `Inside school: ${selectedSchool.title}. Only Year 7, Year 8, and Year 9 are allowed.`
-                    : "Select a school in Step 1 first."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <select
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
-                  value={selectedYearTitle}
-                  onChange={(event) => handleYearChange(event.target.value as (typeof YEAR_OPTIONS)[number])}
-                  disabled={!selectedSchool || busy}
-                >
-                  {YEAR_OPTIONS.map((yearTitle) => (
-                    <option key={yearTitle} value={yearTitle}>
-                      {yearTitle}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <NodeColumn
+                title="Manage Subjects"
+                description="Global subjects shared across schools and years."
+                nodeType="subject"
+                parentId={null}
+                nodes={subjects}
+                selectedId={selectedSubjectId}
+                disabled={false}
+                addDisabledReason=""
+                draftTitle={drafts.subject}
+                draftWeekRangeStart=""
+                draftWeekRangeEnd=""
+                draftWeek=""
+                draftLessonCode=""
+                busy={busy}
+                onDraftTitleChange={(value) => setDraft("subject", value)}
+                onDraftWeekRangeStartChange={() => undefined}
+                onDraftWeekRangeEndChange={() => undefined}
+                onDraftWeekChange={() => undefined}
+                onDraftLessonCodeChange={() => undefined}
+                onSelect={(nodeId) => {
+                  setSelectedSubjectId(nodeId);
+                  setSelectedChapterId(null);
+                  setSelectedModuleId(null);
+                }}
+                onCreate={() => createNode("subject", null)}
+                onRename={renameNode}
+                onDelete={deleteNode}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                canDropOnNode={canDropOnNode}
+                canDropAtEnd={canDropAtEnd}
+                onDropOnNode={dropOnNode}
+                onDropAtEnd={dropAtEnd}
+              />
 
-                {!selectedSchool ? (
-                  <p className="text-xs text-muted-foreground">
-                    This step requires a valid school from Step 1.
-                  </p>
-                ) : (
-                  <div className="space-y-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
-                    {selectedYear ? (
-                      <p className="text-sm text-slate-700">Selected year: {selectedYear.title}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {selectedYearTitle} has not been created in {selectedSchool.title} yet.
-                      </p>
-                    )}
+              {selectedSubject ? (
+                <NodeColumn
+                  title="Manage Chapters"
+                  description={`Inside subject: ${selectedSubject.title}. Add chapters and organise reusable module groups.`}
+                  nodeType="chapter"
+                  parentId={selectedSubject.id}
+                  nodes={chapters}
+                  selectedId={selectedChapterId}
+                  disabled={false}
+                  addDisabledReason=""
+                  draftTitle={drafts.chapter}
+                  draftWeekRangeStart={chapterWeekStartDraft}
+                  draftWeekRangeEnd={chapterWeekEndDraft}
+                  draftWeek=""
+                  draftLessonCode=""
+                  busy={busy}
+                  onDraftTitleChange={(value) => setDraft("chapter", value)}
+                  onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
+                  onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
+                  onDraftWeekChange={() => undefined}
+                  onDraftLessonCodeChange={() => undefined}
+                  onSelect={(nodeId) => {
+                    setSelectedChapterId(nodeId);
+                    setSelectedModuleId(null);
+                  }}
+                  onCreate={() => createNode("chapter", selectedSubject.id)}
+                  onRename={renameNode}
+                  onDelete={deleteNode}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  canDropOnNode={canDropOnNode}
+                  canDropAtEnd={canDropAtEnd}
+                  onDropOnNode={dropOnNode}
+                  onDropAtEnd={dropAtEnd}
+                  chapterWeekDrafts={chapterWeekDrafts}
+                  chapterWeekBusyId={chapterWeekBusyId}
+                  onChapterWeekDraftChange={updateChapterWeekDraft}
+                  onSaveChapterWeek={saveChapterWeek}
+                />
+              ) : (
+                <Card className="border-dashed border-slate-300 bg-slate-50">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    Select or add a subject to manage its chapters.
+                  </CardContent>
+                </Card>
+              )}
 
-                    <div className="flex flex-wrap gap-2">
-                      {!selectedYear && (
-                        <Button type="button" size="sm" variant="outline" onClick={createSelectedYear} disabled={busy}>
-                          {busy ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Plus className="mr-2 h-4 w-4" />
-                          )}
-                          Create {selectedYearTitle}
-                        </Button>
-                      )}
-                      <Button type="button" size="sm" onClick={() => setWizardStep(3)} disabled={busy || !selectedYear}>
-                        Continue to Subject Setup
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+              {selectedChapter ? (
+                <NodeColumn
+                  title="Manage Modules"
+                  description={`Inside chapter: ${selectedChapter.title}. Build the reusable modules here.`}
+                  nodeType="lesson"
+                  parentId={selectedChapter.id}
+                  nodes={lessons}
+                  selectedId={selectedModuleId}
+                  disabled={false}
+                  addDisabledReason=""
+                  draftTitle={drafts.lesson}
+                  draftWeekRangeStart=""
+                  draftWeekRangeEnd=""
+                  draftWeek={lessonWeekDraft}
+                  draftLessonCode={lessonCodeDraft}
+                  busy={busy}
+                  onDraftTitleChange={(value) => setDraft("lesson", value)}
+                  onDraftWeekRangeStartChange={() => undefined}
+                  onDraftWeekRangeEndChange={() => undefined}
+                  onDraftWeekChange={setLessonWeekDraft}
+                  onDraftLessonCodeChange={setLessonCodeDraft}
+                  onSelect={setSelectedModuleId}
+                  onCreate={() => createNode("lesson", selectedChapter.id)}
+                  onRename={renameNode}
+                  onDelete={deleteNode}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  canDropOnNode={canDropOnNode}
+                  canDropAtEnd={canDropAtEnd}
+                  onDropOnNode={dropOnNode}
+                  onDropAtEnd={dropAtEnd}
+                  lessonPreviewBasePath={null}
+                />
+              ) : (
+                <Card className="border-dashed border-slate-300 bg-slate-50">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    Select or add a chapter to manage its modules.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-          {wizardStep === 3 && (
-            <Card className="border-slate-200">
-              <CardHeader className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge className="w-fit bg-blue-100 text-blue-700 hover:bg-blue-100 border border-blue-200">
-                    Step 3
-                  </Badge>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Year
-                  </Button>
-                </div>
-                <CardTitle className="text-base">Subject Setup</CardTitle>
-                <CardDescription>
-                  {selectedSchool && selectedYear
-                    ? `Inside ${selectedSchool.title} / ${selectedYear.title}. You can quick-add a common subject here, then open the full builder.`
-                    : "Select or create the chosen year in Step 2 first."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <select
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
-                  value={selectedSubjectTitle}
-                  onChange={(event) => handleSubjectChange(event.target.value as (typeof SUBJECT_OPTIONS)[number])}
-                  disabled={!selectedYear || busy}
-                >
-                  {SUBJECT_OPTIONS.map((subjectTitle) => (
-                    <option key={subjectTitle} value={subjectTitle}>
-                      {subjectTitle}
-                    </option>
-                  ))}
-                </select>
-
-                {!selectedYear ? (
-                  <p className="text-xs text-muted-foreground">
-                    This step requires a valid year from Step 2.
-                  </p>
-                ) : (
-                  <div className="space-y-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
-                    {selectedSubject ? (
-                      <p className="text-sm text-slate-700">Selected subject: {selectedSubject.title}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {selectedSubjectTitle} has not been created in {selectedYear.title} yet.
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap gap-2">
-                      {!selectedSubject && (
-                        <Button type="button" size="sm" variant="outline" onClick={createSelectedSubject} disabled={busy}>
-                          {busy ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Plus className="mr-2 h-4 w-4" />
-                          )}
-                          Add {selectedSubjectTitle}
-                        </Button>
-                      )}
-                      <Button type="button" size="sm" onClick={() => setWizardStep(4)} disabled={busy || !selectedYear}>
-                        Open Curriculum Builder
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {wizardStep === 4 && (
-            <div className="flex min-h-0 flex-1 flex-col gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge variant="secondary">{selectedSchool?.title ?? "No school selected"}</Badge>
-                  <Badge variant="secondary">{selectedYear?.title ?? selectedYearTitle}</Badge>
-                  <Badge variant="secondary">{selectedSubject?.title ?? "No subject selected"}</Badge>
-                  <Badge variant="secondary">{selectedChapter?.title ?? "No chapter selected"}</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(3)} disabled={busy}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Setup
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(1)} disabled={busy}>
-                    Change School
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setWizardStep(2)} disabled={busy}>
-                    Change Year
-                  </Button>
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-                <div className="grid gap-4 xl:grid-cols-3">
-                  {selectedYear ? (
-                    <NodeColumn
-                      title="Manage Subjects"
-                      description={`Add and reorder subjects inside ${selectedYear.title}. Select one to manage its chapters.`}
-                      nodeType="subject"
-                      parentId={selectedYear.id}
-                      nodes={subjects}
-                      selectedId={selectedSubject?.id ?? null}
-                      disabled={false}
-                      addDisabledReason=""
-                      draftTitle={drafts.subject}
-                      draftWeekRangeStart=""
-                      draftWeekRangeEnd=""
-                      draftWeek=""
-                      draftLessonCode=""
-                      busy={busy}
-                      onDraftTitleChange={(value) => setDraft("subject", value)}
-                      onDraftWeekRangeStartChange={() => undefined}
-                      onDraftWeekRangeEndChange={() => undefined}
-                      onDraftWeekChange={() => undefined}
-                      onDraftLessonCodeChange={() => undefined}
-                      onSelect={(nodeId) => {
-                        const nextSubject = subjects.find((item) => item.id === nodeId);
-                        if (!nextSubject) return;
-                        setSelectedSubjectTitle(nextSubject.title);
-                        setSelectedChapterId(null);
-                      }}
-                      onCreate={() => createNode("subject", selectedYear.id)}
-                      onRename={renameNode}
-                      onDelete={deleteNode}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      canDropOnNode={canDropOnNode}
-                      canDropAtEnd={canDropAtEnd}
-                      onDropOnNode={dropOnNode}
-                      onDropAtEnd={dropAtEnd}
-                    />
-                  ) : (
-                    <Card className="border-dashed border-slate-300 bg-slate-50">
-                      <CardContent className="p-4 text-sm text-muted-foreground">
-                        Select a valid year first.
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {selectedSubject ? (
-                    <NodeColumn
-                      title="Manage Chapters"
-                      description={`Inside subject: ${selectedSubject.title}. Add chapters, reorder them, and update week ranges inline.`}
-                      nodeType="chapter"
-                      parentId={selectedSubject.id}
-                      nodes={chapters}
-                      selectedId={selectedChapterId}
-                      disabled={false}
-                      addDisabledReason=""
-                      draftTitle={drafts.chapter}
-                      draftWeekRangeStart={chapterWeekStartDraft}
-                      draftWeekRangeEnd={chapterWeekEndDraft}
-                      draftWeek=""
-                      draftLessonCode=""
-                      busy={busy}
-                      onDraftTitleChange={(value) => setDraft("chapter", value)}
-                      onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
-                      onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
-                      onDraftWeekChange={() => undefined}
-                      onDraftLessonCodeChange={() => undefined}
-                      onSelect={(nodeId) => setSelectedChapterId(nodeId)}
-                      onCreate={() => createNode("chapter", selectedSubject.id)}
-                      onRename={renameNode}
-                      onDelete={deleteNode}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      canDropOnNode={canDropOnNode}
-                      canDropAtEnd={canDropAtEnd}
-                      onDropOnNode={dropOnNode}
-                      onDropAtEnd={dropAtEnd}
-                      chapterWeekDrafts={chapterWeekDrafts}
-                      chapterWeekBusyId={chapterWeekBusyId}
-                      onChapterWeekDraftChange={updateChapterWeekDraft}
-                      onSaveChapterWeek={saveChapterWeek}
-                    />
-                  ) : (
-                    <Card className="border-dashed border-slate-300 bg-slate-50">
-                      <CardContent className="p-4 text-sm text-muted-foreground">
-                        Select or add a subject to manage its chapters.
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {selectedChapter ? (
-                    <NodeColumn
-                      title="Manage Modules"
-                      description={`Inside chapter: ${selectedChapter.title}. Add, edit, delete, and reorder modules here.`}
-                      nodeType="lesson"
-                      parentId={selectedChapter.id}
-                      nodes={lessons}
-                      selectedId={null}
-                      disabled={false}
-                      addDisabledReason=""
-                      draftTitle={drafts.lesson}
-                      draftWeekRangeStart=""
-                      draftWeekRangeEnd=""
-                      draftWeek={lessonWeekDraft}
-                      draftLessonCode={lessonCodeDraft}
-                      busy={busy}
-                      onDraftTitleChange={(value) => setDraft("lesson", value)}
-                      onDraftWeekRangeStartChange={() => undefined}
-                      onDraftWeekRangeEndChange={() => undefined}
-                      onDraftWeekChange={setLessonWeekDraft}
-                      onDraftLessonCodeChange={setLessonCodeDraft}
-                      onSelect={() => undefined}
-                      onCreate={() => createNode("lesson", selectedChapter.id)}
-                      onRename={renameNode}
-                      onDelete={deleteNode}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      canDropOnNode={canDropOnNode}
-                      canDropAtEnd={canDropAtEnd}
-                      onDropOnNode={dropOnNode}
-                      onDropAtEnd={dropAtEnd}
-                      lessonPreviewBasePath={lessonPreviewBasePath}
-                    />
-                  ) : (
-                    <Card className="border-dashed border-slate-300 bg-slate-50">
-                      <CardContent className="p-4 text-sm text-muted-foreground">
-                        Select or add a chapter to manage its modules.
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-
-                {selectedChapter && selectedAssessmentDraft && (
-                  <Card className="border-slate-200 mt-4">
-                    <CardHeader>
-                      <CardTitle className="text-base">Chapter Assessments</CardTitle>
-                      <CardDescription>
-                        Link pre-tests and post-tests to this chapter. Students see the pre-test before starting,
-                        and the post-test after finishing the last lesson.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-2">
+              {selectedChapter ? (
+                <Card className="border-slate-200">
+                  <CardHeader>
+                    <CardTitle className="text-base">Chapter Settings</CardTitle>
+                    <CardDescription>
+                      Set chapter-wide defaults like assessments and year tags. Module tags can override these.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {selectedAssessmentDraft && (
                       <div className="grid gap-4 md:grid-cols-2">
                         {([
                           {
@@ -1900,10 +1795,7 @@ export function CurriculumPortal() {
                             quizId: selectedAssessmentDraft.postTestQuizId,
                           },
                         ] as const).map((assessment) => (
-                          <div
-                            key={assessment.type}
-                            className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
-                          >
+                          <div key={assessment.type} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="text-sm font-semibold text-slate-900">{assessment.title}</p>
@@ -1948,11 +1840,6 @@ export function CurriculumPortal() {
                                   </option>
                                 ))}
                               </select>
-                              {assessment.quizId ? (
-                                <p className="text-[11px] text-slate-500">Quiz ID: {assessment.quizId}</p>
-                              ) : (
-                                <p className="text-[11px] text-slate-400">No quiz linked yet.</p>
-                              )}
                               {assessment.enabled && !assessment.quizId && (
                                 <p className="text-[11px] text-amber-600">
                                   Link a quiz so this assessment appears for students.
@@ -1970,38 +1857,51 @@ export function CurriculumPortal() {
                               >
                                 Create {assessment.title}
                               </Button>
-                              {assessment.quizId && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={busy || assessmentBusyId === selectedChapter.id}
-                                  onClick={() =>
-                                    applyAssessmentUpdate(selectedChapter, {
-                                      ...(assessment.type === "pre"
-                                        ? { preTestQuizId: "" }
-                                        : { postTestQuizId: "" }),
-                                    })
-                                  }
-                                >
-                                  Clear Quiz
-                                </Button>
-                              )}
                             </div>
                           </div>
                         ))}
                       </div>
+                    )}
 
-                      {quizzesLoading && (
-                        <p className="text-xs text-muted-foreground">Loading quizzes...</p>
-                      )}
-                      {quizError && <p className="text-xs text-red-600">{quizError}</p>}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                    <AssignmentTagEditor
+                      title="Chapter Year Tags"
+                      description="Use these when the whole chapter is assigned to a year. Modules can still override this."
+                      tags={selectedChapterTags}
+                      schools={schools}
+                      busy={busy}
+                      onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedChapter, schoolSlug, yearSlug)}
+                    />
+
+                    {quizzesLoading && <p className="text-xs text-muted-foreground">Loading quizzes...</p>}
+                    {quizError && <p className="text-xs text-red-600">{quizError}</p>}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-dashed border-slate-300 bg-slate-50">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    Select a chapter to manage assessments and chapter-level year tags.
+                  </CardContent>
+                </Card>
+              )}
+
+              {selectedModule ? (
+                <AssignmentTagEditor
+                  title="Module Year Tags"
+                  description="Tag this module to specific schools and years. These tags override chapter defaults."
+                  tags={selectedModuleTags}
+                  schools={schools}
+                  busy={busy}
+                  onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
+                />
+              ) : (
+                <Card className="border-dashed border-slate-300 bg-slate-50">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    Select a module to control year-level placement across schools.
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 
