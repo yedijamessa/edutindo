@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Microscope, Sparkles } from "lucide-react";
 import { IntroductionToCellsFunnel } from "@/components/lms/lessons/introduction-to-cells-funnel";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
 
 type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
@@ -81,6 +81,8 @@ export async function CurriculumLessonPage({
   const materialsPath = `/${role}/materials`;
   const guide = lessonGuides[lesson.slug] ?? null;
   const isIntroCellsLesson = subject.slug === "science" && lesson.slug === "introduction-to-cells";
+  const postTestAvailable =
+    role === "student" && !nextLesson && Boolean(chapter.postTestEnabled) && Boolean(chapter.postTestQuizId);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -165,6 +167,22 @@ export async function CurriculumLessonPage({
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {postTestAvailable && (
+            <Card className="border-emerald-200 bg-emerald-50">
+              <CardHeader>
+                <CardTitle>Post-test</CardTitle>
+                <CardDescription>
+                  You have reached the final lesson. Take the post-test to measure your progress.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link href={`/student/quizzes/${chapter.postTestQuizId}`}>Start Post-test</Link>
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -7,7 +7,18 @@ import { cn } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { createQuiz, getQuizzes } from "@/lib/firestore-services";
+import type { Question, QuestionType, Quiz } from "@/types/lms";
 
 type NodeType = "school" | "year" | "subject" | "chapter" | "lesson";
 
@@ -31,6 +42,31 @@ type DragState = {
 type ChapterWeekDraft = {
   start: string;
   end: string;
+};
+
+type ChapterAssessmentDraft = {
+  preTestQuizId: string;
+  postTestQuizId: string;
+  preTestEnabled: boolean;
+  postTestEnabled: boolean;
+};
+
+type AssessmentType = "pre" | "post";
+
+type QuizDraft = {
+  title: string;
+  description: string;
+  timeLimit: number;
+  passingScore: number;
+  questions: Question[];
+};
+
+type QuestionDraft = {
+  question: string;
+  type: QuestionType;
+  points: number;
+  options: string[];
+  correctAnswer: string | number;
 };
 
 const nodeLabelByType: Record<NodeType, string> = {
@@ -68,6 +104,13 @@ function hasSameOrder(left: string[], right: string[]) {
 
 function text(value: unknown) {
   return String(value ?? "").trim();
+}
+
+function toBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  const cleaned = text(value).toLowerCase();
+  return cleaned === "true" || cleaned === "1" || cleaned === "yes" || cleaned === "on";
 }
 
 function sameLabel(left: string, right: string) {
@@ -113,6 +156,15 @@ function formatChapterWeekRange(startInput: string, endInput: string) {
   return startValue === endValue ? `Week ${startValue}` : `Weeks ${startValue}-${endValue}`;
 }
 
+function parseAssessmentDraft(metadata: Record<string, unknown>): ChapterAssessmentDraft {
+  return {
+    preTestQuizId: text(metadata.preTestQuizId),
+    postTestQuizId: text(metadata.postTestQuizId),
+    preTestEnabled: toBoolean(metadata.preTestEnabled),
+    postTestEnabled: toBoolean(metadata.postTestEnabled),
+  };
+}
+
 function sameDraftMap(left: Record<string, ChapterWeekDraft>, right: Record<string, ChapterWeekDraft>) {
   const leftKeys = Object.keys(left);
   const rightKeys = Object.keys(right);
@@ -122,6 +174,27 @@ function sameDraftMap(left: Record<string, ChapterWeekDraft>, right: Record<stri
   return leftKeys.every(
     (key) => left[key]?.start === right[key]?.start && left[key]?.end === right[key]?.end
   );
+}
+
+function sameAssessmentDraftMap(
+  left: Record<string, ChapterAssessmentDraft>,
+  right: Record<string, ChapterAssessmentDraft>
+) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+
+  if (leftKeys.length !== rightKeys.length) return false;
+
+  return leftKeys.every((key) => {
+    const leftValue = left[key];
+    const rightValue = right[key];
+    return (
+      leftValue?.preTestQuizId === rightValue?.preTestQuizId &&
+      leftValue?.postTestQuizId === rightValue?.postTestQuizId &&
+      leftValue?.preTestEnabled === rightValue?.preTestEnabled &&
+      leftValue?.postTestEnabled === rightValue?.postTestEnabled
+    );
+  });
 }
 
 interface NodeColumnProps {
@@ -442,6 +515,356 @@ function NodeColumn({
   );
 }
 
+const QUESTION_TYPE_OPTIONS: Array<{ value: QuestionType; label: string }> = [
+  { value: "multiple-choice", label: "Multiple Choice" },
+  { value: "true-false", label: "True / False" },
+  { value: "short-answer", label: "Short Answer" },
+];
+
+function buildDefaultQuizDraft(assessmentType: AssessmentType, chapterTitle: string): QuizDraft {
+  const label = assessmentType === "pre" ? "Pre-test" : "Post-test";
+  return {
+    title: `${label}: ${chapterTitle}`,
+    description:
+      assessmentType === "pre"
+        ? `Check baseline understanding before starting ${chapterTitle}.`
+        : `Measure mastery after completing ${chapterTitle}.`,
+    timeLimit: 20,
+    passingScore: 70,
+    questions: [],
+  };
+}
+
+function buildDefaultQuestionDraft(): QuestionDraft {
+  return {
+    question: "",
+    type: "multiple-choice",
+    points: 10,
+    options: ["", "", "", ""],
+    correctAnswer: 0,
+  };
+}
+
+interface AssessmentQuizDialogProps {
+  open: boolean;
+  assessmentType: AssessmentType;
+  chapterId: string | null;
+  chapterTitle: string;
+  onOpenChange: (open: boolean) => void;
+  onQuizCreated: (quiz: Quiz, type: AssessmentType, chapterId: string) => void;
+}
+
+function AssessmentQuizDialog({
+  open,
+  assessmentType,
+  chapterId,
+  chapterTitle,
+  onOpenChange,
+  onQuizCreated,
+}: AssessmentQuizDialogProps) {
+  const [quizDraft, setQuizDraft] = useState<QuizDraft>(buildDefaultQuizDraft(assessmentType, chapterTitle));
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionDraft>(buildDefaultQuestionDraft());
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setQuizDraft(buildDefaultQuizDraft(assessmentType, chapterTitle));
+    setCurrentQuestion(buildDefaultQuestionDraft());
+    setError("");
+    setSubmitting(false);
+  }, [assessmentType, chapterTitle, open]);
+
+  const handleAddQuestion = () => {
+    if (!currentQuestion.question.trim()) {
+      setError("Add a question prompt before saving.");
+      return;
+    }
+
+    const trimmedQuestion = currentQuestion.question.trim();
+    const question: Question = {
+      id: `q-${Date.now()}`,
+      question: trimmedQuestion,
+      type: currentQuestion.type,
+      points: Number(currentQuestion.points) || 10,
+      options:
+        currentQuestion.type === "multiple-choice"
+          ? currentQuestion.options.map((option) => option.trim())
+          : currentQuestion.type === "true-false"
+            ? ["True", "False"]
+            : undefined,
+      correctAnswer:
+        currentQuestion.type === "short-answer"
+          ? String(currentQuestion.correctAnswer ?? "").trim()
+          : Number(currentQuestion.correctAnswer ?? 0),
+    };
+
+    setQuizDraft((prev) => ({
+      ...prev,
+      questions: [...prev.questions, question],
+    }));
+    setCurrentQuestion(buildDefaultQuestionDraft());
+    setError("");
+  };
+
+  const handleRemoveQuestion = (questionId: string) => {
+    setQuizDraft((prev) => ({
+      ...prev,
+      questions: prev.questions.filter((question) => question.id !== questionId),
+    }));
+  };
+
+  const handleCreateQuiz = async () => {
+    if (!chapterId) return;
+    if (!quizDraft.title.trim() || !quizDraft.description.trim() || quizDraft.questions.length === 0) {
+      setError("Complete the quiz details and add at least one question.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const quizId = await createQuiz({
+        title: quizDraft.title.trim(),
+        description: quizDraft.description.trim(),
+        materialId: chapterId,
+        questions: quizDraft.questions,
+        timeLimit: quizDraft.timeLimit,
+        passingScore: quizDraft.passingScore,
+        createdBy: "teacher-1",
+      });
+
+      const createdQuiz: Quiz = {
+        id: quizId,
+        title: quizDraft.title.trim(),
+        description: quizDraft.description.trim(),
+        materialId: chapterId,
+        questions: quizDraft.questions,
+        timeLimit: quizDraft.timeLimit,
+        passingScore: quizDraft.passingScore,
+        createdBy: "teacher-1",
+        createdAt: new Date(),
+      };
+
+      onQuizCreated(createdQuiz, assessmentType, chapterId);
+      onOpenChange(false);
+    } catch (createError) {
+      console.error(createError);
+      setError("Failed to create quiz.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            Create {assessmentType === "pre" ? "Pre-test" : "Post-test"} Quiz
+          </DialogTitle>
+          <DialogDescription>
+            Build an assessment quiz for {chapterTitle}. Once created, it will be linked automatically.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Title</label>
+              <Input
+                value={quizDraft.title}
+                onChange={(event) => setQuizDraft((prev) => ({ ...prev, title: event.target.value }))}
+                placeholder="Assessment title"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Time Limit (minutes)</label>
+              <Input
+                type="number"
+                min="1"
+                value={quizDraft.timeLimit}
+                onChange={(event) =>
+                  setQuizDraft((prev) => ({ ...prev, timeLimit: Number(event.target.value) || 0 }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Description</label>
+            <Textarea
+              value={quizDraft.description}
+              onChange={(event) => setQuizDraft((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder="Describe what this quiz covers."
+              rows={3}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Passing Score (%)</label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={quizDraft.passingScore}
+                onChange={(event) =>
+                  setQuizDraft((prev) => ({ ...prev, passingScore: Number(event.target.value) || 0 }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-slate-800">Add Question</p>
+              <select
+                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+                value={currentQuestion.type}
+                onChange={(event) =>
+                  setCurrentQuestion((prev) => ({
+                    ...prev,
+                    type: event.target.value as QuestionType,
+                    correctAnswer: event.target.value === "short-answer" ? "" : 0,
+                    options: ["", "", "", ""],
+                  }))
+                }
+              >
+                {QUESTION_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Question</label>
+              <Input
+                value={currentQuestion.question}
+                onChange={(event) =>
+                  setCurrentQuestion((prev) => ({ ...prev, question: event.target.value }))
+                }
+                placeholder="Enter the question prompt"
+              />
+            </div>
+
+            {currentQuestion.type === "multiple-choice" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Options (choose correct answer)</label>
+                {currentQuestion.options.map((option, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={currentQuestion.correctAnswer === index ? "default" : "outline"}
+                      onClick={() =>
+                        setCurrentQuestion((prev) => ({ ...prev, correctAnswer: index }))
+                      }
+                    >
+                      {String.fromCharCode(65 + index)}
+                    </Button>
+                    <Input
+                      value={option}
+                      onChange={(event) => {
+                        const nextOptions = [...currentQuestion.options];
+                        nextOptions[index] = event.target.value;
+                        setCurrentQuestion((prev) => ({ ...prev, options: nextOptions }));
+                      }}
+                      placeholder={`Option ${index + 1}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentQuestion.type === "true-false" && (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={currentQuestion.correctAnswer === 0 ? "default" : "outline"}
+                  onClick={() => setCurrentQuestion((prev) => ({ ...prev, correctAnswer: 0 }))}
+                >
+                  True
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={currentQuestion.correctAnswer === 1 ? "default" : "outline"}
+                  onClick={() => setCurrentQuestion((prev) => ({ ...prev, correctAnswer: 1 }))}
+                >
+                  False
+                </Button>
+              </div>
+            )}
+
+            {currentQuestion.type === "short-answer" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Expected Answer</label>
+                <Input
+                  value={String(currentQuestion.correctAnswer ?? "")}
+                  onChange={(event) =>
+                    setCurrentQuestion((prev) => ({ ...prev, correctAnswer: event.target.value }))
+                  }
+                  placeholder="Provide the expected answer"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button type="button" size="sm" onClick={handleAddQuestion}>
+                Add Question
+              </Button>
+            </div>
+
+            {quizDraft.questions.length > 0 && (
+              <div className="space-y-2">
+                {quizDraft.questions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">
+                        {index + 1}. {question.question}
+                      </p>
+                      <p className="text-xs text-slate-500 capitalize">
+                        {question.type.replace("-", " ")} • {question.points} pts
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRemoveQuestion(question.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <DialogFooter className="pt-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleCreateQuiz} disabled={submitting}>
+            {submitting ? "Creating..." : "Create Quiz"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CurriculumPortal() {
   const [tree, setTree] = useState<CurriculumNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -456,6 +879,14 @@ export function CurriculumPortal() {
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
   const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, ChapterWeekDraft>>({});
   const [chapterWeekBusyId, setChapterWeekBusyId] = useState<string | null>(null);
+  const [assessmentDrafts, setAssessmentDrafts] = useState<Record<string, ChapterAssessmentDraft>>({});
+  const [assessmentBusyId, setAssessmentBusyId] = useState<string | null>(null);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [quizzesLoading, setQuizzesLoading] = useState(false);
+  const [quizError, setQuizError] = useState("");
+  const [assessmentDialogOpen, setAssessmentDialogOpen] = useState(false);
+  const [assessmentDialogType, setAssessmentDialogType] = useState<AssessmentType>("pre");
+  const [assessmentDialogChapterId, setAssessmentDialogChapterId] = useState<string | null>(null);
 
   const dragStateRef = useRef<DragState | null>(null);
 
@@ -498,6 +929,34 @@ export function CurriculumPortal() {
   useEffect(() => {
     loadTree();
   }, [loadTree]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadQuizzes = async () => {
+      setQuizzesLoading(true);
+      setQuizError("");
+
+      try {
+        const items = await getQuizzes();
+        if (!active) return;
+        setQuizzes(Array.isArray(items) ? items : []);
+      } catch (error) {
+        console.error(error);
+        if (!active) return;
+        setQuizError("Failed to load quizzes.");
+        setQuizzes([]);
+      } finally {
+        if (active) setQuizzesLoading(false);
+      }
+    };
+
+    loadQuizzes();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const schools = tree;
 
@@ -553,6 +1012,16 @@ export function CurriculumPortal() {
   }, [chapters]);
 
   useEffect(() => {
+    const nextDrafts: Record<string, ChapterAssessmentDraft> = {};
+    for (const chapter of chapters) {
+      nextDrafts[chapter.id] = parseAssessmentDraft(chapter.metadata ?? {});
+    }
+    setAssessmentDrafts((currentDrafts) =>
+      sameAssessmentDraftMap(currentDrafts, nextDrafts) ? currentDrafts : nextDrafts
+    );
+  }, [chapters]);
+
+  useEffect(() => {
     if (chapters.length === 0) {
       setSelectedChapterId(null);
       return;
@@ -569,6 +1038,19 @@ export function CurriculumPortal() {
   );
 
   const lessons = useMemo(() => selectedChapter?.children ?? [], [selectedChapter]);
+  const selectedAssessmentDraft = useMemo(() => {
+    if (!selectedChapter) return null;
+    return assessmentDrafts[selectedChapter.id] ?? parseAssessmentDraft(selectedChapter.metadata ?? {});
+  }, [assessmentDrafts, selectedChapter]);
+  const sortedQuizzes = useMemo(
+    () =>
+      [...quizzes].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
+    [quizzes]
+  );
+  const assessmentDialogChapter = useMemo(() => {
+    if (!assessmentDialogChapterId) return null;
+    return chapters.find((item) => item.id === assessmentDialogChapterId) ?? null;
+  }, [assessmentDialogChapterId, chapters]);
   const lessonPreviewBasePath = useMemo(() => {
     if (!selectedSchool || !selectedYear || !selectedSubject || !selectedChapter) return null;
     return `/admin/materials/curriculum/${selectedSchool.slug}/${selectedYear.slug}/${selectedSubject.slug}/${selectedChapter.slug}`;
@@ -765,6 +1247,92 @@ export function CurriculumPortal() {
     } finally {
       setChapterWeekBusyId(null);
     }
+  };
+
+  const updateAssessmentDraft = (chapterId: string, updates: Partial<ChapterAssessmentDraft>) => {
+    setAssessmentDrafts((prev) => ({
+      ...prev,
+      [chapterId]: {
+        ...(prev[chapterId] ?? {
+          preTestQuizId: "",
+          postTestQuizId: "",
+          preTestEnabled: false,
+          postTestEnabled: false,
+        }),
+        ...updates,
+      },
+    }));
+  };
+
+  const saveChapterAssessments = async (chapter: CurriculumNode, nextDraft: ChapterAssessmentDraft) => {
+    setAssessmentBusyId(chapter.id);
+    setError("");
+    setMessage("");
+
+    const metadata: Record<string, unknown> = {
+      ...(chapter.metadata ?? {}),
+      preTestQuizId: nextDraft.preTestQuizId,
+      postTestQuizId: nextDraft.postTestQuizId,
+      preTestEnabled: nextDraft.preTestEnabled,
+      postTestEnabled: nextDraft.postTestEnabled,
+    };
+
+    try {
+      const response = await fetch(`/api/admin/curriculum/${chapter.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: chapter.title, metadata }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setError(data.error || "Failed to update chapter assessments.");
+        return;
+      }
+
+      setMessage("Chapter assessments updated.");
+      await loadTree();
+    } catch (saveError) {
+      console.error(saveError);
+      setError("Failed to update chapter assessments.");
+    } finally {
+      setAssessmentBusyId(null);
+    }
+  };
+
+  const applyAssessmentUpdate = async (
+    chapter: CurriculumNode,
+    updates: Partial<ChapterAssessmentDraft>
+  ) => {
+    const current = assessmentDrafts[chapter.id] ?? parseAssessmentDraft(chapter.metadata ?? {});
+    const nextDraft = { ...current, ...updates };
+    updateAssessmentDraft(chapter.id, updates);
+    await saveChapterAssessments(chapter, nextDraft);
+  };
+
+  const openAssessmentDialog = (chapter: CurriculumNode, type: AssessmentType) => {
+    setAssessmentDialogChapterId(chapter.id);
+    setAssessmentDialogType(type);
+    setAssessmentDialogOpen(true);
+  };
+
+  const handleAssessmentQuizCreated = async (quiz: Quiz, type: AssessmentType, chapterId: string) => {
+    setQuizzes((prev) => [quiz, ...prev]);
+    const chapter = chapters.find((item) => item.id === chapterId) ?? null;
+    if (!chapter) return;
+
+    if (type === "pre") {
+      await applyAssessmentUpdate(chapter, {
+        preTestQuizId: quiz.id,
+        preTestEnabled: true,
+      });
+      return;
+    }
+
+    await applyAssessmentUpdate(chapter, {
+      postTestQuizId: quiz.id,
+      postTestEnabled: true,
+    });
   };
 
   const renameNode = async (node: CurriculumNode) => {
@@ -1303,10 +1871,149 @@ export function CurriculumPortal() {
                   </Card>
                 )}
               </div>
+
+              {selectedChapter && selectedAssessmentDraft && (
+                <Card className="border-slate-200">
+                  <CardHeader>
+                    <CardTitle className="text-base">Chapter Assessments</CardTitle>
+                    <CardDescription>
+                      Link pre-tests and post-tests to this chapter. Students see the pre-test before starting,
+                      and the post-test after finishing the last lesson.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {([
+                        {
+                          type: "pre" as AssessmentType,
+                          title: "Pre-test",
+                          helper: "Shown when students start this chapter.",
+                          enabled: selectedAssessmentDraft.preTestEnabled,
+                          quizId: selectedAssessmentDraft.preTestQuizId,
+                        },
+                        {
+                          type: "post" as AssessmentType,
+                          title: "Post-test",
+                          helper: "Shown after students finish the final lesson.",
+                          enabled: selectedAssessmentDraft.postTestEnabled,
+                          quizId: selectedAssessmentDraft.postTestQuizId,
+                        },
+                      ] as const).map((assessment) => (
+                        <div
+                          key={assessment.type}
+                          className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{assessment.title}</p>
+                              <p className="text-xs text-slate-500">{assessment.helper}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={assessment.enabled ? "default" : "outline"}
+                              disabled={busy || assessmentBusyId === selectedChapter.id}
+                              onClick={() =>
+                                applyAssessmentUpdate(selectedChapter, {
+                                  ...(assessment.type === "pre"
+                                    ? { preTestEnabled: !assessment.enabled }
+                                    : { postTestEnabled: !assessment.enabled }),
+                                })
+                              }
+                            >
+                              {assessment.enabled ? "Enabled" : "Disabled"}
+                            </Button>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-600">Linked quiz</label>
+                            <select
+                              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
+                              value={assessment.quizId}
+                              disabled={busy || assessmentBusyId === selectedChapter.id || quizzesLoading}
+                              onChange={(event) => {
+                                const nextId = event.target.value;
+                                applyAssessmentUpdate(selectedChapter, {
+                                  ...(assessment.type === "pre"
+                                    ? { preTestQuizId: nextId }
+                                    : { postTestQuizId: nextId }),
+                                });
+                              }}
+                            >
+                              <option value="">Select a quiz...</option>
+                              {sortedQuizzes.map((quiz) => (
+                                <option key={quiz.id} value={quiz.id}>
+                                  {quiz.title}
+                                </option>
+                              ))}
+                            </select>
+                            {assessment.quizId ? (
+                              <p className="text-[11px] text-slate-500">Quiz ID: {assessment.quizId}</p>
+                            ) : (
+                              <p className="text-[11px] text-slate-400">No quiz linked yet.</p>
+                            )}
+                            {assessment.enabled && !assessment.quizId && (
+                              <p className="text-[11px] text-amber-600">
+                                Link a quiz so this assessment appears for students.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={busy || assessmentBusyId === selectedChapter.id}
+                              onClick={() => openAssessmentDialog(selectedChapter, assessment.type)}
+                            >
+                              Create {assessment.title}
+                            </Button>
+                            {assessment.quizId && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy || assessmentBusyId === selectedChapter.id}
+                                onClick={() =>
+                                  applyAssessmentUpdate(selectedChapter, {
+                                    ...(assessment.type === "pre"
+                                      ? { preTestQuizId: "" }
+                                      : { postTestQuizId: "" }),
+                                  })
+                                }
+                              >
+                                Clear Quiz
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {quizzesLoading && (
+                      <p className="text-xs text-muted-foreground">Loading quizzes...</p>
+                    )}
+                    {quizError && <p className="text-xs text-red-600">{quizError}</p>}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </div>
       )}
+
+      <AssessmentQuizDialog
+        open={assessmentDialogOpen}
+        assessmentType={assessmentDialogType}
+        chapterId={assessmentDialogChapterId}
+        chapterTitle={assessmentDialogChapter?.title ?? selectedChapter?.title ?? "Chapter"}
+        onOpenChange={(open) => {
+          setAssessmentDialogOpen(open);
+          if (!open) setAssessmentDialogChapterId(null);
+        }}
+        onQuizCreated={handleAssessmentQuizCreated}
+      />
     </div>
   );
 }

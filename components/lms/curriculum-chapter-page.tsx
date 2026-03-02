@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChapterResourceManager } from "@/components/lms/chapter-resource-manager";
 import { getCurriculumChapterContext } from "@/lib/curriculum-portal";
 
@@ -50,6 +50,8 @@ export async function CurriculumChapterPage({
   const materialsPath = `/${role}/materials`;
   const canManageResources = role === "teacher" || role === "principal" || role === "admin";
   const yearLevel = resolveYearLevel(year.title, year.yearLevel);
+  const preTestAvailable =
+    role === "student" && Boolean(chapter.preTestEnabled) && Boolean(chapter.preTestQuizId);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -78,6 +80,22 @@ export async function CurriculumChapterPage({
             <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-900">{chapter.title}</h1>
             {chapter.unitTitle && <p className="mt-3 text-lg text-slate-600 max-w-4xl">{chapter.unitTitle}</p>}
           </section>
+
+          {preTestAvailable && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader>
+                <CardTitle>Pre-test</CardTitle>
+                <CardDescription>
+                  Take this short assessment before starting the chapter to check your baseline knowledge.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link href={`/student/quizzes/${chapter.preTestQuizId}`}>Start Pre-test</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
             <Card>

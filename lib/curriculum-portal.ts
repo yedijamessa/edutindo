@@ -63,6 +63,10 @@ export interface CurriculumChapterSummary {
   position: number;
   weekRange: string;
   lessonCount: number;
+  preTestQuizId: string;
+  postTestQuizId: string;
+  preTestEnabled: boolean;
+  postTestEnabled: boolean;
 }
 
 export interface CurriculumLessonSummary {
@@ -220,6 +224,10 @@ function normalizeMetadata(
       strand: sanitizeText(input.strand, 80),
       unitTitle: sanitizeText(input.unitTitle, 280),
       learningOutcomes,
+      preTestQuizId: sanitizeText(input.preTestQuizId, 180),
+      postTestQuizId: sanitizeText(input.postTestQuizId, 180),
+      preTestEnabled: parseBoolean(input.preTestEnabled),
+      postTestEnabled: parseBoolean(input.postTestEnabled),
     };
   }
 
@@ -231,6 +239,20 @@ function normalizeMetadata(
 
 function extractString(value: unknown) {
   return sanitizeText(value, 280);
+}
+
+function parseBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const cleaned = value.trim().toLowerCase();
+    return cleaned === "true" || cleaned === "1" || cleaned === "yes" || cleaned === "on";
+  }
+  return false;
+}
+
+function extractBoolean(value: unknown) {
+  return parseBoolean(value);
 }
 
 function extractYearLevel(metadata: Record<string, unknown>) {
@@ -1017,6 +1039,10 @@ function mapChapter(node: CurriculumNode): CurriculumChapterSummary {
     position: node.position,
     weekRange: extractString(node.metadata.weekRange),
     lessonCount: node.children.length,
+    preTestQuizId: extractString(node.metadata.preTestQuizId),
+    postTestQuizId: extractString(node.metadata.postTestQuizId),
+    preTestEnabled: extractBoolean(node.metadata.preTestEnabled),
+    postTestEnabled: extractBoolean(node.metadata.postTestEnabled),
   };
 }
 
@@ -1206,6 +1232,10 @@ export async function getCurriculumLessonContext(input: {
       position: chapterContext.chapter.position,
       weekRange: chapterContext.chapter.weekRange,
       lessonCount: chapterContext.chapter.lessonCount,
+      preTestQuizId: chapterContext.chapter.preTestQuizId,
+      postTestQuizId: chapterContext.chapter.postTestQuizId,
+      preTestEnabled: chapterContext.chapter.preTestEnabled,
+      postTestEnabled: chapterContext.chapter.postTestEnabled,
     },
     lesson,
     previousLesson,

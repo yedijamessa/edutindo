@@ -36,11 +36,11 @@ export function AdminNavMenu() {
           <Menu className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="left-0 top-0 h-full w-[22rem] max-w-[86vw] translate-x-0 translate-y-0 gap-0 rounded-none rounded-r-2xl border-l-0 p-0 data-[state=closed]:slide-out-to-left-full data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-left-full data-[state=open]:slide-in-from-top-0">
-        <DialogHeader className="border-b px-4 py-3">
+      <DialogContent className="left-0 top-0 flex h-full w-[22rem] max-w-[86vw] translate-x-0 translate-y-0 flex-col gap-0 rounded-none rounded-r-2xl border-l-0 p-0 data-[state=closed]:slide-out-to-left-full data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-left-full data-[state=open]:slide-in-from-top-0">
+        <DialogHeader className="shrink-0 border-b px-4 py-4">
           <DialogTitle className="text-base">Admin Navigation</DialogTitle>
         </DialogHeader>
-        <nav className="grid gap-1 p-3">
+        <nav className="grid flex-1 content-start gap-1 overflow-y-auto p-3">
           {adminMenuItems.map((item) => {
             const isActive =
               item.href === "/admin"
