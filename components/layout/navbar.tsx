@@ -85,7 +85,7 @@ export function Navbar() {
     }
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-50 w-full border-b bg-[#fdf5e3]">
             <div className="container-custom flex h-16 items-center justify-between">
                 <div className="flex items-center gap-2">
                     {isAdminRoute && <AdminNavMenu />}
@@ -158,7 +158,7 @@ export function Navbar() {
 
             {/* Mobile Nav */}
             {isOpen && (
-                <div className="md:hidden border-t p-4 bg-background">
+                <div className="border-t bg-[#fdf5e3] p-4 md:hidden">
                     <nav className="flex flex-col space-y-4">
                         {showAdminBackButton && (
                             <Button asChild variant="outline" className="w-full">

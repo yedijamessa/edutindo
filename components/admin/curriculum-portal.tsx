@@ -1554,7 +1554,7 @@ export function CurriculumPortal() {
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden">
       <Card className="shrink-0">
-        <CardHeader>
+        <CardHeader className="rounded-t-[inherit] bg-[#fdf5e3]">
           <CardTitle className="text-2xl">Curriculum Portal</CardTitle>
           <CardDescription>
             Build a global library in the order Subject, Chapter, Module. Schools and years are tagging rules,
