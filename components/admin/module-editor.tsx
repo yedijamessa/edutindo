@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowDown,
+  Expand,
   FileText,
   Image as ImageIcon,
   LayoutTemplate,
@@ -18,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -110,6 +112,84 @@ function targetLabel(target: ModuleEditorTarget) {
   return `${target.nodeType === "chapter" ? "Chapter" : "Module"}: ${target.title}`;
 }
 
+function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
+  if (!page) {
+    return <p className="text-sm text-slate-500">No page selected.</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          {page.title || "Untitled page"}
+        </p>
+        {page.description && (
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">{page.description}</p>
+        )}
+      </div>
+
+      {page.blocks.map((block) => (
+        <div key={block.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          {block.type === "text" && (
+            <div className="space-y-3">
+              {block.title && <h3 className="text-lg font-semibold text-slate-900">{block.title}</h3>}
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                {block.body || "Text content will appear here."}
+              </p>
+            </div>
+          )}
+
+          {block.type === "image" && (
+            <div className="space-y-3">
+              {block.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={block.imageUrl}
+                  alt={block.altText || ""}
+                  className="max-h-[32rem] w-full rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
+                  Add an image URL to preview it here.
+                </div>
+              )}
+              {block.caption && <p className="text-sm text-slate-600">{block.caption}</p>}
+            </div>
+          )}
+
+          {block.type === "quiz" && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{block.prompt || "Quiz question"}</p>
+              </div>
+              <div className="space-y-2">
+                {block.options.map((option) => (
+                  <div
+                    key={option.id}
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-sm",
+                      option.id === block.correctOptionId
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    )}
+                  >
+                    {option.text || "Untitled option"}
+                  </div>
+                ))}
+              </div>
+              {block.explanation && (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                  {block.explanation}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ModuleEditor({ targets, initialTarget, initialDocument }: ModuleEditorProps) {
   const router = useRouter();
   const [target, setTarget] = useState(initialTarget);
@@ -121,6 +201,7 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     setTarget(initialTarget);
@@ -799,86 +880,40 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
 
         <Card className="border-slate-200">
           <CardHeader>
-            <CardTitle className="text-base">Preview</CardTitle>
-            <CardDescription>Quick admin-side preview of the current page.</CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Preview</CardTitle>
+                <CardDescription>Quick admin-side preview of the current page.</CardDescription>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!selectedPage}>
+                <Expand className="mr-2 h-4 w-4" />
+                Pop Out
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {selectedPage ? (
-              <div className="space-y-5">
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {selectedPage.title || "Untitled page"}
-                  </p>
-                  {selectedPage.description && (
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{selectedPage.description}</p>
-                  )}
-                </div>
-
-                {selectedPage.blocks.map((block) => (
-                  <div key={block.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                    {block.type === "text" && (
-                      <div className="space-y-3">
-                        {block.title && <h3 className="text-lg font-semibold text-slate-900">{block.title}</h3>}
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                          {block.body || "Text content will appear here."}
-                        </p>
-                      </div>
-                    )}
-
-                    {block.type === "image" && (
-                      <div className="space-y-3">
-                        {block.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={block.imageUrl}
-                            alt={block.altText || ""}
-                            className="h-48 w-full rounded-2xl object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-                            Add an image URL to preview it here.
-                          </div>
-                        )}
-                        {block.caption && <p className="text-sm text-slate-600">{block.caption}</p>}
-                      </div>
-                    )}
-
-                    {block.type === "quiz" && (
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{block.prompt || "Quiz question"}</p>
-                        </div>
-                        <div className="space-y-2">
-                          {block.options.map((option) => (
-                            <div
-                              key={option.id}
-                              className={cn(
-                                "rounded-2xl border px-3 py-2 text-sm",
-                                option.id === block.correctOptionId
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                                  : "border-slate-200 bg-slate-50 text-slate-700"
-                              )}
-                            >
-                              {option.text || "Untitled option"}
-                            </div>
-                          ))}
-                        </div>
-                        {block.explanation && (
-                          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                            {block.explanation}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">No page selected.</p>
-            )}
+            <PreviewPageContent page={selectedPage} />
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="h-[92vh] max-w-[min(96vw,82rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl p-0">
+          <DialogHeader className="border-b border-slate-200 px-6 py-5">
+            <DialogTitle className="text-xl">Full Preview</DialogTitle>
+            <DialogDescription>
+              {selectedPage
+                ? `${selectedPage.title || "Untitled page"} in ${title || target.title}`
+                : "No page selected."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto bg-slate-50 px-6 py-6">
+            <div className="mx-auto max-w-4xl">
+              <PreviewPageContent page={selectedPage} />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
