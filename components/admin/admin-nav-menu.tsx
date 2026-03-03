@@ -19,6 +19,7 @@ const adminMenuItems = [
   { label: "Admin Access Control", href: "/admin/access" },
   { label: "Learning Materials", href: "/admin/materials" },
   { label: "Curriculum Portal", href: "/admin/curriculum" },
+  { label: "Module Editor", href: "/admin/module-editor" },
   { label: "Public Site", href: "/" },
   { label: "Student Portal", href: "/student" },
   { label: "Teacher Portal", href: "/teacher" },

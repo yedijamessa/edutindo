@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
-import { GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { FilePenLine, GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1771,10 +1771,20 @@ export function CurriculumPortal() {
               {selectedChapter ? (
                 <Card className="border-slate-200">
                   <CardHeader>
-                    <CardTitle className="text-base">Chapter Settings</CardTitle>
-                    <CardDescription>
-                      Set chapter-wide defaults like assessments and year tags. Module tags can override these.
-                    </CardDescription>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-base">Chapter Settings</CardTitle>
+                        <CardDescription>
+                          Set chapter-wide defaults like assessments and year tags. Module tags can override these.
+                        </CardDescription>
+                      </div>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedChapter.id)}`}>
+                          <FilePenLine className="mr-2 h-4 w-4" />
+                          Open Chapter Editor
+                        </Link>
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {selectedAssessmentDraft && (
@@ -1885,14 +1895,24 @@ export function CurriculumPortal() {
               )}
 
               {selectedModule ? (
-                <AssignmentTagEditor
-                  title="Module Year Tags"
-                  description="Tag this module to specific schools and years. These tags override chapter defaults."
-                  tags={selectedModuleTags}
-                  schools={schools}
-                  busy={busy}
-                  onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
-                />
+                <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedModule.id)}`}>
+                        <FilePenLine className="mr-2 h-4 w-4" />
+                        Open Module Editor
+                      </Link>
+                    </Button>
+                  </div>
+                  <AssignmentTagEditor
+                    title="Module Year Tags"
+                    description="Tag this module to specific schools and years. These tags override chapter defaults."
+                    tags={selectedModuleTags}
+                    schools={schools}
+                    busy={busy}
+                    onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
+                  />
+                </div>
               ) : (
                 <Card className="border-dashed border-slate-300 bg-slate-50">
                   <CardContent className="p-4 text-sm text-muted-foreground">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, LayoutGrid, ShieldCheck, Users } from "lucide-react";
+import { BookOpen, LayoutGrid, NotebookTabs, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -21,6 +21,12 @@ const adminTools = [
     href: "/admin/materials",
     description: "Review curriculum-linked materials and content pages.",
     icon: BookOpen,
+  },
+  {
+    title: "Module Editor",
+    href: "/admin/module-editor",
+    description: "Build chapter and module pages with text, images, and quizzes.",
+    icon: NotebookTabs,
   },
   {
     title: "Admin Access Control",

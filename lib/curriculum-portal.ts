@@ -920,9 +920,34 @@ async function seedDefaultCurriculumIfEmpty() {
   return curriculumSeedReady;
 }
 
-async function ensureCurriculumReady() {
+export async function ensureCurriculumReady() {
   await ensureCurriculumSchema();
   await seedDefaultCurriculumIfEmpty();
+}
+
+export async function getCurriculumNodeLineage(nodeIdInput: string) {
+  await ensureCurriculumReady();
+
+  const nodeId = normalizeId(nodeIdInput);
+  if (!nodeId) return [];
+
+  const lineage: CurriculumNode[] = [];
+  let currentId: string | null = nodeId;
+
+  while (currentId) {
+    const row = await getNodeById(currentId);
+    if (!row) break;
+
+    const mapped = mapRow(row);
+    lineage.unshift({
+      ...mapped,
+      children: [],
+    });
+
+    currentId = mapped.parentId;
+  }
+
+  return lineage;
 }
 
 export async function listCurriculumTree() {
