@@ -22,12 +22,21 @@ export interface ModuleEditorQuizOption {
   text: string;
 }
 
+export type ModuleEditorQuizType =
+  | "multiple-choice-single"
+  | "multiple-choice-multiple"
+  | "true-false"
+  | "short-answer"
+  | "fill-in-the-blank";
+
 export interface ModuleEditorQuizBlock {
   id: string;
   type: "quiz";
+  quizType: ModuleEditorQuizType;
   prompt: string;
   options: ModuleEditorQuizOption[];
-  correctOptionId: string;
+  correctOptionIds: string[];
+  acceptableAnswers: string[];
   explanation: string;
 }
 

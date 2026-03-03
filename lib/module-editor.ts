@@ -17,6 +17,7 @@ import type {
   ModuleEditorPage,
   ModuleEditorQuizBlock,
   ModuleEditorQuizOption,
+  ModuleEditorQuizType,
   ModuleEditorTarget,
   ModuleEditorTextBlock,
 } from "@/types/module-editor";
@@ -99,14 +100,47 @@ function createQuizOptions(): ModuleEditorQuizOption[] {
   ];
 }
 
-function createQuizBlock(): ModuleEditorQuizBlock {
-  const options = createQuizOptions();
+function getDefaultOptionsForQuizType(quizType: ModuleEditorQuizType): ModuleEditorQuizOption[] {
+  if (quizType === "true-false") {
+    return [
+      { id: randomUUID(), text: "True" },
+      { id: randomUUID(), text: "False" },
+    ];
+  }
+
+  if (quizType === "short-answer" || quizType === "fill-in-the-blank") {
+    return [];
+  }
+
+  return createQuizOptions();
+}
+
+function normalizeQuizType(value: unknown): ModuleEditorQuizType {
+  const cleaned = sanitizeText(value, 40);
+
+  if (
+    cleaned === "multiple-choice-single" ||
+    cleaned === "multiple-choice-multiple" ||
+    cleaned === "true-false" ||
+    cleaned === "short-answer" ||
+    cleaned === "fill-in-the-blank"
+  ) {
+    return cleaned;
+  }
+
+  return "multiple-choice-single";
+}
+
+function createQuizBlock(quizType: ModuleEditorQuizType = "multiple-choice-single"): ModuleEditorQuizBlock {
+  const options = getDefaultOptionsForQuizType(quizType);
   return {
     id: randomUUID(),
     type: "quiz",
+    quizType,
     prompt: "",
     options,
-    correctOptionId: options[0]?.id ?? "",
+    correctOptionIds: options[0]?.id ? [options[0].id] : [],
+    acceptableAnswers: [],
     explanation: "",
   };
 }
@@ -141,6 +175,18 @@ function normalizeQuizOptions(input: unknown): ModuleEditorQuizOption[] {
   return fallback.slice(0, 2);
 }
 
+function normalizeAcceptableAnswers(input: unknown) {
+  if (!Array.isArray(input)) return [];
+
+  return Array.from(
+    new Set(
+      input
+        .map((answer) => sanitizeText(answer, 240))
+        .filter((answer) => answer.length > 0)
+    )
+  ).slice(0, 12);
+}
+
 function normalizeBlock(input: unknown): ModuleEditorBlock | null {
   if (!isObjectRecord(input)) return null;
 
@@ -167,18 +213,50 @@ function normalizeBlock(input: unknown): ModuleEditorBlock | null {
   }
 
   if (type === "quiz") {
-    const options = normalizeQuizOptions(input.options);
-    const requestedCorrectOptionId = sanitizeText(input.correctOptionId, 80);
-    const correctOptionId = options.some((option) => option.id === requestedCorrectOptionId)
-      ? requestedCorrectOptionId
-      : options[0]?.id ?? "";
+    const quizType = normalizeQuizType(input.quizType);
+    const usesOptions = quizType !== "short-answer" && quizType !== "fill-in-the-blank";
+    const options =
+      quizType === "true-false"
+        ? getDefaultOptionsForQuizType("true-false")
+        : usesOptions
+          ? normalizeQuizOptions(input.options)
+          : [];
+    const legacyCorrectOptionId = sanitizeText(input.correctOptionId, 80);
+    const requestedCorrectOptionIds = Array.isArray(input.correctOptionIds)
+      ? input.correctOptionIds.map((value) => sanitizeText(value, 80)).filter((value) => value.length > 0)
+      : legacyCorrectOptionId
+        ? [legacyCorrectOptionId]
+        : [];
+    const matchingCorrectOptionIds = usesOptions
+      ? options
+          .filter((option) => requestedCorrectOptionIds.includes(option.id))
+          .map((option) => option.id)
+      : [];
+    const acceptableAnswers = normalizeAcceptableAnswers(input.acceptableAnswers);
+
+    const nextCorrectOptionIds =
+      quizType === "multiple-choice-multiple"
+        ? matchingCorrectOptionIds.length > 0
+          ? matchingCorrectOptionIds
+          : options[0]?.id
+            ? [options[0].id]
+            : []
+        : usesOptions
+          ? matchingCorrectOptionIds[0]
+            ? [matchingCorrectOptionIds[0]]
+            : options[0]?.id
+              ? [options[0].id]
+              : []
+          : [];
 
     return {
       id,
       type: "quiz",
+      quizType,
       prompt: sanitizeLongText(input.prompt, 3000),
       options,
-      correctOptionId,
+      correctOptionIds: nextCorrectOptionIds,
+      acceptableAnswers,
       explanation: sanitizeLongText(input.explanation, 3000),
     };
   }

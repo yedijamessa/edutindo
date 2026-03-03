@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ModuleEditor } from "@/components/admin/module-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { listCurriculumTree } from "@/lib/curriculum-portal";
 import { getModuleEditorDocument, listModuleEditorTargets } from "@/lib/module-editor";
 
 export const dynamic = "force-dynamic";
@@ -12,17 +13,23 @@ type ModuleEditorPageProps = {
 
 export default async function AdminModuleEditorPage({ searchParams }: ModuleEditorPageProps) {
   const { nodeId } = await searchParams;
+  const tree = await listCurriculumTree();
   const targets = await listModuleEditorTargets();
+  const chapterTargets = targets.filter((target) => target.nodeType === "chapter");
+  const subjects = tree
+    .filter((node) => node.nodeType === "subject")
+    .map((node) => ({ id: node.id, title: node.title, slug: node.slug }))
+    .sort((left, right) => left.title.localeCompare(right.title));
 
-  if (targets.length === 0) {
+  if (subjects.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50">
         <main className="mx-auto max-w-4xl p-6 lg:p-8">
           <Card className="border-slate-200">
             <CardHeader>
-              <CardTitle>No editor targets yet</CardTitle>
+              <CardTitle>No subjects available yet</CardTitle>
               <CardDescription>
-                Create a chapter or module in the curriculum portal first, then come back here.
+                Create a subject in the curriculum portal first. After that, you can create chapters directly from the module editor.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -37,40 +44,18 @@ export default async function AdminModuleEditorPage({ searchParams }: ModuleEdit
   }
 
   const initialTarget =
-    targets.find((target) => target.id === (nodeId || "").trim()) ??
-    targets.find((target) => target.nodeType === "lesson") ??
-    targets[0];
-
-  const initialDocument = await getModuleEditorDocument(initialTarget.id);
-
-  if (!initialDocument) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <main className="mx-auto max-w-4xl p-6 lg:p-8">
-          <Card className="border-slate-200">
-            <CardHeader>
-              <CardTitle>Editor target not found</CardTitle>
-              <CardDescription>
-                The requested chapter or module could not be loaded.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href="/admin/curriculum">Back to Curriculum</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
+    chapterTargets.find((target) => target.id === (nodeId || "").trim()) ??
+    chapterTargets[0] ??
+    null;
+  const initialDocument = initialTarget ? await getModuleEditorDocument(initialTarget.id) : null;
 
   return (
     <div className="min-h-screen bg-slate-50">
       <main className="mx-auto max-w-[96rem] p-4 lg:p-6">
         <ModuleEditor
-          targets={targets}
-          initialTarget={initialTarget}
+          chapters={chapterTargets}
+          subjects={subjects}
+          initialChapter={initialTarget}
           initialDocument={initialDocument}
         />
       </main>

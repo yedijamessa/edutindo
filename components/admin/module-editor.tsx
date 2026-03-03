@@ -24,18 +24,34 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type {
-  ModuleEditorBlock,
   ModuleEditorDocument,
+  ModuleEditorBlock,
   ModuleEditorPage,
   ModuleEditorQuizBlock,
+  ModuleEditorQuizType,
   ModuleEditorTarget,
 } from "@/types/module-editor";
 
-interface ModuleEditorProps {
-  targets: ModuleEditorTarget[];
-  initialTarget: ModuleEditorTarget;
-  initialDocument: ModuleEditorDocument;
+interface SubjectOption {
+  id: string;
+  title: string;
+  slug: string;
 }
+
+interface ModuleEditorProps {
+  chapters: ModuleEditorTarget[];
+  subjects: SubjectOption[];
+  initialChapter: ModuleEditorTarget | null;
+  initialDocument: ModuleEditorDocument | null;
+}
+
+const QUIZ_TYPE_OPTIONS: Array<{ value: ModuleEditorQuizType; label: string }> = [
+  { value: "multiple-choice-single", label: "Multiple Choice (select one)" },
+  { value: "multiple-choice-multiple", label: "Multiple Choice (select several)" },
+  { value: "true-false", label: "True or False" },
+  { value: "short-answer", label: "Short Answer" },
+  { value: "fill-in-the-blank", label: "Fill in the Blank" },
+];
 
 function createId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -65,19 +81,64 @@ function createImageBlock(): ModuleEditorBlock {
 }
 
 function createQuizBlock(): ModuleEditorQuizBlock {
-  const options = Array.from({ length: 4 }, (_, index) => ({
+  return createQuizBlockForType("multiple-choice-single");
+}
+
+function createQuizOptions() {
+  return Array.from({ length: 4 }, (_, index) => ({
     id: createId(),
     text: `Option ${index + 1}`,
   }));
+}
+
+function getDefaultOptionsForQuizType(quizType: ModuleEditorQuizType) {
+  if (quizType === "true-false") {
+    return [
+      { id: createId(), text: "True" },
+      { id: createId(), text: "False" },
+    ];
+  }
+
+  if (quizType === "short-answer" || quizType === "fill-in-the-blank") {
+    return [];
+  }
+
+  return createQuizOptions();
+}
+
+function getDefaultAcceptableAnswersForQuizType(quizType: ModuleEditorQuizType) {
+  if (quizType === "fill-in-the-blank") {
+    return [""];
+  }
+
+  if (quizType === "short-answer") {
+    return [""];
+  }
+
+  return [];
+}
+
+function createQuizBlockForType(quizType: ModuleEditorQuizType): ModuleEditorQuizBlock {
+  const options = getDefaultOptionsForQuizType(quizType);
 
   return {
     id: createId(),
     type: "quiz",
+    quizType,
     prompt: "",
     options,
-    correctOptionId: options[0]?.id ?? "",
+    correctOptionIds: options[0]?.id ? [options[0].id] : [],
+    acceptableAnswers: getDefaultAcceptableAnswersForQuizType(quizType),
     explanation: "",
   };
+}
+
+function usesOptionAnswers(quizType: ModuleEditorQuizType) {
+  return quizType !== "short-answer" && quizType !== "fill-in-the-blank";
+}
+
+function usesMultipleCorrectAnswers(quizType: ModuleEditorQuizType) {
+  return quizType === "multiple-choice-multiple";
 }
 
 function createPage(index: number): ModuleEditorPage {
@@ -109,7 +170,15 @@ function formatTimestamp(value: string | null) {
 }
 
 function targetLabel(target: ModuleEditorTarget) {
-  return `${target.nodeType === "chapter" ? "Chapter" : "Module"}: ${target.title}`;
+  return `Chapter: ${target.title}`;
+}
+
+function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
+  return QUIZ_TYPE_OPTIONS.find((option) => option.value === quizType)?.label ?? "Quiz";
+}
+
+function createInitialPages() {
+  return [createPage(1)];
 }
 
 function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
@@ -159,24 +228,46 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
 
           {block.type === "quiz" && (
             <div className="space-y-4">
-              <div>
+              <div className="space-y-2">
+                <Badge variant="outline">{getQuizTypeLabel(block.quizType)}</Badge>
                 <p className="text-sm font-semibold text-slate-900">{block.prompt || "Quiz question"}</p>
               </div>
-              <div className="space-y-2">
-                {block.options.map((option) => (
-                  <div
-                    key={option.id}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-sm",
-                      option.id === block.correctOptionId
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-slate-200 bg-slate-50 text-slate-700"
-                    )}
-                  >
-                    {option.text || "Untitled option"}
-                  </div>
-                ))}
-              </div>
+              {usesOptionAnswers(block.quizType) ? (
+                <div className="space-y-2">
+                  {block.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className={cn(
+                        "rounded-2xl border px-3 py-2 text-sm",
+                        block.correctOptionIds.includes(option.id)
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : "border-slate-200 bg-slate-50 text-slate-700"
+                      )}
+                    >
+                      {option.text || "Untitled option"}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {block.acceptableAnswers.filter((answer) => answer.trim().length > 0).length > 0 ? (
+                    block.acceptableAnswers
+                      .filter((answer) => answer.trim().length > 0)
+                      .map((answer, index) => (
+                      <div
+                        key={`${block.id}-${index}`}
+                        className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+                      >
+                        {answer}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                      Add at least one accepted answer.
+                    </div>
+                  )}
+                </div>
+              )}
               {block.explanation && (
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                   {block.explanation}
@@ -190,30 +281,46 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
   );
 }
 
-export function ModuleEditor({ targets, initialTarget, initialDocument }: ModuleEditorProps) {
+export function ModuleEditor({ chapters, subjects, initialChapter, initialDocument }: ModuleEditorProps) {
   const router = useRouter();
-  const [target, setTarget] = useState(initialTarget);
-  const [title, setTitle] = useState(initialDocument.title);
-  const [pages, setPages] = useState(initialDocument.pages);
-  const [selectedPageId, setSelectedPageId] = useState(initialDocument.pages[0]?.id ?? "");
-  const [updatedAt, setUpdatedAt] = useState<string | null>(initialDocument.updatedAt);
+  const [availableChapters, setAvailableChapters] = useState(chapters);
+  const [chapter, setChapter] = useState<ModuleEditorTarget | null>(initialChapter);
+  const [title, setTitle] = useState(initialDocument?.title ?? initialChapter?.title ?? "");
+  const [pages, setPages] = useState<ModuleEditorPage[]>(() => initialDocument?.pages ?? createInitialPages());
+  const [selectedPageId, setSelectedPageId] = useState(initialDocument?.pages[0]?.id ?? "");
+  const [updatedAt, setUpdatedAt] = useState<string | null>(initialDocument?.updatedAt ?? null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveChapterId, setSaveChapterId] = useState(initialChapter?.id ?? "");
+  const [showCreateChapter, setShowCreateChapter] = useState(chapters.length === 0);
+  const [creatingChapter, setCreatingChapter] = useState(false);
+  const [createChapterSubjectId, setCreateChapterSubjectId] = useState(subjects[0]?.id ?? "");
+  const [createChapterTitle, setCreateChapterTitle] = useState("");
+  const [createChapterError, setCreateChapterError] = useState("");
 
   useEffect(() => {
-    setTarget(initialTarget);
-    setTitle(initialDocument.title);
-    setPages(initialDocument.pages);
-    setSelectedPageId(initialDocument.pages[0]?.id ?? "");
-    setUpdatedAt(initialDocument.updatedAt);
+    setAvailableChapters(chapters);
+    setChapter(initialChapter);
+    setTitle(initialDocument?.title ?? initialChapter?.title ?? "");
+    const nextPages = initialDocument?.pages ?? createInitialPages();
+    setPages(nextPages);
+    setSelectedPageId(nextPages[0]?.id ?? "");
+    setUpdatedAt(initialDocument?.updatedAt ?? null);
     setSaving(false);
     setDirty(false);
     setMessage("");
     setError("");
-  }, [initialDocument, initialTarget]);
+    setSaveDialogOpen(false);
+    setSaveChapterId(initialChapter?.id ?? "");
+    setShowCreateChapter(chapters.length === 0);
+    setCreateChapterSubjectId(subjects[0]?.id ?? "");
+    setCreateChapterTitle("");
+    setCreateChapterError("");
+  }, [chapters, initialChapter, initialDocument, subjects]);
 
   useEffect(() => {
     if (pages.some((page) => page.id === selectedPageId)) return;
@@ -224,15 +331,23 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
     () => pages.find((page) => page.id === selectedPageId) ?? pages[0] ?? null,
     [pages, selectedPageId]
   );
+  const selectedSaveChapter = useMemo(
+    () => availableChapters.find((item) => item.id === saveChapterId) ?? null,
+    [availableChapters, saveChapterId]
+  );
 
-  const chapterTargets = useMemo(
-    () => targets.filter((item) => item.nodeType === "chapter"),
-    [targets]
-  );
-  const moduleTargets = useMemo(
-    () => targets.filter((item) => item.nodeType === "lesson"),
-    [targets]
-  );
+  useEffect(() => {
+    if (chapter?.id) {
+      setSaveChapterId(chapter.id);
+      return;
+    }
+
+    if (saveChapterId && availableChapters.some((item) => item.id === saveChapterId)) {
+      return;
+    }
+
+    setSaveChapterId(availableChapters[0]?.id ?? "");
+  }, [availableChapters, chapter, saveChapterId]);
 
   const updatePages = (updater: (current: ModuleEditorPage[]) => ModuleEditorPage[]) => {
     setPages((current) => updater(current));
@@ -256,13 +371,85 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
     }));
   };
 
-  const saveDocument = async () => {
+  const createChapter = async () => {
+    setCreatingChapter(true);
+    setCreateChapterError("");
+
+    try {
+      const response = await fetch("/api/admin/curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nodeType: "chapter",
+          parentId: createChapterSubjectId,
+          title: createChapterTitle,
+          metadata: {},
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok || !data.node) {
+        setCreateChapterError(data.error || "Failed to create chapter.");
+        return null;
+      }
+
+      const subject = subjects.find((item) => item.id === createChapterSubjectId);
+      const nextChapter: ModuleEditorTarget = {
+        id: data.node.id,
+        title: data.node.title,
+        slug: data.node.slug,
+        nodeType: "chapter",
+        parentId: data.node.parentId,
+        metadata: data.node.metadata ?? {},
+        breadcrumbs: subject
+          ? [
+              {
+                id: subject.id,
+                title: subject.title,
+                slug: subject.slug,
+                nodeType: "subject",
+              },
+              {
+                id: data.node.id,
+                title: data.node.title,
+                slug: data.node.slug,
+                nodeType: "chapter",
+              },
+            ]
+          : [
+              {
+                id: data.node.id,
+                title: data.node.title,
+                slug: data.node.slug,
+                nodeType: "chapter",
+              },
+            ],
+      };
+
+      setAvailableChapters((current) =>
+        [...current, nextChapter].sort((left, right) => left.title.localeCompare(right.title))
+      );
+      setSaveChapterId(nextChapter.id);
+      setShowCreateChapter(false);
+      setCreateChapterTitle("");
+      setMessage(`Chapter "${nextChapter.title}" created.`);
+      return nextChapter;
+    } catch (createError) {
+      console.error(createError);
+      setCreateChapterError("Failed to create chapter.");
+      return null;
+    } finally {
+      setCreatingChapter(false);
+    }
+  };
+
+  const saveDocument = async (targetChapterId: string) => {
     setSaving(true);
     setMessage("");
     setError("");
 
     try {
-      const response = await fetch(`/api/admin/module-editor/${target.id}`, {
+      const response = await fetch(`/api/admin/module-editor/${targetChapterId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -277,11 +464,16 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
         return;
       }
 
+      const savedChapter = availableChapters.find((item) => item.id === targetChapterId) ?? null;
+      setChapter(savedChapter);
       setTitle(data.document.title);
       setPages(data.document.pages);
       setUpdatedAt(data.document.updatedAt);
       setDirty(false);
-      setMessage("Testing module saved.");
+      setSaveDialogOpen(false);
+      setMessage("Module saved.");
+      router.replace(`/admin/module-editor?nodeId=${encodeURIComponent(targetChapterId)}`);
+      router.refresh();
     } catch (saveError) {
       console.error(saveError);
       setError("Failed to save module editor.");
@@ -298,25 +490,29 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
         <CardHeader className="gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">Testing Editor</Badge>
-              <Badge variant="outline">{target.nodeType === "chapter" ? "Chapter" : "Module"}</Badge>
+              <Badge variant="secondary">Module Editor</Badge>
+              <Badge variant="outline">Stored Content</Badge>
               <Badge variant="outline">{pages.length} page{pages.length === 1 ? "" : "s"}</Badge>
             </div>
             <div>
               <CardTitle className="text-2xl">Module Editor</CardTitle>
               <CardDescription>
-                Build page-by-page content with text, image, and quiz blocks for a chapter or module.
+                Build page-by-page content with text, image, and quiz blocks, then store it under a chapter.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              {target.breadcrumbs.map((item, index) => (
-                <span key={item.id} className="flex items-center gap-2">
-                  {index > 0 && <span className="text-slate-300">/</span>}
-                  <span className={cn(index === target.breadcrumbs.length - 1 && "font-medium text-slate-800")}>
-                    {item.title}
+              {chapter ? (
+                chapter.breadcrumbs.map((item, index) => (
+                  <span key={item.id} className="flex items-center gap-2">
+                    {index > 0 && <span className="text-slate-300">/</span>}
+                    <span className={cn(index === chapter.breadcrumbs.length - 1 && "font-medium text-slate-800")}>
+                      {item.title}
+                    </span>
                   </span>
-                </span>
-              ))}
+                ))
+              ) : (
+                <span>No chapter selected yet. Choose one when you save.</span>
+              )}
             </div>
           </div>
 
@@ -327,42 +523,34 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
                 Back to Curriculum
               </Link>
             </Button>
-            <Button onClick={saveDocument} disabled={saving}>
+            <Button onClick={() => setSaveDialogOpen(true)} disabled={saving || subjects.length === 0}>
               <Save className="mr-2 h-4 w-4" />
-              {saving ? "Saving..." : "Save Draft"}
+              {saving ? "Saving..." : "Save Module"}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-4 text-sm">
           <div className="min-w-[18rem] flex-1 space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Editor target
+              Current chapter
             </label>
             <select
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              value={target.id}
+              value={chapter?.id ?? ""}
               onChange={(event) => {
                 const nextTargetId = event.target.value;
                 router.push(`/admin/module-editor?nodeId=${encodeURIComponent(nextTargetId)}`);
               }}
+              disabled={availableChapters.length === 0}
             >
-              {chapterTargets.length > 0 && (
-                <optgroup label={`Chapters (${chapterTargets.length})`}>
-                  {chapterTargets.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {targetLabel(item)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {moduleTargets.length > 0 && (
-                <optgroup label={`Modules (${moduleTargets.length})`}>
-                  {moduleTargets.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {targetLabel(item)}
-                    </option>
-                  ))}
-                </optgroup>
+              {availableChapters.length === 0 ? (
+                <option value="">No chapters yet</option>
+              ) : (
+                availableChapters.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {targetLabel(item)}
+                  </option>
+                ))
               )}
             </select>
           </div>
@@ -384,6 +572,7 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
 
           <div className="text-xs text-slate-500">
             <p>Last saved: {formatTimestamp(updatedAt)}</p>
+            <p>Stored under: {chapter?.title ?? "Choose a chapter when saving"}</p>
             {dirty && <p className="font-medium text-amber-600">Unsaved changes</p>}
             {message && <p className="font-medium text-emerald-600">{message}</p>}
             {error && <p className="font-medium text-red-600">{error}</p>}
@@ -395,7 +584,7 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
         <Card className="border-slate-200">
           <CardHeader>
             <CardTitle className="text-base">Pages</CardTitle>
-            <CardDescription>Each page becomes one step in the testing module flow.</CardDescription>
+            <CardDescription>Each page becomes one step in the saved module flow.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
@@ -736,6 +925,36 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
                         <div className="mt-4 space-y-4">
                           <div className="space-y-2">
                             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              Quiz type
+                            </label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                              value={block.quizType}
+                              onChange={(event) =>
+                                updateBlock(block.id, (current) => {
+                                  const currentQuizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                  const nextQuizType = event.target.value as ModuleEditorQuizType;
+                                  const nextQuizBlock = createQuizBlockForType(nextQuizType);
+
+                                  return {
+                                    ...nextQuizBlock,
+                                    id: block.id,
+                                    prompt: currentQuizBlock.prompt,
+                                    explanation: currentQuizBlock.explanation,
+                                  };
+                                })
+                              }
+                            >
+                              {QUIZ_TYPE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                               Question
                             </label>
                             <Textarea
@@ -752,98 +971,228 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
                             />
                           </div>
 
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                Options
-                              </label>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  updateBlock(block.id, (current) => {
-                                    const quizBlock = current.type === "quiz" ? current : createQuizBlock();
-                                    return {
-                                      ...quizBlock,
-                                      id: block.id,
-                                      options: [...quizBlock.options, { id: createId(), text: "" }].slice(0, 8),
-                                    };
-                                  })
-                                }
-                              >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add option
-                              </Button>
-                            </div>
-
-                            {block.options.map((option, optionIndex) => (
-                              <div key={option.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                <div className="flex flex-wrap items-center gap-2">
+                          {usesOptionAnswers(block.quizType) ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    Options
+                                  </label>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {usesMultipleCorrectAnswers(block.quizType)
+                                      ? "Mark every correct answer."
+                                      : "Mark one correct answer."}
+                                  </p>
+                                </div>
+                                {block.quizType !== "true-false" && (
                                   <Button
                                     type="button"
-                                    size="sm"
-                                    variant={block.correctOptionId === option.id ? "default" : "outline"}
-                                    onClick={() =>
-                                      updateBlock(block.id, (current) => ({
-                                        ...(current.type === "quiz" ? current : createQuizBlock()),
-                                        id: block.id,
-                                        correctOptionId: option.id,
-                                      }))
-                                    }
-                                  >
-                                    {block.correctOptionId === option.id ? "Correct" : "Mark correct"}
-                                  </Button>
-                                  <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
-                                    Option {optionIndex + 1}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    size="icon"
                                     variant="ghost"
-                                    className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                    size="sm"
                                     onClick={() =>
                                       updateBlock(block.id, (current) => {
                                         const quizBlock = current.type === "quiz" ? current : createQuizBlock();
-                                        if (quizBlock.options.length <= 2) return quizBlock;
-
-                                        const nextOptions = quizBlock.options.filter((item) => item.id !== option.id);
                                         return {
                                           ...quizBlock,
                                           id: block.id,
-                                          options: nextOptions,
-                                          correctOptionId:
-                                            quizBlock.correctOptionId === option.id
-                                              ? nextOptions[0]?.id ?? ""
-                                              : quizBlock.correctOptionId,
+                                          options: [...quizBlock.options, { id: createId(), text: "" }].slice(0, 8),
                                         };
                                       })
                                     }
-                                    disabled={block.options.length <= 2}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add option
                                   </Button>
+                                )}
+                              </div>
+
+                              {block.options.map((option, optionIndex) => {
+                                const isCorrect = block.correctOptionIds.includes(option.id);
+
+                                return (
+                                  <div key={option.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={isCorrect ? "default" : "outline"}
+                                        onClick={() =>
+                                          updateBlock(block.id, (current) => {
+                                            const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                            const currentlySelected = quizBlock.correctOptionIds.includes(option.id);
+
+                                            return {
+                                              ...quizBlock,
+                                              id: block.id,
+                                              correctOptionIds: usesMultipleCorrectAnswers(quizBlock.quizType)
+                                                ? currentlySelected
+                                                  ? quizBlock.correctOptionIds.length > 1
+                                                    ? quizBlock.correctOptionIds.filter((value) => value !== option.id)
+                                                    : quizBlock.correctOptionIds
+                                                  : [...quizBlock.correctOptionIds, option.id]
+                                                : [option.id],
+                                            };
+                                          })
+                                        }
+                                      >
+                                        {isCorrect
+                                          ? "Correct"
+                                          : usesMultipleCorrectAnswers(block.quizType)
+                                            ? "Add correct"
+                                            : "Mark correct"}
+                                      </Button>
+                                      <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                                        Option {optionIndex + 1}
+                                      </span>
+                                      {block.quizType !== "true-false" && (
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="ghost"
+                                          className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                          onClick={() =>
+                                            updateBlock(block.id, (current) => {
+                                              const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                              if (quizBlock.options.length <= 2) return quizBlock;
+
+                                              const nextOptions = quizBlock.options.filter((item) => item.id !== option.id);
+                                              const nextCorrectOptionIds = quizBlock.correctOptionIds.filter(
+                                                (value) => value !== option.id
+                                              );
+
+                                              return {
+                                                ...quizBlock,
+                                                id: block.id,
+                                                options: nextOptions,
+                                                correctOptionIds:
+                                                  nextCorrectOptionIds.length > 0
+                                                    ? nextCorrectOptionIds
+                                                    : nextOptions[0]?.id
+                                                      ? [nextOptions[0].id]
+                                                      : [],
+                                              };
+                                            })
+                                          }
+                                          disabled={block.options.length <= 2}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                    <Input
+                                      className="mt-3"
+                                      value={option.text}
+                                      onChange={(event) =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            options: quizBlock.options.map((item) =>
+                                              item.id === option.id ? { ...item, text: event.target.value } : item
+                                            ),
+                                          };
+                                        })
+                                      }
+                                      placeholder={`Option ${optionIndex + 1}`}
+                                      disabled={block.quizType === "true-false"}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    Accepted answers
+                                  </label>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Add one or more answers that should count as correct.
+                                  </p>
                                 </div>
-                                <Input
-                                  className="mt-3"
-                                  value={option.text}
-                                  onChange={(event) =>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
                                     updateBlock(block.id, (current) => {
                                       const quizBlock = current.type === "quiz" ? current : createQuizBlock();
                                       return {
                                         ...quizBlock,
                                         id: block.id,
-                                        options: quizBlock.options.map((item) =>
-                                          item.id === option.id ? { ...item, text: event.target.value } : item
-                                        ),
+                                        acceptableAnswers: [...quizBlock.acceptableAnswers, ""].slice(0, 12),
                                       };
                                     })
                                   }
-                                  placeholder={`Option ${optionIndex + 1}`}
-                                />
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Add answer
+                                </Button>
                               </div>
-                            ))}
-                          </div>
+
+                              {(block.acceptableAnswers.length > 0 ? block.acceptableAnswers : [""]).map(
+                                (answer, answerIndex) => (
+                                  <div
+                                    key={`${block.id}-answer-${answerIndex}`}
+                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                                        Answer {answerIndex + 1}
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                        onClick={() =>
+                                          updateBlock(block.id, (current) => {
+                                            const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                            const nextAnswers = quizBlock.acceptableAnswers.filter(
+                                              (_, index) => index !== answerIndex
+                                            );
+                                            return {
+                                              ...quizBlock,
+                                              id: block.id,
+                                              acceptableAnswers: nextAnswers,
+                                            };
+                                          })
+                                        }
+                                        disabled={block.acceptableAnswers.length <= 1}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                    <Input
+                                      className="mt-3"
+                                      value={answer}
+                                      onChange={(event) =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          const baseAnswers =
+                                            quizBlock.acceptableAnswers.length > 0 ? quizBlock.acceptableAnswers : [""];
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            acceptableAnswers: baseAnswers.map((item, index) =>
+                                              index === answerIndex ? event.target.value : item
+                                            ),
+                                          };
+                                        })
+                                      }
+                                      placeholder={
+                                        block.quizType === "fill-in-the-blank"
+                                          ? "Expected word or phrase"
+                                          : "Accepted short answer"
+                                      }
+                                    />
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
 
                           <div className="space-y-2">
                             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -903,13 +1252,144 @@ export function ModuleEditor({ targets, initialTarget, initialDocument }: Module
             <DialogTitle className="text-xl">Full Preview</DialogTitle>
             <DialogDescription>
               {selectedPage
-                ? `${selectedPage.title || "Untitled page"} in ${title || target.title}`
+                ? `${selectedPage.title || "Untitled page"} in ${title || chapter?.title || "module draft"}`
                 : "No page selected."}
             </DialogDescription>
           </DialogHeader>
           <div className="overflow-y-auto bg-slate-50 px-6 py-6">
             <div className="mx-auto max-w-4xl">
               <PreviewPageContent page={selectedPage} />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Save Module</DialogTitle>
+            <DialogDescription>
+              Which chapter should this module be stored under?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Chapter
+              </label>
+              <select
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                value={saveChapterId}
+                onChange={(event) => setSaveChapterId(event.target.value)}
+                disabled={availableChapters.length === 0}
+              >
+                {availableChapters.length === 0 ? (
+                  <option value="">No chapters available</option>
+                ) : (
+                  availableChapters.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {targetLabel(item)}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Need a new chapter?</p>
+                  <p className="text-sm text-slate-600">
+                    Create it here and save this module straight into it.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={showCreateChapter ? "default" : "outline"}
+                  onClick={() => {
+                    setShowCreateChapter((current) => !current);
+                    setCreateChapterError("");
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Chapter
+                </Button>
+              </div>
+
+              {showCreateChapter && (
+                <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1.2fr]">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Subject
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      value={createChapterSubjectId}
+                      onChange={(event) => setCreateChapterSubjectId(event.target.value)}
+                    >
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      New chapter title
+                    </label>
+                    <Input
+                      value={createChapterTitle}
+                      onChange={(event) => setCreateChapterTitle(event.target.value)}
+                      placeholder="Example: Cells and Microscopes"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm text-slate-500">
+                      {createChapterError && <p className="font-medium text-red-600">{createChapterError}</p>}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={creatingChapter || !createChapterSubjectId || !createChapterTitle.trim()}
+                      onClick={() => {
+                        void createChapter();
+                      }}
+                    >
+                      {creatingChapter ? "Creating..." : "Create Chapter"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {selectedSaveChapter && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                This draft will be stored under <strong>{selectedSaveChapter.title}</strong>.
+              </div>
+            )}
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setSaveDialogOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!saveChapterId) {
+                    setError("Choose a chapter before saving.");
+                    return;
+                  }
+                  void saveDocument(saveChapterId);
+                }}
+                disabled={saving || !saveChapterId}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? "Saving..." : "Save to Chapter"}
+              </Button>
             </div>
           </div>
         </DialogContent>
