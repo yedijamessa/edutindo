@@ -41,9 +41,9 @@ interface SubjectOption {
 }
 
 interface ModuleEditorProps {
-  chapters: ModuleEditorTarget[];
+  targets: ModuleEditorTarget[];
   subjects: SubjectOption[];
-  initialChapter: ModuleEditorTarget | null;
+  initialTarget: ModuleEditorTarget | null;
   initialDocument: ModuleEditorDocument | null;
 }
 
@@ -219,8 +219,34 @@ function formatTimestamp(value: string | null) {
   return parsed.toLocaleString();
 }
 
+function getTargetSubjectTitle(target: ModuleEditorTarget) {
+  return target.breadcrumbs.find((breadcrumb) => breadcrumb.nodeType === "subject")?.title ?? "";
+}
+
+function getTargetChapterTitle(target: ModuleEditorTarget) {
+  return target.breadcrumbs.find((breadcrumb) => breadcrumb.nodeType === "chapter")?.title ?? "";
+}
+
+function getTargetTypeLabel(target: ModuleEditorTarget) {
+  return target.nodeType === "lesson" ? "Lesson" : "Chapter";
+}
+
 function targetLabel(target: ModuleEditorTarget) {
-  return `Chapter: ${target.title}`;
+  const subjectTitle = getTargetSubjectTitle(target);
+  const chapterTitle = getTargetChapterTitle(target);
+
+  if (target.nodeType === "lesson") {
+    return chapterTitle ? `Lesson: ${target.title} (${chapterTitle})` : `Lesson: ${target.title}`;
+  }
+
+  return subjectTitle ? `Chapter: ${target.title} (${subjectTitle})` : `Chapter: ${target.title}`;
+}
+
+function sortTargets(left: ModuleEditorTarget, right: ModuleEditorTarget) {
+  return left.breadcrumbs
+    .map((item) => item.title)
+    .join(" / ")
+    .localeCompare(right.breadcrumbs.map((item) => item.title).join(" / "));
 }
 
 function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
@@ -372,11 +398,11 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
   );
 }
 
-export function ModuleEditor({ chapters, subjects, initialChapter, initialDocument }: ModuleEditorProps) {
+export function ModuleEditor({ targets, subjects, initialTarget, initialDocument }: ModuleEditorProps) {
   const router = useRouter();
-  const [availableChapters, setAvailableChapters] = useState(chapters);
-  const [chapter, setChapter] = useState<ModuleEditorTarget | null>(initialChapter);
-  const [title, setTitle] = useState(initialDocument?.title ?? initialChapter?.title ?? "");
+  const [availableTargets, setAvailableTargets] = useState(targets);
+  const [target, setTarget] = useState<ModuleEditorTarget | null>(initialTarget);
+  const [title, setTitle] = useState(initialDocument?.title ?? initialTarget?.title ?? "");
   const [pages, setPages] = useState<ModuleEditorPage[]>(() => initialDocument?.pages ?? createInitialPages());
   const [selectedPageId, setSelectedPageId] = useState(initialDocument?.pages[0]?.id ?? "");
   const [updatedAt, setUpdatedAt] = useState<string | null>(initialDocument?.updatedAt ?? null);
@@ -386,17 +412,17 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [saveChapterId, setSaveChapterId] = useState(initialChapter?.id ?? "");
-  const [showCreateChapter, setShowCreateChapter] = useState(chapters.length === 0);
+  const [saveTargetId, setSaveTargetId] = useState(initialTarget?.id ?? "");
+  const [showCreateChapter, setShowCreateChapter] = useState(!targets.some((item) => item.nodeType === "chapter"));
   const [creatingChapter, setCreatingChapter] = useState(false);
   const [createChapterSubjectId, setCreateChapterSubjectId] = useState(subjects[0]?.id ?? "");
   const [createChapterTitle, setCreateChapterTitle] = useState("");
   const [createChapterError, setCreateChapterError] = useState("");
 
   useEffect(() => {
-    setAvailableChapters(chapters);
-    setChapter(initialChapter);
-    setTitle(initialDocument?.title ?? initialChapter?.title ?? "");
+    setAvailableTargets(targets);
+    setTarget(initialTarget);
+    setTitle(initialDocument?.title ?? initialTarget?.title ?? "");
     const nextPages = initialDocument?.pages ?? createInitialPages();
     setPages(nextPages);
     setSelectedPageId(nextPages[0]?.id ?? "");
@@ -406,12 +432,12 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
     setMessage("");
     setError("");
     setSaveDialogOpen(false);
-    setSaveChapterId(initialChapter?.id ?? "");
-    setShowCreateChapter(chapters.length === 0);
+    setSaveTargetId(initialTarget?.id ?? "");
+    setShowCreateChapter(!targets.some((item) => item.nodeType === "chapter"));
     setCreateChapterSubjectId(subjects[0]?.id ?? "");
     setCreateChapterTitle("");
     setCreateChapterError("");
-  }, [chapters, initialChapter, initialDocument, subjects]);
+  }, [initialDocument, initialTarget, subjects, targets]);
 
   useEffect(() => {
     if (pages.some((page) => page.id === selectedPageId)) return;
@@ -422,23 +448,23 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
     () => pages.find((page) => page.id === selectedPageId) ?? pages[0] ?? null,
     [pages, selectedPageId]
   );
-  const selectedSaveChapter = useMemo(
-    () => availableChapters.find((item) => item.id === saveChapterId) ?? null,
-    [availableChapters, saveChapterId]
+  const selectedSaveTarget = useMemo(
+    () => availableTargets.find((item) => item.id === saveTargetId) ?? null,
+    [availableTargets, saveTargetId]
   );
 
   useEffect(() => {
-    if (chapter?.id) {
-      setSaveChapterId(chapter.id);
+    if (target?.id) {
+      setSaveTargetId(target.id);
       return;
     }
 
-    if (saveChapterId && availableChapters.some((item) => item.id === saveChapterId)) {
+    if (saveTargetId && availableTargets.some((item) => item.id === saveTargetId)) {
       return;
     }
 
-    setSaveChapterId(availableChapters[0]?.id ?? "");
-  }, [availableChapters, chapter, saveChapterId]);
+    setSaveTargetId(availableTargets[0]?.id ?? "");
+  }, [availableTargets, saveTargetId, target]);
 
   const updatePages = (updater: (current: ModuleEditorPage[]) => ModuleEditorPage[]) => {
     setPages((current) => updater(current));
@@ -517,10 +543,10 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
             ],
       };
 
-      setAvailableChapters((current) =>
-        [...current, nextChapter].sort((left, right) => left.title.localeCompare(right.title))
+      setAvailableTargets((current) =>
+        [...current, nextChapter].sort(sortTargets)
       );
-      setSaveChapterId(nextChapter.id);
+      setSaveTargetId(nextChapter.id);
       setShowCreateChapter(false);
       setCreateChapterTitle("");
       setMessage(`Chapter "${nextChapter.title}" created.`);
@@ -534,13 +560,13 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
     }
   };
 
-  const saveDocument = async (targetChapterId: string) => {
+  const saveDocument = async (targetNodeId: string) => {
     setSaving(true);
     setMessage("");
     setError("");
 
     try {
-      const response = await fetch(`/api/admin/module-editor/${targetChapterId}`, {
+      const response = await fetch(`/api/admin/module-editor/${targetNodeId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -555,15 +581,15 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
         return;
       }
 
-      const savedChapter = availableChapters.find((item) => item.id === targetChapterId) ?? null;
-      setChapter(savedChapter);
+      const savedTarget = availableTargets.find((item) => item.id === targetNodeId) ?? null;
+      setTarget(savedTarget);
       setTitle(data.document.title);
       setPages(data.document.pages);
       setUpdatedAt(data.document.updatedAt);
       setDirty(false);
       setSaveDialogOpen(false);
       setMessage("Module saved.");
-      router.replace(`/admin/module-editor?nodeId=${encodeURIComponent(targetChapterId)}`);
+      router.replace(`/admin/module-editor?nodeId=${encodeURIComponent(targetNodeId)}`);
       router.refresh();
     } catch (saveError) {
       console.error(saveError);
@@ -584,25 +610,28 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
               <Badge variant="secondary">Module Editor</Badge>
               <Badge variant="outline">Stored Content</Badge>
               <Badge variant="outline">{pages.length} page{pages.length === 1 ? "" : "s"}</Badge>
+              <Badge variant="outline">
+                {target ? `${getTargetTypeLabel(target)} Target` : "No Target Selected"}
+              </Badge>
             </div>
             <div>
               <CardTitle className="text-2xl">Module Editor</CardTitle>
               <CardDescription>
-                Build page-by-page content with text, image, and quiz blocks, then store it under a chapter.
+                Build page-by-page content with text, image, and quiz blocks, then store it under a chapter or lesson.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              {chapter ? (
-                chapter.breadcrumbs.map((item, index) => (
+              {target ? (
+                target.breadcrumbs.map((item, index) => (
                   <span key={item.id} className="flex items-center gap-2">
                     {index > 0 && <span className="text-slate-300">/</span>}
-                    <span className={cn(index === chapter.breadcrumbs.length - 1 && "font-medium text-slate-800")}>
+                    <span className={cn(index === target.breadcrumbs.length - 1 && "font-medium text-slate-800")}>
                       {item.title}
                     </span>
                   </span>
                 ))
               ) : (
-                <span>No chapter selected yet. Choose one when you save.</span>
+                <span>No target selected yet. Choose one when you save.</span>
               )}
             </div>
           </div>
@@ -623,21 +652,21 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
         <CardContent className="flex flex-wrap items-center gap-4 text-sm">
           <div className="min-w-[18rem] flex-1 space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Current chapter
+              Current target
             </label>
             <select
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              value={chapter?.id ?? ""}
+              value={target?.id ?? ""}
               onChange={(event) => {
                 const nextTargetId = event.target.value;
                 router.push(`/admin/module-editor?nodeId=${encodeURIComponent(nextTargetId)}`);
               }}
-              disabled={availableChapters.length === 0}
+              disabled={availableTargets.length === 0}
             >
-              {availableChapters.length === 0 ? (
-                <option value="">No chapters yet</option>
+              {availableTargets.length === 0 ? (
+                <option value="">No targets yet</option>
               ) : (
-                availableChapters.map((item) => (
+                availableTargets.map((item) => (
                   <option key={item.id} value={item.id}>
                     {targetLabel(item)}
                   </option>
@@ -663,7 +692,7 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
 
           <div className="text-xs text-slate-500">
             <p>Last saved: {formatTimestamp(updatedAt)}</p>
-            <p>Stored under: {chapter?.title ?? "Choose a chapter when saving"}</p>
+            <p>Stored under: {target ? targetLabel(target) : "Choose a target when saving"}</p>
             {dirty && <p className="font-medium text-amber-600">Unsaved changes</p>}
             {message && <p className="font-medium text-emerald-600">{message}</p>}
             {error && <p className="font-medium text-red-600">{error}</p>}
@@ -1579,7 +1608,7 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
             <DialogTitle className="text-xl">Full Preview</DialogTitle>
             <DialogDescription>
               {selectedPage
-                ? `${selectedPage.title || "Untitled page"} in ${title || chapter?.title || "module draft"}`
+                ? `${selectedPage.title || "Untitled page"} in ${title || target?.title || "module draft"}`
                 : "No page selected."}
             </DialogDescription>
           </DialogHeader>
@@ -1596,25 +1625,25 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
           <DialogHeader>
             <DialogTitle className="text-xl">Save Module</DialogTitle>
             <DialogDescription>
-              Which chapter should this module be stored under?
+              Which chapter or lesson should this module be stored under?
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5">
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Chapter
+                Storage target
               </label>
               <select
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                value={saveChapterId}
-                onChange={(event) => setSaveChapterId(event.target.value)}
-                disabled={availableChapters.length === 0}
+                value={saveTargetId}
+                onChange={(event) => setSaveTargetId(event.target.value)}
+                disabled={availableTargets.length === 0}
               >
-                {availableChapters.length === 0 ? (
-                  <option value="">No chapters available</option>
+                {availableTargets.length === 0 ? (
+                  <option value="">No chapters or lessons available</option>
                 ) : (
-                  availableChapters.map((item) => (
+                  availableTargets.map((item) => (
                     <option key={item.id} value={item.id}>
                       {targetLabel(item)}
                     </option>
@@ -1693,9 +1722,9 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
               )}
             </div>
 
-            {selectedSaveChapter && (
+            {selectedSaveTarget && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                This draft will be stored under <strong>{selectedSaveChapter.title}</strong>.
+                This draft will be stored under <strong>{targetLabel(selectedSaveTarget)}</strong>.
               </div>
             )}
 
@@ -1706,16 +1735,16 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
               <Button
                 type="button"
                 onClick={() => {
-                  if (!saveChapterId) {
-                    setError("Choose a chapter before saving.");
+                  if (!saveTargetId) {
+                    setError("Choose a target before saving.");
                     return;
                   }
-                  void saveDocument(saveChapterId);
+                  void saveDocument(saveTargetId);
                 }}
-                disabled={saving || !saveChapterId}
+                disabled={saving || !saveTargetId}
               >
                 <Save className="mr-2 h-4 w-4" />
-                {saving ? "Saving..." : "Save to Chapter"}
+                {saving ? "Saving..." : "Save to Target"}
               </Button>
             </div>
           </div>

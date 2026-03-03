@@ -11,15 +11,65 @@ type ModuleEditorPageProps = {
   searchParams: Promise<{ nodeId?: string }>;
 };
 
+type SubjectOption = {
+  id: string;
+  title: string;
+  slug: string;
+};
+
+function dedupeByKey<T extends { id: string }>(
+  items: T[],
+  getKey: (item: T) => string,
+  preferredId?: string | null
+) {
+  const grouped = new Map<string, T[]>();
+
+  for (const item of items) {
+    const key = getKey(item);
+    const group = grouped.get(key) ?? [];
+    group.push(item);
+    grouped.set(key, group);
+  }
+
+  return [...grouped.values()].map((group) => {
+    if (preferredId) {
+      const preferred = group.find((item) => item.id === preferredId);
+      if (preferred) return preferred;
+    }
+
+    return group[0];
+  });
+}
+
+function getTargetGroupKey(target: Awaited<ReturnType<typeof listModuleEditorTargets>>[number]) {
+  const lineageKey = target.breadcrumbs
+    .filter((breadcrumb) =>
+      breadcrumb.nodeType === "subject" ||
+      breadcrumb.nodeType === "chapter" ||
+      breadcrumb.nodeType === "lesson"
+    )
+    .map((breadcrumb) => `${breadcrumb.nodeType}:${breadcrumb.slug}`)
+    .join("/");
+
+  return lineageKey || `${target.nodeType}:${target.slug}`;
+}
+
 export default async function AdminModuleEditorPage({ searchParams }: ModuleEditorPageProps) {
   const { nodeId } = await searchParams;
+  const requestedNodeId = (nodeId || "").trim();
   const tree = await listCurriculumTree();
-  const targets = await listModuleEditorTargets();
-  const chapterTargets = targets.filter((target) => target.nodeType === "chapter");
-  const subjects = tree
+  const rawTargets = await listModuleEditorTargets();
+  const requestedTarget = rawTargets.find((target) => target.id === requestedNodeId) ?? null;
+  const targets = dedupeByKey(
+    rawTargets,
+    getTargetGroupKey,
+    requestedTarget?.id ?? null
+  );
+  const rawSubjects: SubjectOption[] = tree
     .filter((node) => node.nodeType === "subject")
     .map((node) => ({ id: node.id, title: node.title, slug: node.slug }))
     .sort((left, right) => left.title.localeCompare(right.title));
+  const subjects = dedupeByKey(rawSubjects, (subject) => subject.slug, requestedTarget?.parentId ?? null);
 
   if (subjects.length === 0) {
     return (
@@ -44,8 +94,11 @@ export default async function AdminModuleEditorPage({ searchParams }: ModuleEdit
   }
 
   const initialTarget =
-    chapterTargets.find((target) => target.id === (nodeId || "").trim()) ??
-    chapterTargets[0] ??
+    targets.find((target) => target.id === requestedNodeId) ??
+    (requestedTarget
+      ? targets.find((target) => getTargetGroupKey(target) === getTargetGroupKey(requestedTarget))
+      : null) ??
+    targets[0] ??
     null;
   const initialDocument = initialTarget ? await getModuleEditorDocument(initialTarget.id) : null;
 
@@ -53,9 +106,9 @@ export default async function AdminModuleEditorPage({ searchParams }: ModuleEdit
     <div className="min-h-screen bg-slate-50">
       <main className="mx-auto max-w-[96rem] p-4 lg:p-6">
         <ModuleEditor
-          chapters={chapterTargets}
+          targets={targets}
           subjects={subjects}
-          initialChapter={initialTarget}
+          initialTarget={initialTarget}
           initialDocument={initialDocument}
         />
       </main>

@@ -450,6 +450,10 @@ async function findSiblingWithSameTitle(input: {
   return result.rows[0]?.id ?? null;
 }
 
+function getNodeTypeLabel(nodeType: CurriculumNodeType) {
+  return `${nodeType[0].toUpperCase()}${nodeType.slice(1)}`;
+}
+
 async function ensureCurriculumSchema() {
   if (curriculumSchemaReady) return curriculumSchemaReady;
 
@@ -996,16 +1000,14 @@ export async function createCurriculumNode(input: {
     }
   }
 
-  if (nodeType === "school" || nodeType === "year" || nodeType === "subject") {
-    const duplicateSiblingId = await findSiblingWithSameTitle({
-      parentId,
-      nodeType,
-      title,
-    });
+  const duplicateSiblingId = await findSiblingWithSameTitle({
+    parentId,
+    nodeType,
+    title,
+  });
 
-    if (duplicateSiblingId) {
-      throw new Error(`${nodeType[0].toUpperCase()}${nodeType.slice(1)} already exists here.`);
-    }
+  if (duplicateSiblingId) {
+    throw new Error(`${getNodeTypeLabel(nodeType)} already exists here.`);
   }
 
   const id = randomUUID();
@@ -1098,17 +1100,15 @@ export async function updateCurriculumNode(input: {
     metadata.yearLevel = parseYearLevelFromTitle(title);
   }
 
-  if (nodeType === "school" || nodeType === "year" || nodeType === "subject") {
-    const duplicateSiblingId = await findSiblingWithSameTitle({
-      parentId: existing.parent_id,
-      nodeType,
-      title,
-      excludeNodeId: nodeId,
-    });
+  const duplicateSiblingId = await findSiblingWithSameTitle({
+    parentId: existing.parent_id,
+    nodeType,
+    title,
+    excludeNodeId: nodeId,
+  });
 
-    if (duplicateSiblingId) {
-      throw new Error(`${nodeType[0].toUpperCase()}${nodeType.slice(1)} already exists here.`);
-    }
+  if (duplicateSiblingId) {
+    throw new Error(`${getNodeTypeLabel(nodeType)} already exists here.`);
   }
 
   const result = await sql<CurriculumNodeRow>`

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+import { LessonExportButton } from "@/components/lms/lesson-export-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +50,7 @@ export async function CurriculumChapterPage({
   const chapterBasePath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}`;
   const materialsPath = `/${role}/materials`;
   const canManageResources = role === "teacher" || role === "principal" || role === "admin";
+  const canExportLessons = role === "admin";
   const yearLevel = resolveYearLevel(year.title, year.yearLevel);
   const preTestAvailable =
     role === "student" && Boolean(chapter.preTestEnabled) && Boolean(chapter.preTestQuizId);
@@ -104,12 +106,15 @@ export async function CurriculumChapterPage({
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[460px] text-sm">
+                  <table className="w-full min-w-[620px] text-sm">
                     <thead>
                       <tr className="border-b text-left">
                         <th className="pb-3 pr-3 font-semibold text-slate-700">Week</th>
                         <th className="pb-3 pr-3 font-semibold text-slate-700">Lesson</th>
                         <th className="pb-3 font-semibold text-slate-700">Title</th>
+                        {canExportLessons && (
+                          <th className="pb-3 pl-3 text-right font-semibold text-slate-700">Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -132,6 +137,23 @@ export async function CurriculumChapterPage({
                                 <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                               </Link>
                             </td>
+                            {canExportLessons && (
+                              <td className="py-3 pl-3 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(lesson.id)}`}>
+                                      <PencilLine className="mr-2 h-4 w-4" />
+                                      Edit
+                                    </Link>
+                                  </Button>
+                                  <LessonExportButton
+                                    exportPath={`${lessonHref}/export`}
+                                    lessonTitle={lesson.title}
+                                    compact
+                                  />
+                                </div>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}

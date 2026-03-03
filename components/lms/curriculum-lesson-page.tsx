@@ -1,50 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Microscope, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Microscope, PencilLine, Sparkles } from "lucide-react";
+import { LessonExportButton } from "@/components/lms/lesson-export-button";
 import { IntroductionToCellsFunnel } from "@/components/lms/lessons/introduction-to-cells-funnel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
 
 type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
-
-const lessonGuides: Record<
-  string,
-  {
-    overview: string;
-    focus: string[];
-    activities: string[];
-  }
-> = {
-  "using-microscopes": {
-    overview:
-      "Students learn microscope parts, safe handling, and how to focus from low power to high power.",
-    focus: [
-      "Identify eyepiece, objective lens, stage, and focus knobs.",
-      "Set up a slide and begin at low magnification.",
-      "Adjust light and focus clearly before increasing magnification.",
-    ],
-    activities: [
-      "Label microscope parts on a diagram.",
-      "Practice focusing on prepared slides.",
-      "Record one observation from low and high power.",
-    ],
-  },
-  "comparing-animal-and-plant-cells": {
-    overview:
-      "Students compare structures found in plant and animal cells and identify which structures are shared.",
-    focus: [
-      "Both: membrane, cytoplasm, nucleus.",
-      "Plant only: cell wall and chloroplasts.",
-      "Function links: structure supports job.",
-    ],
-    activities: [
-      "Build a Venn diagram.",
-      "Label a plant cell and an animal cell.",
-      "Explain one key difference in one sentence.",
-    ],
-  },
-};
 
 interface CurriculumLessonPageProps {
   schoolSlug?: string;
@@ -79,8 +43,8 @@ export async function CurriculumLessonPage({
 
   const chapterPath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}`;
   const materialsPath = `/${role}/materials`;
-  const guide = lessonGuides[lesson.slug] ?? null;
-  const isIntroCellsLesson = subject.slug === "science" && lesson.slug === "introduction-to-cells";
+  const lessonContent = getCurriculumLessonContent(subject.slug, lesson.slug);
+  const isIntroCellsLesson = lessonContent.interactiveExperience;
   const postTestAvailable =
     role === "student" && !nextLesson && Boolean(chapter.postTestEnabled) && Boolean(chapter.postTestQuizId);
 
@@ -108,6 +72,34 @@ export async function CurriculumLessonPage({
             </span>
           </div>
 
+          <div className="flex flex-wrap items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {lesson.lessonCode || "Lesson"}
+              </p>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">{lesson.title}</h1>
+              <p className="text-sm text-slate-600">
+                {subject.title} / {chapter.title}
+              </p>
+            </div>
+
+            {role === "admin" ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button asChild variant="outline">
+                  <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(lesson.id)}`}>
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Edit Module
+                  </Link>
+                </Button>
+                <LessonExportButton
+                  exportPath={`${chapterPath}/${lesson.slug}/export`}
+                  lessonTitle={lesson.title}
+                  buttonLabel="Export Module"
+                />
+              </div>
+            ) : null}
+          </div>
+
           {isIntroCellsLesson ? (
             <IntroductionToCellsFunnel />
           ) : (
@@ -121,18 +113,13 @@ export async function CurriculumLessonPage({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-slate-700">
-                    {guide?.overview ??
-                      "Use this lesson page to build chapter-specific content, activities, and assessments."}
+                    {lessonContent.overview}
                   </p>
 
                   <div className="space-y-2">
                     <p className="font-semibold text-slate-900">Lesson Focus</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-                      {(guide?.focus ?? [
-                        "Define the core lesson concept.",
-                        "Add one practical example.",
-                        "Check understanding with one quick quiz.",
-                      ]).map((item) => (
+                      {lessonContent.focus.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
@@ -148,11 +135,7 @@ export async function CurriculumLessonPage({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {(guide?.activities ?? [
-                    "Open with a short concept recap.",
-                    "Add one observation activity.",
-                    "Close with an exit-ticket prompt.",
-                  ]).map((activity) => (
+                  {lessonContent.activities.map((activity) => (
                     <div key={activity} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                       {activity}
                     </div>
