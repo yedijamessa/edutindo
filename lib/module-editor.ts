@@ -16,7 +16,9 @@ import type {
   ModuleEditorNodeType,
   ModuleEditorPage,
   ModuleEditorQuizBlock,
+  ModuleEditorQuizMatchPair,
   ModuleEditorQuizOption,
+  ModuleEditorQuizOrderingItem,
   ModuleEditorQuizType,
   ModuleEditorTarget,
   ModuleEditorTextBlock,
@@ -100,6 +102,23 @@ function createQuizOptions(): ModuleEditorQuizOption[] {
   ];
 }
 
+function createDefaultMatchingPairs(): ModuleEditorQuizMatchPair[] {
+  return [
+    { id: randomUUID(), prompt: "Prompt 1", match: "Match 1" },
+    { id: randomUUID(), prompt: "Prompt 2", match: "Match 2" },
+    { id: randomUUID(), prompt: "Prompt 3", match: "Match 3" },
+  ];
+}
+
+function createDefaultOrderingItems(): ModuleEditorQuizOrderingItem[] {
+  return [
+    { id: randomUUID(), text: "Step 1" },
+    { id: randomUUID(), text: "Step 2" },
+    { id: randomUUID(), text: "Step 3" },
+    { id: randomUUID(), text: "Step 4" },
+  ];
+}
+
 function getDefaultOptionsForQuizType(quizType: ModuleEditorQuizType): ModuleEditorQuizOption[] {
   if (quizType === "true-false") {
     return [
@@ -108,7 +127,13 @@ function getDefaultOptionsForQuizType(quizType: ModuleEditorQuizType): ModuleEdi
     ];
   }
 
-  if (quizType === "short-answer" || quizType === "fill-in-the-blank") {
+  if (
+    quizType === "short-answer" ||
+    quizType === "fill-in-the-blank" ||
+    quizType === "matching" ||
+    quizType === "ordering" ||
+    quizType === "essay"
+  ) {
     return [];
   }
 
@@ -123,7 +148,10 @@ function normalizeQuizType(value: unknown): ModuleEditorQuizType {
     cleaned === "multiple-choice-multiple" ||
     cleaned === "true-false" ||
     cleaned === "short-answer" ||
-    cleaned === "fill-in-the-blank"
+    cleaned === "fill-in-the-blank" ||
+    cleaned === "matching" ||
+    cleaned === "ordering" ||
+    cleaned === "essay"
   ) {
     return cleaned;
   }
@@ -141,6 +169,8 @@ function createQuizBlock(quizType: ModuleEditorQuizType = "multiple-choice-singl
     options,
     correctOptionIds: options[0]?.id ? [options[0].id] : [],
     acceptableAnswers: [],
+    matchingPairs: quizType === "matching" ? createDefaultMatchingPairs() : [],
+    orderingItems: quizType === "ordering" ? createDefaultOrderingItems() : [],
     explanation: "",
   };
 }
@@ -187,6 +217,49 @@ function normalizeAcceptableAnswers(input: unknown) {
   ).slice(0, 12);
 }
 
+function normalizeMatchingPairs(input: unknown) {
+  const rawPairs = Array.isArray(input) ? input : [];
+  const pairs = rawPairs
+    .map((pair) => {
+      if (!isObjectRecord(pair)) return null;
+
+      return {
+        id: sanitizeText(pair.id, 80) || randomUUID(),
+        prompt: sanitizeText(pair.prompt, 240),
+        match: sanitizeText(pair.match, 240),
+      };
+    })
+    .filter((pair): pair is ModuleEditorQuizMatchPair => pair !== null)
+    .slice(0, 12);
+
+  if (pairs.length >= 2) {
+    return pairs;
+  }
+
+  return createDefaultMatchingPairs();
+}
+
+function normalizeOrderingItems(input: unknown) {
+  const rawItems = Array.isArray(input) ? input : [];
+  const items = rawItems
+    .map((item) => {
+      if (!isObjectRecord(item)) return null;
+
+      return {
+        id: sanitizeText(item.id, 80) || randomUUID(),
+        text: sanitizeText(item.text, 240),
+      };
+    })
+    .filter((item): item is ModuleEditorQuizOrderingItem => item !== null)
+    .slice(0, 12);
+
+  if (items.length >= 2) {
+    return items;
+  }
+
+  return createDefaultOrderingItems();
+}
+
 function normalizeBlock(input: unknown): ModuleEditorBlock | null {
   if (!isObjectRecord(input)) return null;
 
@@ -214,7 +287,13 @@ function normalizeBlock(input: unknown): ModuleEditorBlock | null {
 
   if (type === "quiz") {
     const quizType = normalizeQuizType(input.quizType);
-    const usesOptions = quizType !== "short-answer" && quizType !== "fill-in-the-blank";
+    const usesOptions =
+      quizType === "multiple-choice-single" ||
+      quizType === "multiple-choice-multiple" ||
+      quizType === "true-false";
+    const usesAcceptableAnswers = quizType === "short-answer" || quizType === "fill-in-the-blank";
+    const usesMatchingPairs = quizType === "matching";
+    const usesOrderingItems = quizType === "ordering";
     const options =
       quizType === "true-false"
         ? getDefaultOptionsForQuizType("true-false")
@@ -232,7 +311,9 @@ function normalizeBlock(input: unknown): ModuleEditorBlock | null {
           .filter((option) => requestedCorrectOptionIds.includes(option.id))
           .map((option) => option.id)
       : [];
-    const acceptableAnswers = normalizeAcceptableAnswers(input.acceptableAnswers);
+    const acceptableAnswers = usesAcceptableAnswers ? normalizeAcceptableAnswers(input.acceptableAnswers) : [];
+    const matchingPairs = usesMatchingPairs ? normalizeMatchingPairs(input.matchingPairs) : [];
+    const orderingItems = usesOrderingItems ? normalizeOrderingItems(input.orderingItems) : [];
 
     const nextCorrectOptionIds =
       quizType === "multiple-choice-multiple"
@@ -257,6 +338,8 @@ function normalizeBlock(input: unknown): ModuleEditorBlock | null {
       options,
       correctOptionIds: nextCorrectOptionIds,
       acceptableAnswers,
+      matchingPairs,
+      orderingItems,
       explanation: sanitizeLongText(input.explanation, 3000),
     };
   }

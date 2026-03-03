@@ -28,6 +28,8 @@ import type {
   ModuleEditorBlock,
   ModuleEditorPage,
   ModuleEditorQuizBlock,
+  ModuleEditorQuizMatchPair,
+  ModuleEditorQuizOrderingItem,
   ModuleEditorQuizType,
   ModuleEditorTarget,
 } from "@/types/module-editor";
@@ -51,6 +53,9 @@ const QUIZ_TYPE_OPTIONS: Array<{ value: ModuleEditorQuizType; label: string }> =
   { value: "true-false", label: "True or False" },
   { value: "short-answer", label: "Short Answer" },
   { value: "fill-in-the-blank", label: "Fill in the Blank" },
+  { value: "matching", label: "Matching" },
+  { value: "ordering", label: "Ordering / Sequence" },
+  { value: "essay", label: "Essay / Long response" },
 ];
 
 function createId() {
@@ -91,6 +96,23 @@ function createQuizOptions() {
   }));
 }
 
+function createMatchingPairs(): ModuleEditorQuizMatchPair[] {
+  return [
+    { id: createId(), prompt: "Prompt 1", match: "Match 1" },
+    { id: createId(), prompt: "Prompt 2", match: "Match 2" },
+    { id: createId(), prompt: "Prompt 3", match: "Match 3" },
+  ];
+}
+
+function createOrderingItems(): ModuleEditorQuizOrderingItem[] {
+  return [
+    { id: createId(), text: "Step 1" },
+    { id: createId(), text: "Step 2" },
+    { id: createId(), text: "Step 3" },
+    { id: createId(), text: "Step 4" },
+  ];
+}
+
 function getDefaultOptionsForQuizType(quizType: ModuleEditorQuizType) {
   if (quizType === "true-false") {
     return [
@@ -99,7 +121,13 @@ function getDefaultOptionsForQuizType(quizType: ModuleEditorQuizType) {
     ];
   }
 
-  if (quizType === "short-answer" || quizType === "fill-in-the-blank") {
+  if (
+    quizType === "short-answer" ||
+    quizType === "fill-in-the-blank" ||
+    quizType === "matching" ||
+    quizType === "ordering" ||
+    quizType === "essay"
+  ) {
     return [];
   }
 
@@ -129,16 +157,38 @@ function createQuizBlockForType(quizType: ModuleEditorQuizType): ModuleEditorQui
     options,
     correctOptionIds: options[0]?.id ? [options[0].id] : [],
     acceptableAnswers: getDefaultAcceptableAnswersForQuizType(quizType),
+    matchingPairs: quizType === "matching" ? createMatchingPairs() : [],
+    orderingItems: quizType === "ordering" ? createOrderingItems() : [],
     explanation: "",
   };
 }
 
 function usesOptionAnswers(quizType: ModuleEditorQuizType) {
-  return quizType !== "short-answer" && quizType !== "fill-in-the-blank";
+  return (
+    quizType === "multiple-choice-single" ||
+    quizType === "multiple-choice-multiple" ||
+    quizType === "true-false"
+  );
 }
 
 function usesMultipleCorrectAnswers(quizType: ModuleEditorQuizType) {
   return quizType === "multiple-choice-multiple";
+}
+
+function usesAcceptableAnswerInputs(quizType: ModuleEditorQuizType) {
+  return quizType === "short-answer" || quizType === "fill-in-the-blank";
+}
+
+function usesMatchingPairs(quizType: ModuleEditorQuizType) {
+  return quizType === "matching";
+}
+
+function usesOrderingItems(quizType: ModuleEditorQuizType) {
+  return quizType === "ordering";
+}
+
+function isEssayQuiz(quizType: ModuleEditorQuizType) {
+  return quizType === "essay";
 }
 
 function createPage(index: number): ModuleEditorPage {
@@ -248,24 +298,65 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : usesMatchingPairs(block.quizType) ? (
+                <div className="space-y-2">
+                  {block.matchingPairs.map((pair, index) => (
+                    <div
+                      key={pair.id}
+                      className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_auto_1fr]"
+                    >
+                      <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
+                        {pair.prompt || `Prompt ${index + 1}`}
+                      </div>
+                      <div className="flex items-center justify-center text-slate-400">=</div>
+                      <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
+                        {pair.match || `Match ${index + 1}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : usesOrderingItems(block.quizType) ? (
+                <div className="space-y-2">
+                  {block.orderingItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                    >
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
+                        {index + 1}
+                      </span>
+                      <span>{item.text || `Step ${index + 1}`}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : usesAcceptableAnswerInputs(block.quizType) ? (
                 <div className="space-y-2">
                   {block.acceptableAnswers.filter((answer) => answer.trim().length > 0).length > 0 ? (
                     block.acceptableAnswers
                       .filter((answer) => answer.trim().length > 0)
                       .map((answer, index) => (
-                      <div
-                        key={`${block.id}-${index}`}
-                        className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-                      >
-                        {answer}
-                      </div>
-                    ))
+                        <div
+                          key={`${block.id}-${index}`}
+                          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+                        >
+                          {answer}
+                        </div>
+                      ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">
                       Add at least one accepted answer.
                     </div>
                   )}
+                </div>
+              ) : isEssayQuiz(block.quizType) ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+                  Learners will write a long-form response here.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    Configure this quiz block.
+                  </div>
                 </div>
               )}
               {block.explanation && (
@@ -971,7 +1062,7 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
                             />
                           </div>
 
-                          {usesOptionAnswers(block.quizType) ? (
+                          {usesOptionAnswers(block.quizType) && (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <div>
@@ -1101,7 +1192,9 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
                                 );
                               })}
                             </div>
-                          ) : (
+                          )}
+
+                          {usesAcceptableAnswerInputs(block.quizType) && (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <div>
@@ -1194,9 +1287,239 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
                             </div>
                           )}
 
+                          {usesMatchingPairs(block.quizType) && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    Matching pairs
+                                  </label>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Each row defines one correct match.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    updateBlock(block.id, (current) => {
+                                      const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                      return {
+                                        ...quizBlock,
+                                        id: block.id,
+                                        matchingPairs: [
+                                          ...quizBlock.matchingPairs,
+                                          { id: createId(), prompt: "", match: "" },
+                                        ].slice(0, 12),
+                                      };
+                                    })
+                                  }
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Add pair
+                                </Button>
+                              </div>
+
+                              {block.matchingPairs.map((pair, pairIndex) => (
+                                <div key={pair.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                                      Pair {pairIndex + 1}
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                      onClick={() =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          if (quizBlock.matchingPairs.length <= 2) return quizBlock;
+
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            matchingPairs: quizBlock.matchingPairs.filter((item) => item.id !== pair.id),
+                                          };
+                                        })
+                                      }
+                                      disabled={block.matchingPairs.length <= 2}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                    <Input
+                                      value={pair.prompt}
+                                      onChange={(event) =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            matchingPairs: quizBlock.matchingPairs.map((item) =>
+                                              item.id === pair.id ? { ...item, prompt: event.target.value } : item
+                                            ),
+                                          };
+                                        })
+                                      }
+                                      placeholder="Left prompt"
+                                    />
+                                    <Input
+                                      value={pair.match}
+                                      onChange={(event) =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            matchingPairs: quizBlock.matchingPairs.map((item) =>
+                                              item.id === pair.id ? { ...item, match: event.target.value } : item
+                                            ),
+                                          };
+                                        })
+                                      }
+                                      placeholder="Right match"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {usesOrderingItems(block.quizType) && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    Correct sequence
+                                  </label>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Arrange these items in the correct order.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    updateBlock(block.id, (current) => {
+                                      const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                      return {
+                                        ...quizBlock,
+                                        id: block.id,
+                                        orderingItems: [...quizBlock.orderingItems, { id: createId(), text: "" }].slice(
+                                          0,
+                                          12
+                                        ),
+                                      };
+                                    })
+                                  }
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Add step
+                                </Button>
+                              </div>
+
+                              {block.orderingItems.map((item, itemIndex) => (
+                                <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                                      Step {itemIndex + 1}
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="ml-auto h-8 w-8"
+                                      onClick={() =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            orderingItems: moveItem(quizBlock.orderingItems, itemIndex, -1),
+                                          };
+                                        })
+                                      }
+                                      disabled={itemIndex === 0}
+                                    >
+                                      <ArrowUp className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={() =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            orderingItems: moveItem(quizBlock.orderingItems, itemIndex, 1),
+                                          };
+                                        })
+                                      }
+                                      disabled={itemIndex === block.orderingItems.length - 1}
+                                    >
+                                      <ArrowDown className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                      onClick={() =>
+                                        updateBlock(block.id, (current) => {
+                                          const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                          if (quizBlock.orderingItems.length <= 2) return quizBlock;
+
+                                          return {
+                                            ...quizBlock,
+                                            id: block.id,
+                                            orderingItems: quizBlock.orderingItems.filter((entry) => entry.id !== item.id),
+                                          };
+                                        })
+                                      }
+                                      disabled={block.orderingItems.length <= 2}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <Input
+                                    className="mt-3"
+                                    value={item.text}
+                                    onChange={(event) =>
+                                      updateBlock(block.id, (current) => {
+                                        const quizBlock = current.type === "quiz" ? current : createQuizBlock();
+                                        return {
+                                          ...quizBlock,
+                                          id: block.id,
+                                          orderingItems: quizBlock.orderingItems.map((entry) =>
+                                            entry.id === item.id ? { ...entry, text: event.target.value } : entry
+                                          ),
+                                        };
+                                      })
+                                    }
+                                    placeholder={`Step ${itemIndex + 1}`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {isEssayQuiz(block.quizType) && (
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                              Essay questions do not need fixed answers here. Use the field below to add rubric notes,
+                              model-answer guidance, or teacher marking instructions.
+                            </div>
+                          )}
+
                           <div className="space-y-2">
                             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                              Explanation
+                              {isEssayQuiz(block.quizType) ? "Rubric / marking notes" : "Explanation"}
                             </label>
                             <Textarea
                               value={block.explanation}
@@ -1208,7 +1531,11 @@ export function ModuleEditor({ chapters, subjects, initialChapter, initialDocume
                                 }))
                               }
                               rows={3}
-                              placeholder="Explain why the correct answer is correct."
+                              placeholder={
+                                isEssayQuiz(block.quizType)
+                                  ? "Add marking criteria, rubric notes, or model answer guidance."
+                                  : "Explain why the correct answer is correct."
+                              }
                             />
                           </div>
                         </div>

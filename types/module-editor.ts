@@ -22,12 +22,26 @@ export interface ModuleEditorQuizOption {
   text: string;
 }
 
+export interface ModuleEditorQuizMatchPair {
+  id: string;
+  prompt: string;
+  match: string;
+}
+
+export interface ModuleEditorQuizOrderingItem {
+  id: string;
+  text: string;
+}
+
 export type ModuleEditorQuizType =
   | "multiple-choice-single"
   | "multiple-choice-multiple"
   | "true-false"
   | "short-answer"
-  | "fill-in-the-blank";
+  | "fill-in-the-blank"
+  | "matching"
+  | "ordering"
+  | "essay";
 
 export interface ModuleEditorQuizBlock {
   id: string;
@@ -37,6 +51,8 @@ export interface ModuleEditorQuizBlock {
   options: ModuleEditorQuizOption[];
   correctOptionIds: string[];
   acceptableAnswers: string[];
+  matchingPairs: ModuleEditorQuizMatchPair[];
+  orderingItems: ModuleEditorQuizOrderingItem[];
   explanation: string;
 }
 
