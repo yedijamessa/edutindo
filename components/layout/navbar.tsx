@@ -25,6 +25,10 @@ const portalItems = [
 ]
 
 const portalRoutePrefixes = ["/student", "/teacher", "/parent", "/principal", "/admin"] as const
+const headerSurfaceClassName =
+    "border-b border-[#d8cdb7] bg-[#fdf5e3]/95 shadow-[0_10px_28px_-24px_rgba(78,58,38,0.85)] backdrop-blur supports-[backdrop-filter]:bg-[#fdf5e3]/88"
+const subtleHeaderButtonClassName =
+    "border-[#d8cdb7] bg-white/60 text-slate-700 shadow-none hover:border-[#cabb9f] hover:bg-white/85 hover:text-slate-900"
 
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
@@ -85,8 +89,8 @@ export function Navbar() {
     }
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b bg-[#fdf5e3]">
-            <div className="container-custom flex h-16 items-center justify-between">
+        <header className={cn("sticky top-0 z-50 w-full", headerSurfaceClassName)}>
+            <div className="container-custom flex h-[4.5rem] items-center justify-between">
                 <div className="flex items-center gap-2">
                     {isAdminRoute && <AdminNavMenu />}
                     <Link href="/" className="group flex items-center">
@@ -102,16 +106,16 @@ export function Navbar() {
                 </div>
 
                 {/* Desktop Nav */}
-                <nav className="hidden md:flex items-center gap-6">
+                <nav className="hidden items-center gap-6 md:flex">
                     {!isPortalRoute && navItems.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                "text-sm font-medium transition-colors hover:text-primary",
+                                "text-sm font-medium transition-colors hover:text-slate-900",
                                 pathname === item.href
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
+                                    ? "text-slate-900"
+                                    : "text-slate-600"
                             )}
                         >
                             {item.name}
@@ -119,7 +123,7 @@ export function Navbar() {
                     ))}
 
                     {showAdminBackButton && (
-                        <Button asChild size="sm" variant="outline">
+                        <Button asChild size="sm" variant="outline" className={subtleHeaderButtonClassName}>
                             <Link href="/admin" className="gap-1.5">
                                 <ArrowLeft className="h-4 w-4" />
                                 Admin Dashboard
@@ -128,7 +132,12 @@ export function Navbar() {
                     )}
 
                     {!isPortalRoute && (
-                        <Button asChild size="sm" variant="default">
+                        <Button
+                            asChild
+                            size="sm"
+                            variant="default"
+                            className="shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]"
+                        >
                             <Link href="/donate">Support Us</Link>
                         </Button>
                     )}
@@ -139,7 +148,12 @@ export function Navbar() {
                 {/* Mobile Menu Button */}
                 <div className="flex items-center gap-2 md:hidden">
                     {showAdminBackButton && (
-                        <Button asChild variant="outline" size="sm" className="h-9 px-3">
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className={cn("h-9 px-3", subtleHeaderButtonClassName)}
+                        >
                             <Link href="/admin" aria-label="Back to admin dashboard">
                                 <ArrowLeft className="h-4 w-4 sm:mr-1" />
                                 <span className="hidden sm:inline">Admin</span>
@@ -147,7 +161,7 @@ export function Navbar() {
                         </Button>
                     )}
                     <button
-                        className="p-2"
+                        className="rounded-full border border-[#d8cdb7] bg-white/60 p-2 text-slate-700 transition-colors hover:bg-white/85 hover:text-slate-900"
                         onClick={() => setIsOpen(!isOpen)}
                         aria-label="Toggle menu"
                     >
@@ -158,10 +172,10 @@ export function Navbar() {
 
             {/* Mobile Nav */}
             {isOpen && (
-                <div className="border-t bg-[#fdf5e3] p-4 md:hidden">
+                <div className="border-t border-[#e1d5be] bg-[#fdf5e3]/98 p-4 md:hidden">
                     <nav className="flex flex-col space-y-4">
                         {showAdminBackButton && (
-                            <Button asChild variant="outline" className="w-full">
+                            <Button asChild variant="outline" className={cn("w-full", subtleHeaderButtonClassName)}>
                                 <Link href="/admin" onClick={() => setIsOpen(false)}>
                                     <ArrowLeft className="mr-2 h-4 w-4" />
                                     Back to Admin Dashboard
@@ -174,10 +188,10 @@ export function Navbar() {
                                 key={item.href}
                                 href={item.href}
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary",
+                                    "text-sm font-medium transition-colors hover:text-slate-900",
                                     pathname === item.href
-                                        ? "text-foreground"
-                                        : "text-muted-foreground"
+                                        ? "text-slate-900"
+                                        : "text-slate-600"
                                 )}
                                 onClick={() => setIsOpen(false)}
                             >
@@ -186,16 +200,16 @@ export function Navbar() {
                         ))}
 
                         <div className="border-t pt-4">
-                            <p className="text-xs font-semibold text-muted-foreground mb-2">PORTALS</p>
+                            <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500">PORTALS</p>
                             {portalItems.map((item) => (
                                 <Link
                                     key={item.href}
                                     href={getPortalHref(item.href)}
                                     className={cn(
-                                        "block py-2 text-sm font-medium transition-colors hover:text-primary",
+                                        "block py-2 text-sm font-medium transition-colors hover:text-slate-900",
                                         pathname.startsWith(item.href)
-                                            ? "text-foreground"
-                                            : "text-muted-foreground"
+                                            ? "text-slate-900"
+                                            : "text-slate-600"
                                     )}
                                     onClick={() => setIsOpen(false)}
                                 >
@@ -205,7 +219,11 @@ export function Navbar() {
                         </div>
 
                         {!isPortalRoute && (
-                            <Button asChild className="w-full" variant="default">
+                            <Button
+                                asChild
+                                className="w-full shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]"
+                                variant="default"
+                            >
                                 <Link href="/donate" onClick={() => setIsOpen(false)}>Support Us</Link>
                             </Button>
                         )}

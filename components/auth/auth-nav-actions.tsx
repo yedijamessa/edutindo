@@ -21,6 +21,9 @@ interface AuthNavActionsProps {
   onNavigate?: () => void;
 }
 
+const headerOutlineButtonClassName =
+  "border-[#d8cdb7] bg-white/60 text-slate-700 shadow-none hover:border-[#cabb9f] hover:bg-white/85 hover:text-slate-900";
+
 export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -79,14 +82,25 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     if (isPortalOrAdminPage) {
       if (mobile) {
         return (
-          <Button variant="outline" className="w-full" onClick={logout} disabled={loggingOut}>
+          <Button
+            variant="outline"
+            className={`w-full ${headerOutlineButtonClassName}`}
+            onClick={logout}
+            disabled={loggingOut}
+          >
             {loggingOut ? "Signing out..." : "Sign Out"}
           </Button>
         );
       }
 
       return (
-        <Button variant="outline" size="sm" onClick={logout} disabled={loggingOut}>
+        <Button
+          variant="outline"
+          size="sm"
+          className={headerOutlineButtonClassName}
+          onClick={logout}
+          disabled={loggingOut}
+        >
           {loggingOut ? "Signing out..." : "Sign Out"}
         </Button>
       );
@@ -95,12 +109,12 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     if (mobile) {
       return (
         <div className="flex flex-col gap-2">
-          <Button asChild variant="outline" className="w-full">
+          <Button asChild variant="outline" className={`w-full ${headerOutlineButtonClassName}`}>
             <Link href="/login" onClick={onNavigate}>
               Log In
             </Link>
           </Button>
-          <Button asChild className="w-full">
+          <Button asChild className="w-full shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]">
             <Link href="/signup" onClick={onNavigate}>
               Sign Up
             </Link>
@@ -111,10 +125,10 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
 
     return (
       <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className={headerOutlineButtonClassName}>
           <Link href="/login">Log In</Link>
         </Button>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]">
           <Link href="/signup">Sign Up</Link>
         </Button>
       </div>
@@ -128,13 +142,18 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     return (
       <div className="space-y-2">
         {!shouldHideHomeAction(homePath) && (
-          <Button asChild variant="outline" className="w-full">
+          <Button asChild variant="outline" className={`w-full ${headerOutlineButtonClassName}`}>
             <Link href={homePath} onClick={onNavigate}>
               {homeLabel}
             </Link>
           </Button>
         )}
-        <Button variant="outline" className="w-full" onClick={logout} disabled={loggingOut}>
+        <Button
+          variant="outline"
+          className={`w-full ${headerOutlineButtonClassName}`}
+          onClick={logout}
+          disabled={loggingOut}
+        >
           {loggingOut ? "Signing out..." : "Sign Out"}
         </Button>
       </div>
@@ -147,11 +166,17 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
   return (
     <div className="flex items-center gap-2">
       {!shouldHideHomeAction(homePath) && (
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className={headerOutlineButtonClassName}>
           <Link href={homePath}>{homeLabel}</Link>
         </Button>
       )}
-      <Button variant="outline" size="sm" onClick={logout} disabled={loggingOut}>
+      <Button
+        variant="outline"
+        size="sm"
+        className={headerOutlineButtonClassName}
+        onClick={logout}
+        disabled={loggingOut}
+      >
         {loggingOut ? "Signing out..." : "Sign Out"}
       </Button>
     </div>
