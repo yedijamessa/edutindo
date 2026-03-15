@@ -10,7 +10,7 @@ import { InactivitySignOut } from "@/components/auth/inactivity-signout";
 
 export const metadata: Metadata = {
   title: "Edutindo",
-  description: "Yayasan Edutindo – Education with Light",
+  description: "Yayasan Edutindo – Breaking Barriers, Building The Future",
   other: {
     google: "notranslate",
   },

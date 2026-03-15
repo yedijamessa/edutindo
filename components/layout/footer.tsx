@@ -10,8 +10,13 @@ export function Footer() {
                             Edutindo
                         </Link>
                         <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-                            Education with Light. Building futures, breaking barriers for Indonesia's next generation.
+                            Breaking Barriers, Building The Future.
                         </p>
+                        <div className="mt-4 space-y-1 text-sm text-muted-foreground max-w-xs">
+                            <p>Registration Number: 5025111131101093</p>
+                            <p>AHU Number: AHU-0027575.AH.01.0</p>
+                            <p>Foundation Number: AHU-0042444.AH.01.12</p>
+                        </div>
                     </div>
 
                     <div>

@@ -75,19 +75,6 @@ export default function HomePage() {
                 priority
               />
             </div>
-            {/* Floating Badge */}
-            <div className="absolute -bottom-6 -left-6 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 max-w-xs hidden md:block">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                  <Lightbulb className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Concept</p>
-                  <p className="font-bold text-sm">STEAM–C++</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">Faith-filled minds, future-ready skills.</p>
-            </div>
           </div>
         </div>
       </Section>
