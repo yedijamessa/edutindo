@@ -82,7 +82,9 @@ export function DemoAccessForm({ nextPath }: DemoAccessFormProps) {
             />
           </div>
 
-          <p className="text-xs text-muted-foreground">Demo code: <span className="font-semibold text-foreground">123456</span></p>
+          <p className="text-xs text-muted-foreground">
+            Use the demo code shared by the Edutindo team.
+          </p>
 
           <Button className="w-full" onClick={submit} disabled={isSubmitting || !code.trim()}>
             {isSubmitting ? (
