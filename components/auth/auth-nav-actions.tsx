@@ -105,34 +105,7 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
         </Button>
       );
     }
-
-    if (mobile) {
-      return (
-        <div className="flex flex-col gap-2">
-          <Button asChild variant="outline" className={`w-full ${headerOutlineButtonClassName}`}>
-            <Link href="/login" onClick={onNavigate}>
-              Log In
-            </Link>
-          </Button>
-          <Button asChild className="w-full shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]">
-            <Link href="/signup" onClick={onNavigate}>
-              Sign Up
-            </Link>
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm" className={headerOutlineButtonClassName}>
-          <Link href="/login">Log In</Link>
-        </Button>
-        <Button asChild size="sm" className="shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]">
-          <Link href="/signup">Sign Up</Link>
-        </Button>
-      </div>
-    );
+    return null;
   }
 
   if (mobile) {
