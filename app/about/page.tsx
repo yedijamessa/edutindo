@@ -17,71 +17,74 @@ type Founder = {
 
 const FOUNDERS: Founder[] = [
   {
-    role: "Trustee",
+    role: "Advisory - Chair",
     name: "U Siahaan",
     imageSrc: "/founders/ulbrits.jpeg",
     imageAlt: "U Siahaan",
     lines: [
-      "Non-denominational evangelist and member of the Human Resources & Systems Commission at the Indonesian Bible Society (LAI).",
-      "Independent business advisor and ex-COO of a leading national logistics startup (30+ years of experience).",
-      "Serves as trustee in several educational foundations.",
-      "BSc in Computer Engineering from ITB Polytechnic and BSc in Theology from Doulos Theological Seminary.",
+      "BSc in Computer Science, Bandung Institute of Technology + Bachelor in Theology, Doulos Theological Seminary Jakarta",
+      "Non-denominational Evangelist",
+      "Independent Business Advisor",
+      "COO / VP in Logistics Background",
     ],
   },
   {
-    role: "Trustee",
-    name: "Dr Pramudianto, PCC",
+    role: "Advisory",
+    name: "Dr Pramudianto",
     imageSrc: "/founders/pram.jpeg",
     imageAlt: "Dr Pramudianto",
     lines: [
-      "Chairman of the Business Development and Economics Centre at Atma Jaya Yogyakarta Catholic University and lecturer at leading Christian universities (15+ years of teaching).",
-      "Founder of a human development consultancy serving corporate clients and education institutions; ex-CHRO of a national workforce sourcing company (20+ years of experience).",
-      "Author of 17 books on leadership, character-building, and Christian values.",
-      "PhD in Management Science from Satya Wacana Christian University.",
+      "PhD in Human Resources Management and Services, Satya Wacana Christian University",
+      "Director of Professional Business Center FBE Atma Jaya University - Yogyakarta",
+      "Certified Trainer for Teachers Professional Development",
+      "Author",
     ],
   },
   {
-    role: "Advisor",
+    role: "Supervisor - Chair",
     name: "A Martarina",
     imageSrc: "/founders/agustin.jpg",
     imageAlt: "A Martarina",
     lines: [
-      "Education Quality Assurance and Development Specialist (Widyapradja) at the Education Quality Assurance Agency of East Nusa Tenggara (20+ years of experience).",
-      "Regional NGO coordinator for education and community work in East Nusa Tenggara.",
-      "Master of Accounting from the University of Indonesia.",
+      "MSc in Accounting, University of Indonesia",
+      "Local Curriculum Expert",
+      "School Rating Examiner from Central Government",
+      "Regional Edu-NGO Coordinator",
     ],
   },
   {
-    role: "Executive – President",
+    role: "President/Chair",
     name: "Dr S C Nabilla",
     imageSrc: "/founders/sasza.jpeg",
     imageAlt: "Dr S C Nabilla",
     lines: [
-      "Research associate at Imperial College London.",
-      "DPhil in Materials Science from the University of Oxford.",
-      "Active UK STEAM ambassador connecting science and education.",
+      "DPhil in Material Science, University of Oxford",
+      "Research Associate & Tutor at Imperial College London",
+      "UK STEAM Ambassador",
     ],
   },
   {
-    role: "Executive – Treasurer",
+    role: "Treasurer",
     name: "Y M S Pramudito",
     imageSrc: "/founders/messa.jpeg",
     imageAlt: "Y M S Pramudito",
     lines: [
-      "MSc in Data Science from the University of Manchester.",
-      "Regional lead of Indonesian church diaspora in the UK.",
-      "MBA candidate with a focus on education and social impact.",
+      "MSc in Data Science, University of Manchester",
+      "MBA Candidate",
+      "Teaching Experience",
+      "Banking/Financial Services Background",
     ],
   },
   {
-    role: "Executive – Secretary",
-    name: "A Aribowo, CGMA",
+    role: "Secretary",
+    name: "A Aribowo",
     imageSrc: "/founders/andre.jpeg",
     imageAlt: "A Aribowo",
     lines: [
-      "Endowment accountant at a college within the University of Oxford; ex-Corporate Finance manager at an infrastructure private equity firm.",
-      "MSc in Local Economic Development from the London School of Economics.",
-      "Chartered Global Management Accountant (CGMA) and CAIA candidate.",
+      "MSc in Local Economic Development, LSE",
+      "CIMA Qualified",
+      "CAIA Candidate",
+      "Endowment / Corp Finance Background",
     ],
   },
 ];
@@ -150,9 +153,9 @@ export default function AboutPage() {
 
         <div className="relative text-center max-w-3xl mx-auto mb-12">
           <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-4 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700 shadow-sm">
-            Leadership Team
+            Serving Team
           </p>
-          <h2 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900">The Team Behind the Vision</h2>
+          <h2 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900">The Serving Team</h2>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 mb-12">
@@ -264,6 +267,40 @@ export default function AboutPage() {
                 </p>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </Section>
+
+      <Section className="bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+            Our Vision
+          </h2>
+
+          <div className="flex justify-center">
+            <Image
+              src="/logo-edutindo.png"
+              alt="Edutindo lantern logo"
+              width={240}
+              height={360}
+              className="h-auto w-40 sm:w-48 md:w-56"
+            />
+          </div>
+
+          <div className="border-l-2 border-sky-300 pl-6 md:pl-7 space-y-4">
+            <p className="text-2xl leading-relaxed text-slate-700 dark:text-slate-200">
+              Transforming rural Indonesia by unlocking <span className="font-bold">STEAM</span> learning opportunities
+              through <span className="font-bold">SCHOOL</span> partnerships that empower teachers and families to raise
+              a skilled and impact-driven generation, rooted in <span className="font-bold">CHRISTIAN</span> values and
+              capable of driving{" "}
+              <span className="font-bold underline decoration-slate-500 underline-offset-4">INNOVATION</span> that
+              uplifts their local communities.
+            </p>
+            <p className="text-2xl leading-relaxed text-slate-700 dark:text-slate-200">
+              We are committed to rigorous <span className="font-bold">RESEARCH</span> and continuous{" "}
+              <span className="font-bold">REFINEMENT</span> to discover and implement the most effective interventions
+              for advancing science education delivery to the unreached.
+            </p>
           </div>
         </div>
       </Section>

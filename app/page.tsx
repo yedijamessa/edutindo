@@ -1,14 +1,87 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, GraduationCap, Lightbulb, Users, Globe, School, Plus } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, Lightbulb, Users, Globe, School, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 
+const HOMEPAGE_CAROUSEL_SLIDES = [
+  {
+    src: "/homepage-carousel/1.jpg",
+    alt: "Rural primary school learning in Indonesia",
+    referenceUrl: "https://blogs.worldbank.org/en/eastasiapacific/hard-truth-challenges-primary-education-rural-and-remote-indonesia",
+  },
+  {
+    src: "/homepage-carousel/2.jpg",
+    alt: "Child-friendly school support in an Indonesian village",
+    referenceUrl: "https://www.globalgiving.org/projects/child-friendly-school-in-indonesian-village",
+  },
+  {
+    src: "/homepage-carousel/3.png",
+    alt: "Village-led school development initiative in Indonesia",
+    referenceUrl: "https://gemari.id/gemari/2019/9/22/desa-membangun-sekolah-untuk-memenuhi-kebutuhan-pendidikan",
+  },
+  {
+    src: "/homepage-carousel/4.png",
+    alt: "Teaching support setting in Senggigi, Lombok",
+    referenceUrl: "https://www.volunteerhq.org/destinations/lombok/teaching-in-senggigii/",
+  },
+  {
+    src: "/homepage-carousel/5.jpg",
+    alt: "Remote elementary school conditions in Sulawesi",
+    referenceUrl: "https://news.detik.com/berita/d-3707337/memprihatinkan-begini-kondisi-sd-negeri-di-pedalaman-sulawesi",
+  },
+  {
+    src: "/homepage-carousel/6.jpg",
+    alt: "Rural education improvement perspective",
+    referenceUrl: "https://govinsider.asia/intl-en/article/four-ways-improve-rural-education",
+  },
+  {
+    src: "/homepage-carousel/7.jpg",
+    alt: "Primary school classroom scene in Indonesia",
+    referenceUrl: "https://www.robertharding.com/preview/1242-227/primary-school-classroom-full-students-houy-mieng-village",
+  },
+  {
+    src: "/homepage-carousel/8.jpg",
+    alt: "Village school building initiative in Indonesia",
+    referenceUrl: "https://www.globalgiving.org/projects/build-a-village-school-in-indonesia/",
+  },
+  {
+    src: "/homepage-carousel/9.jpg",
+    alt: "Rural schools adapting to new normal conditions",
+    referenceUrl: "https://www.thejakartapost.com/academia/2020/06/13/addressing-the-new-normal-for-schools-in-rural-areas.html",
+  },
+  {
+    src: "/homepage-carousel/10.jpg",
+    alt: "Historical school context in Indonesia",
+    referenceUrl: "https://histclo.com/schun/country/other/indo/is-uni.html",
+  },
+];
+
 export default function HomePage() {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % HOMEPAGE_CAROUSEL_SLIDES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentSlide = HOMEPAGE_CAROUSEL_SLIDES[activeSlide];
+
+  const showPrevSlide = () => {
+    setActiveSlide((prev) => (prev - 1 + HOMEPAGE_CAROUSEL_SLIDES.length) % HOMEPAGE_CAROUSEL_SLIDES.length);
+  };
+
+  const showNextSlide = () => {
+    setActiveSlide((prev) => (prev + 1) % HOMEPAGE_CAROUSEL_SLIDES.length);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -30,7 +103,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed">
-              &ldquo;A Christian STEAM education initiative for Indonesia&apos;s next generation of servant-hearted innovators.&rdquo;
+              A Christian STEAM education initiative for Indonesia&apos;s next generation of servant-hearted innovators
             </p>
 
             <div className="flex flex-nowrap gap-2 sm:gap-4">
@@ -48,13 +121,55 @@ export default function HomePage() {
           <div className="relative">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 rotate-2 hover:rotate-0 transition-transform duration-500">
               <Image
-                src="/meeting-new.png"
-                alt="Teacher and children learning joyfully"
+                src={currentSlide.src}
+                alt={currentSlide.alt}
                 width={800}
                 height={600}
                 className="w-full h-auto object-cover"
                 priority
               />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/75 via-slate-900/30 to-transparent p-4">
+                <a
+                  href={currentSlide.referenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-white hover:text-sky-200 transition-colors"
+                >
+                  Reference {activeSlide + 1}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={showPrevSlide}
+                className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/45 text-white hover:bg-slate-900/65 transition-colors"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={showNextSlide}
+                className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/45 text-white hover:bg-slate-900/65 transition-colors"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              <div className="absolute bottom-4 right-4 flex items-center gap-1.5">
+                {HOMEPAGE_CAROUSEL_SLIDES.map((_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setActiveSlide(index)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      index === activeSlide ? "w-5 bg-white" : "w-1.5 bg-white/60 hover:bg-white/80"
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -121,7 +236,7 @@ export default function HomePage() {
                 />
               </div>
               <CardContent className="p-6">
-                <CardTitle className="text-2xl leading-tight text-slate-900">
+                <CardTitle className="text-3xl leading-tight text-slate-900">
                   <span className="whitespace-nowrap">Encountering Jesus brings</span>
                   <br />
                   TRANSFORMATION

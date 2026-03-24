@@ -251,8 +251,8 @@ export default function DonatePage() {
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-orange-800 to-slate-900 dark:from-slate-100 dark:via-orange-400 dark:to-slate-100 bg-clip-text text-transparent">
               Bring the Vision to Reality
             </h1>
-            <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
-              &ldquo;Your generosity and prayer help us to empower students and teachers to make a lasting impact.&rdquo;
+            <p className="mx-auto w-fit whitespace-nowrap text-[clamp(0.4rem,1.6vw,1.25rem)] leading-tight text-slate-600 dark:text-slate-400">
+              Your generosity and prayer help us to empower students and teachers to make a lasting impact
             </p>
           </div>
 
