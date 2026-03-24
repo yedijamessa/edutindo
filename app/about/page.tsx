@@ -273,9 +273,7 @@ export default function AboutPage() {
 
       <Section className="bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
         <div className="max-w-6xl mx-auto space-y-8">
-          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
-            Our Vision
-          </h2>
+
 
           <div className="flex justify-center">
             <Image
