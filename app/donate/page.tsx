@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Script from "next/script";
 import { Heart, Landmark, Package, Users, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,16 @@ import { getEquipmentNeeds, createDonation, getRecentDonors } from "@/lib/firest
 import type { Equipment, Donation } from "@/types/lms";
 
 type ReceiptUploadStatus = "idle" | "uploading" | "success" | "error";
-const MAX_RECEIPT_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+type TurnstileWindow = Window & {
+  onReceiptCaptchaSuccess?: (token: string) => void;
+  onReceiptCaptchaExpired?: () => void;
+  turnstile?: {
+    reset: (selector?: string) => void;
+  };
+};
+
+const MAX_RECEIPT_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function DonatePage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -34,6 +44,7 @@ export default function DonatePage() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [receiptStatus, setReceiptStatus] = useState<ReceiptUploadStatus>("idle");
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
+  const [receiptCaptchaToken, setReceiptCaptchaToken] = useState("");
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -49,6 +60,22 @@ export default function DonatePage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    const turnstileWindow = window as TurnstileWindow;
+    turnstileWindow.onReceiptCaptchaSuccess = (token: string) => {
+      setReceiptCaptchaToken(token);
+    };
+    turnstileWindow.onReceiptCaptchaExpired = () => {
+      setReceiptCaptchaToken("");
+    };
+
+    return () => {
+      delete turnstileWindow.onReceiptCaptchaSuccess;
+      delete turnstileWindow.onReceiptCaptchaExpired;
+    };
   }, []);
 
   const loadData = async () => {
@@ -155,10 +182,17 @@ export default function DonatePage() {
     setReceiptMessage(null);
 
     try {
+      if (TURNSTILE_SITE_KEY && !receiptCaptchaToken) {
+        setReceiptStatus("error");
+        setReceiptMessage("Please complete the captcha check before uploading your receipt.");
+        return;
+      }
+
       const payload = new FormData();
       payload.append("receipt", file);
       if (formData.donorName.trim()) payload.append("donorName", formData.donorName.trim());
       if (formData.donorEmail.trim()) payload.append("donorEmail", formData.donorEmail.trim());
+      if (TURNSTILE_SITE_KEY) payload.append("captchaToken", receiptCaptchaToken);
 
       const res = await fetch("/api/donate/receipt", {
         method: "POST",
@@ -172,12 +206,16 @@ export default function DonatePage() {
 
       setReceiptStatus("success");
       setReceiptMessage(data?.message || "Receipt received. Our team has been notified.");
+      setReceiptCaptchaToken("");
+      (window as TurnstileWindow).turnstile?.reset("#receipt-turnstile");
     } catch (error) {
       console.error("Receipt upload error:", error);
       setReceiptStatus("error");
       setReceiptMessage(
         error instanceof Error ? error.message : "Failed to upload receipt. Please try again."
       );
+      setReceiptCaptchaToken("");
+      (window as TurnstileWindow).turnstile?.reset("#receipt-turnstile");
     }
   };
 
@@ -195,7 +233,7 @@ export default function DonatePage() {
     const file = files[0];
     if (file.size > MAX_RECEIPT_SIZE_BYTES) {
       setReceiptStatus("error");
-      setReceiptMessage("Receipt file is too large. Maximum size is 2 MB.");
+      setReceiptMessage("Receipt file is too large. Maximum size is 8 MB.");
       event.target.value = "";
       return;
     }
@@ -211,11 +249,10 @@ export default function DonatePage() {
           {/* Hero Section */}
           <div className="text-center space-y-6">
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-orange-800 to-slate-900 dark:from-slate-100 dark:via-orange-400 dark:to-slate-100 bg-clip-text text-transparent">
-              Equip the Future
+              Bring the Vision to Reality
             </h1>
             <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
-              Your generosity helps us provide essential equipment and resources to empower students
-              and teachers. Every contribution makes a lasting impact.
+              &ldquo;Your generosity and prayer help us to empower students and teachers to make a lasting impact.&rdquo;
             </p>
           </div>
 
@@ -230,10 +267,14 @@ export default function DonatePage() {
                   Equipment Needs
                 </h2>
                 <p className="text-slate-600 dark:text-slate-400">
-                  Help us reach our goals for these essential items
+                  Essential items to break the barriers and build the future.
                 </p>
               </div>
             </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              We are aligning this list with our active school partners. Lab equipment, tablets/PCs, and other
+              priority tools will be added as needs are confirmed.
+            </p>
 
             {loading ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -479,7 +520,7 @@ export default function DonatePage() {
               <Card className="border-none shadow-xl bg-white dark:bg-slate-900">
                 <CardContent className="p-6">
                   <div className="space-y-4">
-                    {recentDonors.map((donor, index) => (
+                    {recentDonors.map((donor) => (
                       <div
                         key={donor.id}
                         className="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -539,10 +580,25 @@ export default function DonatePage() {
                   </div>
                 </div>
                 <div className="space-y-3 pt-1">
+                  {TURNSTILE_SITE_KEY && (
+                    <>
+                      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+                      <div
+                        id="receipt-turnstile"
+                        className="cf-turnstile"
+                        data-sitekey={TURNSTILE_SITE_KEY}
+                        data-callback="onReceiptCaptchaSuccess"
+                        data-expired-callback="onReceiptCaptchaExpired"
+                      />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Complete the captcha to verify this upload.
+                      </p>
+                    </>
+                  )}
                   <input
                     ref={receiptInputRef}
                     type="file"
-                    accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    accept="application/pdf,image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif"
                     className="hidden"
                     onChange={handleReceiptSelected}
                   />
@@ -557,7 +613,7 @@ export default function DonatePage() {
                     {receiptStatus === "uploading" ? "Uploading Receipt..." : "Attach Receipt Here"}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Upload 1 receipt file only (max 2 MB).
+                    Upload 1 receipt file only (max 8 MB).
                   </p>
 
                   {receiptStatus === "success" && receiptMessage && (
@@ -583,17 +639,18 @@ export default function DonatePage() {
                   <Heart className="w-6 h-6" />
                 </div>
                 <CardTitle>Prayer Support</CardTitle>
-                <CardDescription>Partner with us in spirit.</CardDescription>
+                <CardDescription>Stand with us through your prayers.</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-slate-700 dark:text-slate-300 leading-relaxed mb-4">
-                  We believe in the power of prayer. Please join us in praying for:
+                  We believe in the power of prayer and our strength alone will not be enough. Please join us in
+                  prayer for:
                 </p>
                 <ul className="space-y-2">
                   {[
-                    "Wisdom for our leaders and advisers",
-                    "Strength for teachers and students",
-                    "Resources to sustain the ministry",
+                    "Wisdom for our leaders and partners",
+                    "Commitment for teachers and students",
+                    "Resources to break the barriers and build the future",
                   ].map((item, i) => (
                     <li
                       key={i}

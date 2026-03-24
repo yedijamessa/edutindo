@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 
 const AREAS = [
   "Volunteer as a mentor / teacher",
   "Help with events & media",
-  "Pray regularly for the ministry",
   "Partner as a monthly supporter",
   "Other",
 ];
@@ -30,7 +29,6 @@ export default function GetInvolvedPage() {
     const payload = {
       name: formData.get("name"),
       email: formData.get("email"),
-      phone: formData.get("phone") || "",
       area: formData.get("area") || "",
       linkedin: formData.get("linkedin") || "",
       instagram: formData.get("instagram") || "",
@@ -51,10 +49,10 @@ export default function GetInvolvedPage() {
 
       setStatus("success");
       (e.target as HTMLFormElement).reset();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setStatus("error");
-      setErrorMessage(err.message || "Something went wrong. Please try again.");
+      setErrorMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setTimeout(() => {
         if (status !== "success") setStatus("idle");
@@ -69,7 +67,9 @@ export default function GetInvolvedPage() {
           <div className="text-center space-y-4">
             <h1 className="text-4xl font-extrabold tracking-tight">Get Involved with Edutindo</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              There are many ways to serve. Whether you&apos;d like to mentor, help with events, pray, or partner financially, we&apos;d love to hear from you.
+              There are different ways to support the vision. Whether you&apos;d like to help teaching, contribute to
+              our campaign and events, or partner financially, we&apos;d love to hear from you. Let us know how you
+              would like to contribute and we will reach you out.
             </p>
           </div>
 
@@ -87,25 +87,19 @@ export default function GetInvolvedPage() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label htmlFor="phone" className="text-sm font-medium">Phone / WhatsApp</label>
-                    <Input id="phone" name="phone" placeholder="+44 ..." />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="area" className="text-sm font-medium">I&apos;m interested in</label>
-                    <select
-                      id="area"
-                      name="area"
-                      defaultValue=""
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="" disabled>Choose an option</option>
-                      {AREAS.map((area) => (
-                        <option key={area} value={area}>{area}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="area" className="text-sm font-medium">I&apos;m interested in</label>
+                  <select
+                    id="area"
+                    name="area"
+                    defaultValue=""
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="" disabled>Choose an option</option>
+                    {AREAS.map((area) => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -151,7 +145,6 @@ export default function GetInvolvedPage() {
           </Card>
 
           <div className="text-center text-sm text-muted-foreground flex flex-wrap justify-center gap-4">
-            <span>📞 Phone / WhatsApp: +44 (example)</span>
             <span>✉️ Email: hello@edutindo.org</span>
           </div>
         </div>

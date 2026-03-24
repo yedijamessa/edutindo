@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Users, Globe, Award } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
@@ -42,7 +41,7 @@ const FOUNDERS: Founder[] = [
     ],
   },
   {
-    role: "Supervisor",
+    role: "Advisor",
     name: "A Martarina",
     imageSrc: "/founders/agustin.jpg",
     imageAlt: "A Martarina",
@@ -89,10 +88,8 @@ const FOUNDERS: Founder[] = [
 
 function FounderDetail({
   founder,
-  activeIndex,
 }: {
   founder: Founder;
-  activeIndex: number;
 }) {
   const { role, name, imageSrc, imageAlt, lines } = founder;
   return (
@@ -115,9 +112,6 @@ function FounderDetail({
             <div className="relative mt-6 text-center">
               <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">
                 {role}
-              </p>
-              <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
-                Member {activeIndex + 1} of {FOUNDERS.length}
               </p>
             </div>
           </div>
@@ -159,9 +153,6 @@ export default function AboutPage() {
             Leadership Team
           </p>
           <h2 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900">The Team Behind the Vision</h2>
-          <p className="mt-4 text-lg text-slate-600">
-            Meet the trustees and executives who steward the vision and values of Edukasi Terang Indonesia.
-          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 mb-12">
@@ -210,14 +201,6 @@ export default function AboutPage() {
                     </p>
                   </div>
 
-                  <span
-                    className={cn(
-                      "ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                      isActive ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-500"
-                    )}
-                  >
-                    {index + 1}
-                  </span>
                 </div>
               </button>
             );
@@ -225,7 +208,63 @@ export default function AboutPage() {
         </div>
 
         <div className="max-w-5xl mx-auto">
-          <FounderDetail founder={activeFounder} activeIndex={activeIndex} />
+          <FounderDetail founder={activeFounder} />
+        </div>
+      </Section>
+
+      <Section className="bg-white/90 dark:bg-slate-950 border-t border-slate-200/80 dark:border-slate-800">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-3xl">
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+              VALUES BEHIND THE LOGO
+            </h2>
+            <p className="mt-4 text-base md:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+              Every part of the Edutindo logo reflects the values we carry in our mission: breaking barriers,
+              building the future, and forming servant-hearted innovators rooted in Christian character.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border border-orange-200 bg-orange-50/70 dark:bg-orange-900/20">
+              <CardContent className="p-6">
+                <div className="h-2.5 w-16 rounded-full bg-orange-500 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Breaking Barriers</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  We step into difficult contexts so students in underserved regions can access meaningful education.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-cyan-200 bg-cyan-50/70 dark:bg-cyan-900/20">
+              <CardContent className="p-6">
+                <div className="h-2.5 w-16 rounded-full bg-cyan-500 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Building The Future</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  We prepare learners with STEAM thinking, practical skills, and integrity for long-term community impact.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-blue-200 bg-blue-50/70 dark:bg-blue-900/20">
+              <CardContent className="p-6">
+                <div className="h-2.5 w-16 rounded-full bg-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Christ-Centered Formation</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  Character formation and service-minded leadership remain central to how we teach and build partnerships.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-indigo-200 bg-indigo-50/70 dark:bg-indigo-900/20">
+              <CardContent className="p-6">
+                <div className="h-2.5 w-16 rounded-full bg-indigo-500 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Collaborative Impact</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  We work with teachers, families, and partners so transformation is shared, sustainable, and measurable.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </Section>
     </div>
