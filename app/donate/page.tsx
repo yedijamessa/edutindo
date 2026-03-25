@@ -271,10 +271,7 @@ export default function DonatePage() {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              We are aligning this list with our active school partners. Lab equipment, tablets/PCs, and other
-              priority tools will be added as needs are confirmed.
-            </p>
+      
 
             {loading ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -17,9 +17,70 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "webp", "heic", "heif"]);
 
+type SmtpCandidate = {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+};
+
 const getFileExtension = (fileName: string) => {
   const parts = fileName.toLowerCase().split(".");
   return parts.length > 1 ? parts[parts.length - 1] : "";
+};
+
+const parsePortList = (input: string) =>
+  Array.from(
+    new Set(
+      input
+        .split(",")
+        .map((segment) => Number(segment.trim()))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    )
+  );
+
+const buildSmtpCandidates = (): SmtpCandidate[] => {
+  const host =
+    process.env.AUTH_SMTP_HOST ||
+    process.env.MAILEROO_SMTP_HOST ||
+    process.env.SMTP_HOST;
+  const port = Number(
+    process.env.AUTH_SMTP_PORT ||
+      process.env.MAILEROO_SMTP_PORT ||
+      process.env.SMTP_PORT ||
+      587
+  );
+  const secureRaw = (process.env.AUTH_SMTP_SECURE || process.env.SMTP_SECURE || "auto").toLowerCase();
+  const user =
+    process.env.AUTH_SMTP_USER ||
+    process.env.MAILEROO_USER ||
+    process.env.SMTP_USER;
+  const pass =
+    process.env.AUTH_SMTP_PASS ||
+    process.env.MAILEROO_PASS ||
+    process.env.SMTP_PASS;
+  const from =
+    process.env.AUTH_SMTP_FROM ||
+    process.env.SMTP_FROM ||
+    (user ? `"Edutindo Website" <${user}>` : undefined);
+  const fallbackPortsRaw = process.env.AUTH_SMTP_FALLBACK_PORTS || "465,587,2525";
+
+  if (!host || !user || !pass || !from) return [];
+
+  const shouldAutoDetectTls = secureRaw !== "true" && secureRaw !== "false";
+  const secureValue = secureRaw === "true";
+  const ports = Array.from(new Set([port, ...parsePortList(fallbackPortsRaw)]));
+
+  return ports.map((candidatePort) => ({
+    host,
+    port: candidatePort,
+    secure: shouldAutoDetectTls ? candidatePort === 465 : secureValue,
+    user,
+    pass,
+    from,
+  }));
 };
 
 export async function POST(req: NextRequest) {
@@ -98,27 +159,40 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await receipt.arrayBuffer();
     const attachmentBuffer = Buffer.from(arrayBuffer);
+    const smtpCandidates = buildSmtpCandidates();
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    if (smtpCandidates.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Receipt upload email is not configured yet. Please send your receipt to our WhatsApp contact while we fix this.",
+        },
+        { status: 503 }
+      );
+    }
 
     const submittedAt = new Date().toISOString();
+    let lastMailError: unknown = null;
 
-    await transporter.sendMail({
-      from:
-        process.env.SMTP_FROM ||
-        `"Edutindo Website" <${process.env.SMTP_USER}>`,
-      to: RECEIPT_NOTIFICATION_RECIPIENTS,
-      replyTo: donorEmail || undefined,
-      subject: "New donation receipt uploaded",
-      text: `A new donation receipt has been uploaded from the website.
+    for (const smtp of smtpCandidates) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtp.host,
+          port: smtp.port,
+          secure: smtp.secure,
+          auth: {
+            user: smtp.user,
+            pass: smtp.pass,
+          },
+        });
+
+        await transporter.sendMail({
+          from: smtp.from,
+          to: RECEIPT_NOTIFICATION_RECIPIENTS,
+          replyTo: donorEmail || undefined,
+          subject: "New donation receipt uploaded",
+          text: `A new donation receipt has been uploaded from the website.
 
 Submitted at: ${submittedAt}
 Donor name: ${donorName || "Not provided"}
@@ -127,14 +201,29 @@ File name: ${receipt.name}
 File type: ${receipt.type || "Unknown"}
 File size: ${receipt.size} bytes
 `,
-      attachments: [
-        {
-          filename: receipt.name,
-          content: attachmentBuffer,
-          contentType: receipt.type || undefined,
-        },
-      ],
-    });
+          attachments: [
+            {
+              filename: receipt.name,
+              content: attachmentBuffer,
+              contentType: receipt.type || undefined,
+            },
+          ],
+        });
+
+        lastMailError = null;
+        break;
+      } catch (mailError) {
+        lastMailError = mailError;
+        console.error(
+          `Donation receipt SMTP attempt failed (${smtp.host}:${smtp.port}, secure=${smtp.secure}):`,
+          mailError
+        );
+      }
+    }
+
+    if (lastMailError) {
+      throw lastMailError;
+    }
 
     return NextResponse.json({
       ok: true,

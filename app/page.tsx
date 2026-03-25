@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, Lightbulb, Users, Globe, School, Plus } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,16 +19,6 @@ const HOMEPAGE_CAROUSEL_SLIDES = [
     src: "/homepage-carousel/2.jpg",
     alt: "Child-friendly school support in an Indonesian village",
     referenceUrl: "https://www.globalgiving.org/projects/child-friendly-school-in-indonesian-village",
-  },
-  {
-    src: "/homepage-carousel/3.png",
-    alt: "Village-led school development initiative in Indonesia",
-    referenceUrl: "https://gemari.id/gemari/2019/9/22/desa-membangun-sekolah-untuk-memenuhi-kebutuhan-pendidikan",
-  },
-  {
-    src: "/homepage-carousel/4.png",
-    alt: "Teaching support setting in Senggigi, Lombok",
-    referenceUrl: "https://www.volunteerhq.org/destinations/lombok/teaching-in-senggigii/",
   },
   {
     src: "/homepage-carousel/5.jpg",
@@ -250,69 +240,117 @@ export default function HomePage() {
               OUR BUILDING BLOCKS
             </h3>
 
-            <Card className="mt-8 border border-sky-200/70 bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-lg">
-              <CardContent className="p-6 md:p-8 text-center">
-                <p className="text-lg md:text-xl font-extrabold leading-tight tracking-wide">
-                  EDUTINDO CHRISTIAN STEAM SCHOOL
-                </p>
-              </CardContent>
-            </Card>
+            <div className="mt-7 grid gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_minmax(0,1fr)] lg:gap-5">
+              <p className="rounded-xl border border-sky-100 bg-white/90 px-4 py-2.5 text-center dark:border-sky-900/40 dark:bg-slate-900/70 lg:col-start-1">
+                <span className="mr-1 text-sky-700 dark:text-sky-300">1.</span>
+                <span className="font-extrabold text-slate-900 underline decoration-sky-400 underline-offset-4 dark:text-slate-100">
+                  Breaking Barriers
+                </span>{" "}
+                in Rural Education
+              </p>
+              <p className="rounded-xl border border-sky-100 bg-white/90 px-4 py-2.5 text-center dark:border-sky-900/40 dark:bg-slate-900/70 lg:col-start-3">
+                <span className="mr-1 text-sky-700 dark:text-sky-300">2.</span>
+                <span className="font-extrabold text-slate-900 underline decoration-sky-400 underline-offset-4 dark:text-slate-100">
+                  Building The Future
+                </span>{" "}
+                for The Next Generation
+              </p>
+            </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <Card className="border border-amber-200 bg-amber-50/80 dark:bg-amber-900/20">
-                <CardContent className="p-5 text-center">
-                  <Users className="mx-auto mb-3 h-6 w-6 text-amber-600" />
-                  <p className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                    <span className="block">Partnership</span>
-                    <span className="block">Model</span>
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border border-cyan-200 bg-cyan-50/80 dark:bg-cyan-900/20">
-                <CardContent className="p-5 text-center">
-                  <GraduationCap className="mx-auto mb-3 h-6 w-6 text-cyan-600" />
-                  <p className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                    <span className="block">Curriculum</span>
-                    <span className="block">4.0</span>
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border border-violet-200 bg-violet-50/80 dark:bg-violet-900/20">
-                <CardContent className="p-5 text-center">
-                  <Globe className="mx-auto mb-3 h-6 w-6 text-violet-600" />
-                  <p className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                    <span className="block">Real World</span>
-                    <span className="block">Experience</span>
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border border-emerald-200 bg-emerald-50/80 dark:bg-emerald-900/20">
-                <CardContent className="p-5 text-center">
-                  <Lightbulb className="mx-auto mb-3 h-6 w-6 text-emerald-600" />
-                  <p className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                    <span className="block">Empowering</span>
-                    <span className="block">Teachers</span>
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border border-rose-200 bg-rose-50/80 dark:bg-rose-900/20">
-                <CardContent className="p-5 text-center">
-                  <School className="mx-auto mb-3 h-6 w-6 text-rose-600" />
-                  <p className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                    <span className="block">Accessible</span>
-                    <span className="block">Resources</span>
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border border-indigo-200 bg-indigo-50/80 dark:bg-indigo-900/20">
-                <CardContent className="p-5 text-center">
-                  <Plus className="mx-auto mb-3 h-6 w-6 text-indigo-600" />
-                  <p className="text-lg font-bold leading-tight text-slate-900 dark:text-slate-100">
-                    <span className="block">Transformative</span>
-                    <span className="block">Character</span>
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="relative mt-8">
+              <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_minmax(0,1fr)] lg:grid-rows-3 lg:gap-5">
+                <Card className="border border-sky-200/80 bg-sky-50/80 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.85)] dark:border-sky-900/60 dark:bg-slate-900/80 lg:col-start-1 lg:row-start-1">
+                  <CardContent className="p-5 text-center">
+                    <p className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-slate-100">
+                      Partnership
+                      <br />
+                      Model
+                    </p>
+                    <p className="mt-3 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                      Build trust, grow local capacity, and collaborate with local communities.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border border-sky-200/80 bg-cyan-50/80 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.85)] dark:border-sky-900/60 dark:bg-slate-900/80 lg:col-start-3 lg:row-start-1">
+                  <CardContent className="p-5 text-center">
+                    <p className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-slate-100">
+                      Curriculum
+                      <br />
+                      4.0
+                    </p>
+                    <p className="mt-3 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                      National curriculum, international references, and practical STEAM projects.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border border-sky-200/80 bg-blue-50/80 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.85)] dark:border-sky-900/60 dark:bg-slate-900/80 lg:col-start-1 lg:row-start-2">
+                  <CardContent className="p-5 text-center">
+                    <p className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-slate-100">
+                      Empowering
+                      <br />
+                      Teachers
+                    </p>
+                    <p className="mt-3 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                      Technology support, skills training, and improved living standards for educators.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <div className="flex items-center justify-center sm:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2">
+                  <div className="flex h-44 w-44 items-center justify-center rounded-full border-[6px] border-white bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 text-center shadow-[0_20px_45px_-24px_rgba(2,132,199,0.9)] dark:border-slate-800">
+                    <p className="text-lg font-extrabold leading-tight tracking-wide text-white">
+                      EDUTINDO
+                      <br />
+                      CHRISTIAN
+                      <br />
+                      STEAM
+                      <br />
+                      SCHOOL
+                    </p>
+                  </div>
+                </div>
+
+                <Card className="border border-sky-200/80 bg-sky-50/80 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.85)] dark:border-sky-900/60 dark:bg-slate-900/80 lg:col-start-3 lg:row-start-2">
+                  <CardContent className="p-5 text-center">
+                    <p className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-slate-100">
+                      Real World
+                      <br />
+                      Experience
+                    </p>
+                    <p className="mt-3 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                      Relevant projects, experienced mentors, and career exploration exposure.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border border-sky-200/80 bg-cyan-50/80 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.85)] dark:border-sky-900/60 dark:bg-slate-900/80 lg:col-start-1 lg:row-start-3">
+                  <CardContent className="p-5 text-center">
+                    <p className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-slate-100">
+                      Accessible
+                      <br />
+                      Resources
+                    </p>
+                    <p className="mt-3 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                      Affordable fees, personalized modules, and hybrid learning infrastructure.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border border-sky-200/80 bg-blue-50/80 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.85)] dark:border-sky-900/60 dark:bg-slate-900/80 lg:col-start-3 lg:row-start-3">
+                  <CardContent className="p-5 text-center">
+                    <p className="text-3xl font-extrabold leading-tight text-slate-900 dark:text-slate-100">
+                      Transformative
+                      <br />
+                      Character
+                    </p>
+                    <p className="mt-3 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                      Encounter Christ, grow innovative leadership, and build an impact mindset.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </div>

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/components/ui/button";
 
@@ -215,93 +214,6 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      <Section className="bg-white/90 dark:bg-slate-950 border-t border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="max-w-3xl">
-            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              VALUES BEHIND THE LOGO
-            </h2>
-            <p className="mt-4 text-base md:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-              Every part of the Edutindo logo reflects the values we carry in our mission: breaking barriers,
-              building the future, and forming servant-hearted innovators rooted in Christian character.
-            </p>
-          </div>
-
-          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border border-orange-200 bg-orange-50/70 dark:bg-orange-900/20">
-              <CardContent className="p-6">
-                <div className="h-2.5 w-16 rounded-full bg-orange-500 mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Breaking Barriers</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  We step into difficult contexts so students in underserved regions can access meaningful education.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-cyan-200 bg-cyan-50/70 dark:bg-cyan-900/20">
-              <CardContent className="p-6">
-                <div className="h-2.5 w-16 rounded-full bg-cyan-500 mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Building The Future</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  We prepare learners with STEAM thinking, practical skills, and integrity for long-term community impact.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-blue-200 bg-blue-50/70 dark:bg-blue-900/20">
-              <CardContent className="p-6">
-                <div className="h-2.5 w-16 rounded-full bg-blue-500 mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Christ-Centered Formation</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  Character formation and service-minded leadership remain central to how we teach and build partnerships.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-indigo-200 bg-indigo-50/70 dark:bg-indigo-900/20">
-              <CardContent className="p-6">
-                <div className="h-2.5 w-16 rounded-full bg-indigo-500 mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Collaborative Impact</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  We work with teachers, families, and partners so transformation is shared, sustainable, and measurable.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </Section>
-
-      <Section className="bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto space-y-8">
-
-
-          <div className="flex justify-center">
-            <Image
-              src="/logo-edutindo.png"
-              alt="Edutindo lantern logo"
-              width={240}
-              height={360}
-              className="h-auto w-40 sm:w-48 md:w-56"
-            />
-          </div>
-
-          <div className="border-l-2 border-sky-300 pl-6 md:pl-7 space-y-4">
-            <p className="text-2xl leading-relaxed text-slate-700 dark:text-slate-200">
-              Transforming rural Indonesia by unlocking <span className="font-bold">STEAM</span> learning opportunities
-              through <span className="font-bold">SCHOOL</span> partnerships that empower teachers and families to raise
-              a skilled and impact-driven generation, rooted in <span className="font-bold">CHRISTIAN</span> values and
-              capable of driving{" "}
-              <span className="font-bold underline decoration-slate-500 underline-offset-4">INNOVATION</span> that
-              uplifts their local communities.
-            </p>
-            <p className="text-2xl leading-relaxed text-slate-700 dark:text-slate-200">
-              We are committed to rigorous <span className="font-bold">RESEARCH</span> and continuous{" "}
-              <span className="font-bold">REFINEMENT</span> to discover and implement the most effective interventions
-              for advancing science education delivery to the unreached.
-            </p>
-          </div>
-        </div>
-      </Section>
     </div>
   );
 }
