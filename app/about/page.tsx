@@ -11,6 +11,8 @@ type Founder = {
   name: string;
   imageSrc: string;
   imageAlt: string;
+  imagePosition?: string;
+  imageScale?: number;
   lines: string[];
 };
 
@@ -20,6 +22,7 @@ const FOUNDERS: Founder[] = [
     name: "U Siahaan",
     imageSrc: "/founders/ulbrits.jpeg",
     imageAlt: "U Siahaan",
+    imagePosition: "center 62%",
     lines: [
       "BSc in Computer Science, Bandung Institute of Technology + Bachelor in Theology, Doulos Theological Seminary Jakarta",
       "Non-denominational Evangelist",
@@ -32,6 +35,8 @@ const FOUNDERS: Founder[] = [
     name: "Dr Pramudianto",
     imageSrc: "/founders/pram.jpeg",
     imageAlt: "Dr Pramudianto",
+    imagePosition: "center -30%",
+    imageScale: 1.9,
     lines: [
       "PhD in Human Resources Management and Services, Satya Wacana Christian University",
       "Director of Professional Business Center FBE Atma Jaya University - Yogyakarta",
@@ -40,7 +45,7 @@ const FOUNDERS: Founder[] = [
     ],
   },
   {
-    role: "Supervisor - Chair",
+    role: "Supervisory - Chair",
     name: "A Martarina",
     imageSrc: "/founders/agustin.jpg",
     imageAlt: "A Martarina",
@@ -93,7 +98,7 @@ function FounderDetail({
 }: {
   founder: Founder;
 }) {
-  const { role, name, imageSrc, imageAlt, lines } = founder;
+  const { role, name, imageSrc, imageAlt, imagePosition, imageScale, lines } = founder;
   return (
     <Card className="overflow-hidden border border-sky-100/80 bg-white/90 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.45)] backdrop-blur-sm">
       <CardContent className="p-0">
@@ -108,6 +113,10 @@ function FounderDetail({
                 alt={imageAlt}
                 fill
                 className="object-cover"
+                style={{
+                  objectPosition: imagePosition ?? "center",
+                  transform: `scale(${imageScale ?? 1})`,
+                }}
               />
             </div>
 
@@ -185,7 +194,16 @@ export default function AboutPage() {
                       isActive ? "ring-sky-200" : "ring-white group-hover:ring-sky-100"
                     )}
                   >
-                    <Image src={f.imageSrc} alt={f.name} fill className="object-cover" />
+                    <Image
+                      src={f.imageSrc}
+                      alt={f.name}
+                      fill
+                      className="object-cover"
+                      style={{
+                        objectPosition: f.imagePosition ?? "center",
+                        transform: `scale(${f.imageScale ?? 1})`,
+                      }}
+                    />
                   </div>
 
                   <div className="min-w-0">
