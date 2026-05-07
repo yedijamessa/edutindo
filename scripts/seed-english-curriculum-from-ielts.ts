@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createRequire } from "module";
 import path from "path";
 import dotenv from "dotenv";
 import {
@@ -11,14 +12,6 @@ import {
 import { englishBlueprintByYear, type EnglishBlueprintChapter, type EnglishBlueprintLesson, type EnglishBlueprintSourceRef } from "@/lib/curriculum/english-ielts-blueprint";
 import { getModuleEditorDocument, saveModuleEditorDocument } from "@/lib/module-editor";
 import type { ModuleEditorBlock, ModuleEditorDocument, ModuleEditorPage, ModuleEditorQuizBlock } from "@/types/module-editor";
-import { grammarLessons } from "../../ielts-prep/app/lib/grammar-content";
-import { collocationLessons } from "../../ielts-prep/app/lib/collocation-content";
-import { phrasalVerbLessons } from "../../ielts-prep/app/lib/phrasal-verbs-content";
-import { idiomLessons } from "../../ielts-prep/app/lib/idioms-content";
-import { lessonContent } from "../../ielts-prep/app/lib/lesson-content";
-import { topics } from "../../ielts-prep/app/lib/vocabulary-data";
-import { WRITING_PROMPTS } from "../../ielts-prep/app/lib/writing-prompts";
-import { DEFAULT_TESTS } from "../../ielts-prep/app/lib/mock-tests";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
@@ -26,6 +19,168 @@ const ACTOR_USER_ID = "system-english-ielts-seed";
 const ENGLISH_SUBJECT_TITLE = "English";
 const ENGLISH_SUBJECT_SLUG = "english";
 const overwriteDocs = process.argv.includes("--overwrite-docs");
+const require = createRequire(import.meta.url);
+const missingIeltsPrepSources = new Set<string>();
+
+type ImportedQuizMcq = {
+  question: string;
+  options: string[];
+  answer: string;
+};
+
+type ImportedQuizFill = {
+  prompt: string;
+  answer: string;
+};
+
+type GrammarLesson = {
+  title: string;
+  keyPoints: string[];
+  examples: string[];
+  quiz: {
+    mcq: ImportedQuizMcq[];
+    fill: ImportedQuizFill[];
+  };
+};
+
+type CollocationLesson = {
+  collocations: Array<{
+    phrase: string;
+    meaning: string;
+    example: string;
+  }>;
+  quiz: {
+    mcq: ImportedQuizMcq[];
+    fill: ImportedQuizFill[];
+  };
+};
+
+type PhrasalVerbLesson = {
+  verbs: Array<{
+    verb: string;
+    meaning: string;
+    example: string;
+  }>;
+  quiz: {
+    mcq: ImportedQuizMcq[];
+    fill: ImportedQuizFill[];
+  };
+};
+
+type IdiomLesson = {
+  idioms: Array<{
+    idiom: string;
+    meaning: string;
+    example: string;
+  }>;
+  quiz: {
+    mcq: ImportedQuizMcq[];
+    fill: ImportedQuizFill[];
+  };
+};
+
+type VocabularyWord = {
+  id: string;
+  term: string;
+  partOfSpeech: string;
+  definition: string;
+  example: string;
+};
+
+type VocabularyTopic = {
+  title: string;
+  description: string;
+  levels: Array<{
+    title: string;
+    contentKey: string;
+  }>;
+};
+
+type WritingPrompt = {
+  id: string;
+  type: string;
+  title: string;
+  prompt: string;
+};
+
+type ReadingMockTest = {
+  module: "reading";
+  title: string;
+  content: {
+    passage?: string;
+    questions?: Array<{
+      text: string;
+      options: string[];
+      correct: number;
+    }>;
+  };
+};
+
+type WritingMockTest = {
+  module: "writing";
+  title: string;
+  content: {
+    taskType?: string;
+    prompt?: string;
+  };
+};
+
+type SpeakingMockTest = {
+  module: "speaking";
+  title: string;
+  content: {
+    part1?: string[];
+    part2?: {
+      cue?: string;
+      points?: string[];
+    };
+    part3?: string[];
+  };
+};
+
+type MockTest = ReadingMockTest | WritingMockTest | SpeakingMockTest;
+
+function loadOptionalIeltsPrepModule<T>(moduleId: string, fallback: T): T {
+  try {
+    return require(moduleId) as T;
+  } catch (error) {
+    const maybeNodeError = error as NodeJS.ErrnoException | undefined;
+    if (
+      maybeNodeError?.code === "MODULE_NOT_FOUND" ||
+      maybeNodeError?.code === "ERR_MODULE_NOT_FOUND"
+    ) {
+      missingIeltsPrepSources.add(moduleId);
+      return fallback;
+    }
+
+    throw error;
+  }
+}
+
+const { grammarLessons } = loadOptionalIeltsPrepModule<{
+  grammarLessons: Record<number, GrammarLesson | undefined>;
+}>("../../ielts-prep/app/lib/grammar-content", { grammarLessons: {} });
+const { collocationLessons } = loadOptionalIeltsPrepModule<{
+  collocationLessons: Record<number, CollocationLesson | undefined>;
+}>("../../ielts-prep/app/lib/collocation-content", { collocationLessons: {} });
+const { phrasalVerbLessons } = loadOptionalIeltsPrepModule<{
+  phrasalVerbLessons: Record<number, PhrasalVerbLesson | undefined>;
+}>("../../ielts-prep/app/lib/phrasal-verbs-content", { phrasalVerbLessons: {} });
+const { idiomLessons } = loadOptionalIeltsPrepModule<{
+  idiomLessons: Record<number, IdiomLesson | undefined>;
+}>("../../ielts-prep/app/lib/idioms-content", { idiomLessons: {} });
+const { lessonContent } = loadOptionalIeltsPrepModule<{
+  lessonContent: Record<string, VocabularyWord[] | undefined>;
+}>("../../ielts-prep/app/lib/lesson-content", { lessonContent: {} });
+const { topics } = loadOptionalIeltsPrepModule<{
+  topics: VocabularyTopic[];
+}>("../../ielts-prep/app/lib/vocabulary-data", { topics: [] });
+const { WRITING_PROMPTS } = loadOptionalIeltsPrepModule<{
+  WRITING_PROMPTS: WritingPrompt[];
+}>("../../ielts-prep/app/lib/writing-prompts", { WRITING_PROMPTS: [] });
+const { DEFAULT_TESTS } = loadOptionalIeltsPrepModule<{
+  DEFAULT_TESTS: MockTest[];
+}>("../../ielts-prep/app/lib/mock-tests", { DEFAULT_TESTS: [] });
 
 type VocabularyTopicMeta = {
   topicTitle: string;
@@ -171,7 +326,7 @@ function buildGrammarPages(ref: EnglishBlueprintSourceRef) {
     .filter((lesson): lesson is NonNullable<(typeof grammarLessons)[number]> => Boolean(lesson));
 
   if (lessons.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   const topicList = lessons.map((lesson) => lesson.title);
@@ -219,7 +374,7 @@ function buildGrammarPages(ref: EnglishBlueprintSourceRef) {
 function buildVocabularyPages(ref: EnglishBlueprintSourceRef) {
   const words = lessonContent[ref.ref] ?? [];
   if (words.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   const meta = vocabularyTopicByKey.get(ref.ref);
@@ -263,7 +418,7 @@ function buildCollocationPages(ref: EnglishBlueprintSourceRef) {
     .filter((lesson): lesson is NonNullable<(typeof collocationLessons)[number]> => Boolean(lesson));
 
   if (lessons.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   const collocations = lessons.flatMap((lesson) => lesson.collocations).slice(0, 12);
@@ -319,7 +474,7 @@ function buildPhrasalVerbPages(ref: EnglishBlueprintSourceRef) {
     .filter((lesson): lesson is NonNullable<(typeof phrasalVerbLessons)[number]> => Boolean(lesson));
 
   if (lessons.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   const verbs = lessons.flatMap((lesson) => lesson.verbs).slice(0, 12);
@@ -374,7 +529,7 @@ function buildIdiomPages(ref: EnglishBlueprintSourceRef) {
     .filter((lesson): lesson is NonNullable<(typeof idiomLessons)[number]> => Boolean(lesson));
 
   if (lessons.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   const idioms = lessons.flatMap((lesson) => lesson.idioms).slice(0, 12);
@@ -426,7 +581,7 @@ function buildIdiomPages(ref: EnglishBlueprintSourceRef) {
 function buildWritingPages(ref: EnglishBlueprintSourceRef) {
   const prompts = parseWritingIds(ref.ref);
   if (prompts.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   return [
@@ -466,7 +621,7 @@ function buildWritingPages(ref: EnglishBlueprintSourceRef) {
 function buildMockTestPages(ref: EnglishBlueprintSourceRef) {
   const matches = DEFAULT_TESTS.filter((test) => test.module === ref.ref);
   if (matches.length === 0) {
-    return [];
+    return buildGuidancePages(ref);
   }
 
   return matches.flatMap((test) => {
@@ -838,6 +993,12 @@ async function seedLessonDocuments() {
 async function main() {
   console.log("Seeding English curriculum from ielts-prep...");
   console.log(overwriteDocs ? "Existing lesson documents will be overwritten." : "Existing lesson documents will be preserved.");
+  if (missingIeltsPrepSources.size > 0) {
+    console.warn("Some optional ielts-prep source files were not found. Falling back to guidance-only lesson pages.");
+    for (const moduleId of missingIeltsPrepSources) {
+      console.warn(`- ${moduleId}`);
+    }
+  }
 
   await seedTree();
   await seedLessonDocuments();
