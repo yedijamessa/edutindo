@@ -299,23 +299,27 @@ export function ModuleLibraryClient({
             />
           </div>
 
-          <select
-            value={filterSubject}
-            onChange={(e) => setFilterSubject(e.target.value)}
-            className="rounded-[14px] border border-[#dce6ff] bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none"
-          >
-            <option value="all">All Subjects</option>
-            {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          {subjects.length > 0 && (
+            <select
+              value={filterSubject}
+              onChange={(e) => setFilterSubject(e.target.value)}
+              className="rounded-[14px] border border-[#dce6ff] bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none"
+            >
+              <option value="all">All Subjects</option>
+              {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
 
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(e.target.value)}
-            className="rounded-[14px] border border-[#dce6ff] bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none"
-          >
-            <option value="all">All Years</option>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          {years.length > 0 && (
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="rounded-[14px] border border-[#dce6ff] bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none"
+            >
+              <option value="all">All Years</option>
+              {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
 
           {(search || filterSubject !== "all" || filterYear !== "all") && (
             <button
