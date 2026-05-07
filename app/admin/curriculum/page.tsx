@@ -4,9 +4,9 @@ export const dynamic = "force-dynamic";
 
 export default function AdminCurriculumPage() {
   return (
-    <div className="h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <main className="h-full p-4 lg:p-6">
-        <div className="mx-auto h-full max-w-7xl">
+    <div className="bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_48%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#020617_100%)]">
+      <main className="mx-auto w-full max-w-[1180px] px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-16">
+        <div className="space-y-5">
           <CurriculumPortal />
         </div>
       </main>

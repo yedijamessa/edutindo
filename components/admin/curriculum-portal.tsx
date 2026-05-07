@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { FilePenLine, GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, ChevronRight, FilePenLine, GripVertical, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -96,6 +95,21 @@ const YEAR_OPTIONS = [
   { title: "Year 8", slug: "year-8" },
   { title: "Year 9", slug: "year-9" },
 ] as const;
+
+const surfaceCardClassName =
+  "rounded-[28px] border border-slate-200/80 bg-white/92 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.38)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none";
+const dashedSurfaceCardClassName =
+  "rounded-[28px] border border-dashed border-slate-300 bg-white/65 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.2)] dark:border-slate-700 dark:bg-slate-900/60 dark:shadow-none";
+const countBubbleClassName =
+  "inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#ff6b1a] px-2 text-[11px] font-semibold text-white shadow-[0_14px_30px_-20px_rgba(255,107,26,0.95)]";
+const fieldClassName =
+  "h-11 rounded-xl border-[#dde5f2] bg-white text-slate-700 shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#c9d9ff] focus-visible:ring-offset-0 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500";
+const compactFieldClassName =
+  "h-9 rounded-xl border-[#dde5f2] bg-white text-xs text-slate-700 shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#c9d9ff] focus-visible:ring-offset-0 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500";
+const primaryActionClassName =
+  "h-11 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.95)] hover:brightness-105";
+const secondaryPillButtonClassName =
+  "rounded-full border-[#d8dfea] bg-white text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900";
 
 function reorderIds(ids: string[], draggedId: string, targetId: string | null) {
   const next = ids.filter((id) => id !== draggedId);
@@ -312,13 +326,17 @@ function NodeColumn({
   const label = nodeLabelByType[nodeType];
 
   return (
-    <Card className="h-full border-slate-200">
-      <CardHeader className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <Badge variant="secondary">{nodes.length}</Badge>
+    <Card className={cn("h-full", surfaceCardClassName)}>
+      <CardHeader className="space-y-2 pb-4">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-[1.45rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+            {title}
+          </CardTitle>
+          <span className={countBubbleClassName}>{nodes.length}</span>
         </div>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
+          {description}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form
@@ -334,11 +352,12 @@ function NodeColumn({
             onChange={(event) => onDraftTitleChange(event.target.value)}
             placeholder={`Add ${label.toLowerCase()} title...`}
             disabled={disabled || busy}
+            className={fieldClassName}
           />
 
           {nodeType === "chapter" && (
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-              <span className="text-xs font-medium text-slate-600">Weeks</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Weeks</span>
               <Input
                 type="number"
                 min="0"
@@ -347,8 +366,9 @@ function NodeColumn({
                 onChange={(event) => onDraftWeekRangeStartChange(event.target.value)}
                 placeholder="2"
                 disabled={disabled || busy}
+                className={compactFieldClassName}
               />
-              <span className="text-xs font-medium text-slate-600">to</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">to</span>
               <Input
                 type="number"
                 min="0"
@@ -357,6 +377,7 @@ function NodeColumn({
                 onChange={(event) => onDraftWeekRangeEndChange(event.target.value)}
                 placeholder="4"
                 disabled={disabled || busy}
+                className={compactFieldClassName}
               />
             </div>
           )}
@@ -368,32 +389,35 @@ function NodeColumn({
                 onChange={(event) => onDraftWeekChange(event.target.value)}
                 placeholder="Week (example: 2)"
                 disabled={disabled || busy}
+                className={compactFieldClassName}
               />
               <Input
                 value={draftLessonCode}
                 onChange={(event) => onDraftLessonCodeChange(event.target.value)}
-                placeholder="Module code (example: 2.1)"
+                placeholder="Module code (example: SCI-BS-01)"
                 disabled={disabled || busy}
+                className={compactFieldClassName}
               />
             </div>
           )}
 
           <Button
             type="submit"
-            size="sm"
-            className="w-full"
+            className={cn("w-full text-sm font-medium", primaryActionClassName)}
             disabled={disabled || busy || draftTitle.trim().length === 0}
           >
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             Add {label}
           </Button>
-          {disabled && <p className="text-xs text-muted-foreground">{addDisabledReason}</p>}
+          {disabled && <p className="text-xs text-slate-400 dark:text-slate-500">{addDisabledReason}</p>}
         </form>
 
         <div
           className={cn(
-            "max-h-[48vh] overflow-y-auto space-y-2 rounded-xl border border-dashed p-2",
-            disabled ? "bg-slate-50" : "bg-white"
+            "max-h-[19rem] space-y-2 overflow-y-auto rounded-[22px] border border-dashed p-2.5",
+            disabled
+              ? "border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/80"
+              : "border-[#cfd9ea] bg-white/95 dark:border-slate-700 dark:bg-slate-950/60"
           )}
           onDragOver={(event) => {
             if (disabled || !canDropAtEnd(parentId)) return;
@@ -406,7 +430,7 @@ function NodeColumn({
           }}
         >
           {nodes.length === 0 ? (
-            <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-[18px] border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
               No {label.toLowerCase()} yet.
             </div>
           ) : (
@@ -436,8 +460,11 @@ function NodeColumn({
                     onDropOnNode(node, nodes);
                   }}
                   className={cn(
-                    "rounded-lg border bg-white px-3 py-2",
-                    isSelected ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200"
+                    "rounded-[18px] border bg-white px-3 py-3 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.3)] transition-colors dark:bg-slate-900",
+                    isSelected
+                      ? "border-blue-400 ring-2 ring-blue-100 dark:border-blue-500 dark:ring-blue-950"
+                      : "border-slate-200 dark:border-slate-800",
+                    canDropHere ? "hover:border-blue-300 dark:hover:border-blue-700" : ""
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -446,23 +473,25 @@ function NodeColumn({
                       onClick={() => onSelect(node.id)}
                       className="flex min-w-0 flex-1 items-start gap-2 text-left"
                     >
-                      <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                      <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-900">{node.title}</p>
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                          {node.title}
+                        </p>
                         {nodeType === "lesson" ? (
-                          <p className="text-xs text-slate-500">Module page</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Module page</p>
                         ) : nodeType === "school" ? (
-                          <p className="text-xs text-slate-500">School tag</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">School tag</p>
                         ) : (
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {node.children.length} {childHintByType[nodeType]}
                           </p>
                         )}
                         {nodeType === "chapter" && chapterWeekRange && (
-                          <p className="text-xs text-slate-500">{chapterWeekRange}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{chapterWeekRange}</p>
                         )}
                         {nodeType === "lesson" && (lessonCode || lessonWeek) && (
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {lessonCode || "Module"}
                             {lessonWeek ? ` · Week ${lessonWeek}` : ""}
                           </p>
@@ -472,11 +501,24 @@ function NodeColumn({
 
                     <div className="flex items-center gap-1">
                       {nodeType === "lesson" && lessonPreviewBasePath && (
-                        <Button type="button" variant="ghost" size="sm" asChild className="h-8 px-2 text-xs">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="h-8 rounded-full px-3 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
                           <Link href={`${lessonPreviewBasePath}/${node.slug}`}>Open</Link>
                         </Button>
                       )}
-                      <Button type="button" variant="ghost" size="icon" onClick={() => onRename(node)} disabled={busy}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onRename(node)}
+                        disabled={busy}
+                        className="h-8 w-8 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
@@ -485,7 +527,7 @@ function NodeColumn({
                         size="icon"
                         onClick={() => onDelete(node)}
                         disabled={busy}
-                        className="text-red-600 hover:text-red-700"
+                        className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -495,7 +537,7 @@ function NodeColumn({
                   {nodeType === "chapter" && onChapterWeekDraftChange && onSaveChapterWeek && (
                     <div className="mt-3 flex items-center gap-2">
                       <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                        <span className="text-[11px] font-medium text-slate-600">Weeks</span>
+                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Weeks</span>
                         <Input
                           type="number"
                           min="0"
@@ -509,9 +551,9 @@ function NodeColumn({
                           }}
                           placeholder="2"
                           disabled={busy || chapterWeekBusyId === node.id}
-                          className="h-8 text-xs"
+                          className={compactFieldClassName}
                         />
-                        <span className="text-[11px] font-medium text-slate-600">to</span>
+                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">to</span>
                         <Input
                           type="number"
                           min="0"
@@ -525,16 +567,15 @@ function NodeColumn({
                           }}
                           placeholder="4"
                           disabled={busy || chapterWeekBusyId === node.id}
-                          className="h-8 text-xs"
+                          className={compactFieldClassName}
                         />
                       </div>
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
                         onClick={() => onSaveChapterWeek(node)}
                         disabled={busy || chapterWeekBusyId === node.id}
-                        className="h-8 shrink-0 px-2 text-xs"
+                        className={cn("h-9 shrink-0 px-3 text-xs", secondaryPillButtonClassName)}
                       >
                         {chapterWeekBusyId === node.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -550,7 +591,9 @@ function NodeColumn({
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground">Drag and drop inside this column to change order.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          Drag and drop inside this column to change order.
+        </p>
       </CardContent>
     </Card>
   );
@@ -913,6 +956,7 @@ interface AssignmentTagEditorProps {
   schools: CurriculumNode[];
   busy: boolean;
   onToggle: (schoolSlug: string, yearSlug: string) => void;
+  action?: ReactNode;
 }
 
 function AssignmentTagEditor({
@@ -922,24 +966,39 @@ function AssignmentTagEditor({
   schools,
   busy,
   onToggle,
+  action,
 }: AssignmentTagEditorProps) {
   return (
-    <Card className="border-slate-200">
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+    <Card className={surfaceCardClassName}>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="text-[1.35rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+              {title}
+            </CardTitle>
+            <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
+              {description}
+            </CardDescription>
+          </div>
+          {action}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {schools.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-muted-foreground">
+          <div className="rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-400">
             Add at least one school first so you can tag where this content is used.
           </div>
         ) : (
           schools.map((school) => (
-            <div key={school.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <div
+              key={school.id}
+              className="space-y-3 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.28)] dark:border-slate-800 dark:bg-slate-950"
+            >
               <div>
-                <p className="font-medium text-slate-900">{school.title}</p>
-                <p className="text-xs text-slate-500">Choose which year groups use this content.</p>
+                <p className="font-semibold text-slate-900 dark:text-slate-50">{school.title}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Choose which year groups use this content.
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {YEAR_OPTIONS.map((year) => {
@@ -952,6 +1011,12 @@ function AssignmentTagEditor({
                       variant={active ? "default" : "outline"}
                       disabled={busy}
                       onClick={() => onToggle(school.slug, year.slug)}
+                      className={cn(
+                        "h-9 px-4 text-xs font-semibold",
+                        active
+                          ? "bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white shadow-[0_16px_34px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
+                          : secondaryPillButtonClassName
+                      )}
                     >
                       {year.title}
                     </Button>
@@ -961,6 +1026,16 @@ function AssignmentTagEditor({
             </div>
           ))
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptySelectionCard({ children }: { children: ReactNode }) {
+  return (
+    <Card className={dashedSurfaceCardClassName}>
+      <CardContent className="p-5 text-sm leading-6 text-slate-500 dark:text-slate-400">
+        {children}
       </CardContent>
     </Card>
   );
@@ -1552,122 +1627,199 @@ export function CurriculumPortal() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-hidden">
-      <Card className="shrink-0">
-        <CardHeader className="rounded-t-[inherit] bg-[#fdf5e3]">
-          <CardTitle className="text-2xl">Curriculum Portal</CardTitle>
-          <CardDescription>
-            Build a global library in the order Subject, Chapter, Module. Schools and years are tagging rules,
-            not the primary hierarchy.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+    <div className="space-y-5">
+      <section className="rounded-[30px] border border-[#93a4bd] bg-[linear-gradient(180deg,rgba(255,248,233,0.98)_0%,rgba(255,252,245,0.98)_100%)] p-5 shadow-[0_28px_80px_-60px_rgba(15,23,42,0.42)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(15,23,42,0.9)_100%)] sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="relative flex h-[102px] w-[102px] shrink-0 items-center justify-center rounded-full border border-[#f2bf73] bg-white/80 shadow-[0_24px_55px_-42px_rgba(245,158,11,0.9)] dark:border-amber-700/60 dark:bg-slate-900/90">
+            <Sparkles className="absolute left-7 top-5 h-4 w-4 text-[#1d4ed8]" />
+            <Sparkles className="absolute right-7 top-8 h-3.5 w-3.5 text-[#fb923c]" />
+            <BookOpen className="h-12 w-12 text-[#153e7d] dark:text-blue-200" strokeWidth={1.9} />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[2.35rem]">
+              Curriculum Portal
+            </h1>
+            <p className="max-w-3xl text-[15px] leading-7 text-slate-500 dark:text-slate-300">
+              Build a global library in the order Subject, Chapter, Module. Schools and years are tagging
+              rules, not the primary hierarchy.
+            </p>
+          </div>
+        </div>
+      </section>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
+      {error && (
+        <div className="rounded-[22px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          {message}
+        </div>
+      )}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading curriculum...
-        </div>
+        <Card className={surfaceCardClassName}>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-slate-500 dark:text-slate-300">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading curriculum...
+          </CardContent>
+        </Card>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-          <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-              <NodeColumn
-                title="Manage Schools"
-                description="Schools are usage tags. Add schools here, then assign content to year groups below."
-                nodeType="school"
-                parentId={null}
-                nodes={schools}
-                selectedId={selectedSchoolId}
-                disabled={false}
-                addDisabledReason=""
-                draftTitle={drafts.school}
-                draftWeekRangeStart=""
-                draftWeekRangeEnd=""
-                draftWeek=""
-                draftLessonCode=""
-                busy={busy}
-                onDraftTitleChange={(value) => setDraft("school", value)}
-                onDraftWeekRangeStartChange={() => undefined}
-                onDraftWeekRangeEndChange={() => undefined}
-                onDraftWeekChange={() => undefined}
-                onDraftLessonCodeChange={() => undefined}
-                onSelect={setSelectedSchoolId}
-                onCreate={() => createNode("school", null)}
-                onRename={renameNode}
-                onDelete={deleteNode}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                canDropOnNode={canDropOnNode}
-                canDropAtEnd={canDropAtEnd}
-                onDropOnNode={dropOnNode}
-                onDropAtEnd={dropAtEnd}
-              />
+        <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-[1.02fr_1fr]">
+            <NodeColumn
+              title="Manage Schools"
+              description="Schools are usage tags. Add schools here, then assign content to year groups below."
+              nodeType="school"
+              parentId={null}
+              nodes={schools}
+              selectedId={selectedSchoolId}
+              disabled={false}
+              addDisabledReason=""
+              draftTitle={drafts.school}
+              draftWeekRangeStart=""
+              draftWeekRangeEnd=""
+              draftWeek=""
+              draftLessonCode=""
+              busy={busy}
+              onDraftTitleChange={(value) => setDraft("school", value)}
+              onDraftWeekRangeStartChange={() => undefined}
+              onDraftWeekRangeEndChange={() => undefined}
+              onDraftWeekChange={() => undefined}
+              onDraftLessonCodeChange={() => undefined}
+              onSelect={setSelectedSchoolId}
+              onCreate={() => createNode("school", null)}
+              onRename={renameNode}
+              onDelete={deleteNode}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              canDropOnNode={canDropOnNode}
+              canDropAtEnd={canDropAtEnd}
+              onDropOnNode={dropOnNode}
+              onDropAtEnd={dropAtEnd}
+            />
 
-              <Card className="border-slate-200">
-                <CardHeader>
-                  <CardTitle className="text-base">How This Builder Works</CardTitle>
-                  <CardDescription>
-                    Create reusable modules first, group them into chapters, then place chapters under a subject.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{selectedSchool?.title ?? "No school selected"}</Badge>
-                    <Badge variant="secondary">{selectedSubject?.title ?? "No subject selected"}</Badge>
-                    <Badge variant="secondary">{selectedChapter?.title ?? "No chapter selected"}</Badge>
-                    <Badge variant="secondary">{selectedModule?.title ?? "No module selected"}</Badge>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-medium text-slate-900">Available year tags</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {YEAR_OPTIONS.map((year) => (
-                        <Badge key={year.slug} variant="outline">
-                          {year.title}
-                        </Badge>
-                      ))}
+            <Card className={surfaceCardClassName}>
+              <CardHeader className="space-y-2 pb-4">
+                <CardTitle className="text-[1.45rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                  How This Builder Works
+                </CardTitle>
+                <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
+                  Create reusable modules first, group them into chapters, then place chapters under a subject.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { label: selectedSchool?.title ?? "Select school", active: Boolean(selectedSchool) },
+                    { label: selectedSubject?.title ?? "Select subject", active: Boolean(selectedSubject) },
+                    { label: selectedChapter?.title ?? "Select chapter", active: Boolean(selectedChapter) },
+                    { label: selectedModule?.title ?? "Select module", active: Boolean(selectedModule) },
+                  ].map((item, index, items) => (
+                    <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold",
+                          item.active
+                            ? "bg-[#ff6b1a] text-white shadow-[0_14px_30px_-20px_rgba(255,107,26,0.95)]"
+                            : "border border-[#d8dfea] bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                        )}
+                      >
+                        {item.label}
+                      </span>
+                      {index < items.length - 1 && (
+                        <ChevronRight className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                      )}
                     </div>
-                  </div>
+                  ))}
+                </div>
 
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                    Module tags override chapter tags. Use chapter tags when the whole chapter belongs to a year,
-                    and module tags when a chapter is split across years.
+                <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">Available year tags</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {YEAR_OPTIONS.map((year) => (
+                      <span
+                        key={year.slug}
+                        className="inline-flex h-9 items-center rounded-full border border-[#d8dfea] bg-white px-4 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      >
+                        {year.title}
+                      </span>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
 
-            <div className="grid gap-4 xl:grid-cols-3">
+                <div className="rounded-[22px] border border-dashed border-[#cfd9ea] bg-slate-50/80 p-4 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-400">
+                  Module tags override chapter tags. Use chapter tags when the whole chapter belongs to a year,
+                  and module tags when a chapter is split across years.
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-3">
+            <NodeColumn
+              title="Manage Subjects"
+              description="Global subjects shared across schools and years."
+              nodeType="subject"
+              parentId={null}
+              nodes={subjects}
+              selectedId={selectedSubjectId}
+              disabled={false}
+              addDisabledReason=""
+              draftTitle={drafts.subject}
+              draftWeekRangeStart=""
+              draftWeekRangeEnd=""
+              draftWeek=""
+              draftLessonCode=""
+              busy={busy}
+              onDraftTitleChange={(value) => setDraft("subject", value)}
+              onDraftWeekRangeStartChange={() => undefined}
+              onDraftWeekRangeEndChange={() => undefined}
+              onDraftWeekChange={() => undefined}
+              onDraftLessonCodeChange={() => undefined}
+              onSelect={(nodeId) => {
+                setSelectedSubjectId(nodeId);
+                setSelectedChapterId(null);
+                setSelectedModuleId(null);
+              }}
+              onCreate={() => createNode("subject", null)}
+              onRename={renameNode}
+              onDelete={deleteNode}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              canDropOnNode={canDropOnNode}
+              canDropAtEnd={canDropAtEnd}
+              onDropOnNode={dropOnNode}
+              onDropAtEnd={dropAtEnd}
+            />
+
+            {selectedSubject ? (
               <NodeColumn
-                title="Manage Subjects"
-                description="Global subjects shared across schools and years."
-                nodeType="subject"
-                parentId={null}
-                nodes={subjects}
-                selectedId={selectedSubjectId}
+                title="Manage Chapters"
+                description={`Inside subject: ${selectedSubject.title}. Add chapters and organise reusable module groups.`}
+                nodeType="chapter"
+                parentId={selectedSubject.id}
+                nodes={chapters}
+                selectedId={selectedChapterId}
                 disabled={false}
                 addDisabledReason=""
-                draftTitle={drafts.subject}
-                draftWeekRangeStart=""
-                draftWeekRangeEnd=""
+                draftTitle={drafts.chapter}
+                draftWeekRangeStart={chapterWeekStartDraft}
+                draftWeekRangeEnd={chapterWeekEndDraft}
                 draftWeek=""
                 draftLessonCode=""
                 busy={busy}
-                onDraftTitleChange={(value) => setDraft("subject", value)}
-                onDraftWeekRangeStartChange={() => undefined}
-                onDraftWeekRangeEndChange={() => undefined}
+                onDraftTitleChange={(value) => setDraft("chapter", value)}
+                onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
+                onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
                 onDraftWeekChange={() => undefined}
                 onDraftLessonCodeChange={() => undefined}
                 onSelect={(nodeId) => {
-                  setSelectedSubjectId(nodeId);
-                  setSelectedChapterId(null);
+                  setSelectedChapterId(nodeId);
                   setSelectedModuleId(null);
                 }}
-                onCreate={() => createNode("subject", null)}
+                onCreate={() => createNode("chapter", selectedSubject.id)}
                 onRename={renameNode}
                 onDelete={deleteNode}
                 onDragStart={handleDragStart}
@@ -1676,252 +1828,219 @@ export function CurriculumPortal() {
                 canDropAtEnd={canDropAtEnd}
                 onDropOnNode={dropOnNode}
                 onDropAtEnd={dropAtEnd}
+                chapterWeekDrafts={chapterWeekDrafts}
+                chapterWeekBusyId={chapterWeekBusyId}
+                onChapterWeekDraftChange={updateChapterWeekDraft}
+                onSaveChapterWeek={saveChapterWeek}
               />
+            ) : (
+              <EmptySelectionCard>Select or add a subject to manage its chapters.</EmptySelectionCard>
+            )}
 
-              {selectedSubject ? (
-                <NodeColumn
-                  title="Manage Chapters"
-                  description={`Inside subject: ${selectedSubject.title}. Add chapters and organise reusable module groups.`}
-                  nodeType="chapter"
-                  parentId={selectedSubject.id}
-                  nodes={chapters}
-                  selectedId={selectedChapterId}
-                  disabled={false}
-                  addDisabledReason=""
-                  draftTitle={drafts.chapter}
-                  draftWeekRangeStart={chapterWeekStartDraft}
-                  draftWeekRangeEnd={chapterWeekEndDraft}
-                  draftWeek=""
-                  draftLessonCode=""
-                  busy={busy}
-                  onDraftTitleChange={(value) => setDraft("chapter", value)}
-                  onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
-                  onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
-                  onDraftWeekChange={() => undefined}
-                  onDraftLessonCodeChange={() => undefined}
-                  onSelect={(nodeId) => {
-                    setSelectedChapterId(nodeId);
-                    setSelectedModuleId(null);
-                  }}
-                  onCreate={() => createNode("chapter", selectedSubject.id)}
-                  onRename={renameNode}
-                  onDelete={deleteNode}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  canDropOnNode={canDropOnNode}
-                  canDropAtEnd={canDropAtEnd}
-                  onDropOnNode={dropOnNode}
-                  onDropAtEnd={dropAtEnd}
-                  chapterWeekDrafts={chapterWeekDrafts}
-                  chapterWeekBusyId={chapterWeekBusyId}
-                  onChapterWeekDraftChange={updateChapterWeekDraft}
-                  onSaveChapterWeek={saveChapterWeek}
-                />
-              ) : (
-                <Card className="border-dashed border-slate-300 bg-slate-50">
-                  <CardContent className="p-4 text-sm text-muted-foreground">
-                    Select or add a subject to manage its chapters.
-                  </CardContent>
-                </Card>
-              )}
+            {selectedChapter ? (
+              <NodeColumn
+                title="Manage Modules"
+                description={`Inside chapter: ${selectedChapter.title}. Build the reusable modules here.`}
+                nodeType="lesson"
+                parentId={selectedChapter.id}
+                nodes={lessons}
+                selectedId={selectedModuleId}
+                disabled={false}
+                addDisabledReason=""
+                draftTitle={drafts.lesson}
+                draftWeekRangeStart=""
+                draftWeekRangeEnd=""
+                draftWeek={lessonWeekDraft}
+                draftLessonCode={lessonCodeDraft}
+                busy={busy}
+                onDraftTitleChange={(value) => setDraft("lesson", value)}
+                onDraftWeekRangeStartChange={() => undefined}
+                onDraftWeekRangeEndChange={() => undefined}
+                onDraftWeekChange={setLessonWeekDraft}
+                onDraftLessonCodeChange={setLessonCodeDraft}
+                onSelect={setSelectedModuleId}
+                onCreate={() => createNode("lesson", selectedChapter.id)}
+                onRename={renameNode}
+                onDelete={deleteNode}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                canDropOnNode={canDropOnNode}
+                canDropAtEnd={canDropAtEnd}
+                onDropOnNode={dropOnNode}
+                onDropAtEnd={dropAtEnd}
+                lessonPreviewBasePath={null}
+              />
+            ) : (
+              <EmptySelectionCard>Select or add a chapter to manage its modules.</EmptySelectionCard>
+            )}
+          </div>
 
-              {selectedChapter ? (
-                <NodeColumn
-                  title="Manage Modules"
-                  description={`Inside chapter: ${selectedChapter.title}. Build the reusable modules here.`}
-                  nodeType="lesson"
-                  parentId={selectedChapter.id}
-                  nodes={lessons}
-                  selectedId={selectedModuleId}
-                  disabled={false}
-                  addDisabledReason=""
-                  draftTitle={drafts.lesson}
-                  draftWeekRangeStart=""
-                  draftWeekRangeEnd=""
-                  draftWeek={lessonWeekDraft}
-                  draftLessonCode={lessonCodeDraft}
-                  busy={busy}
-                  onDraftTitleChange={(value) => setDraft("lesson", value)}
-                  onDraftWeekRangeStartChange={() => undefined}
-                  onDraftWeekRangeEndChange={() => undefined}
-                  onDraftWeekChange={setLessonWeekDraft}
-                  onDraftLessonCodeChange={setLessonCodeDraft}
-                  onSelect={setSelectedModuleId}
-                  onCreate={() => createNode("lesson", selectedChapter.id)}
-                  onRename={renameNode}
-                  onDelete={deleteNode}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  canDropOnNode={canDropOnNode}
-                  canDropAtEnd={canDropAtEnd}
-                  onDropOnNode={dropOnNode}
-                  onDropAtEnd={dropAtEnd}
-                  lessonPreviewBasePath={null}
-                />
-              ) : (
-                <Card className="border-dashed border-slate-300 bg-slate-50">
-                  <CardContent className="p-4 text-sm text-muted-foreground">
-                    Select or add a chapter to manage its modules.
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              {selectedChapter ? (
-                <Card className="border-slate-200">
-                  <CardHeader>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-base">Chapter Settings</CardTitle>
-                        <CardDescription>
-                          Set chapter-wide defaults like assessments and year tags. Module tags can override these.
-                        </CardDescription>
-                      </div>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedChapter.id)}`}>
-                          <FilePenLine className="mr-2 h-4 w-4" />
-                          Open Chapter Editor
-                        </Link>
-                      </Button>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {selectedChapter ? (
+              <Card className={surfaceCardClassName}>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <CardTitle className="text-[1.35rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                        Chapter Settings
+                      </CardTitle>
+                      <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
+                        Set chapter-wide defaults like assessments and year tags. Module tags can override
+                        these.
+                      </CardDescription>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {selectedAssessmentDraft && (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {([
-                          {
-                            type: "pre" as AssessmentType,
-                            title: "Pre-test",
-                            helper: "Shown when students start this chapter.",
-                            enabled: selectedAssessmentDraft.preTestEnabled,
-                            quizId: selectedAssessmentDraft.preTestQuizId,
-                          },
-                          {
-                            type: "post" as AssessmentType,
-                            title: "Post-test",
-                            helper: "Shown after students finish the final lesson.",
-                            enabled: selectedAssessmentDraft.postTestEnabled,
-                            quizId: selectedAssessmentDraft.postTestQuizId,
-                          },
-                        ] as const).map((assessment) => (
-                          <div key={assessment.type} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-900">{assessment.title}</p>
-                                <p className="text-xs text-slate-500">{assessment.helper}</p>
-                              </div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={assessment.enabled ? "default" : "outline"}
-                                disabled={busy || assessmentBusyId === selectedChapter.id}
-                                onClick={() =>
-                                  applyAssessmentUpdate(selectedChapter, {
-                                    ...(assessment.type === "pre"
-                                      ? { preTestEnabled: !assessment.enabled }
-                                      : { postTestEnabled: !assessment.enabled }),
-                                  })
-                                }
-                              >
-                                {assessment.enabled ? "Enabled" : "Disabled"}
-                              </Button>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-xs font-medium text-slate-600">Linked quiz</label>
-                              <select
-                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50"
-                                value={assessment.quizId}
-                                disabled={busy || assessmentBusyId === selectedChapter.id || quizzesLoading}
-                                onChange={(event) => {
-                                  const nextId = event.target.value;
-                                  applyAssessmentUpdate(selectedChapter, {
-                                    ...(assessment.type === "pre"
-                                      ? { preTestQuizId: nextId }
-                                      : { postTestQuizId: nextId }),
-                                  });
-                                }}
-                              >
-                                <option value="">Select a quiz...</option>
-                                {sortedQuizzes.map((quiz) => (
-                                  <option key={quiz.id} value={quiz.id}>
-                                    {quiz.title}
-                                  </option>
-                                ))}
-                              </select>
-                              {assessment.enabled && !assessment.quizId && (
-                                <p className="text-[11px] text-amber-600">
-                                  Link a quiz so this assessment appears for students.
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={busy || assessmentBusyId === selectedChapter.id}
-                                onClick={() => openAssessmentDialog(selectedChapter, assessment.type)}
-                              >
-                                Create {assessment.title}
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <AssignmentTagEditor
-                      title="Chapter Year Tags"
-                      description="Use these when the whole chapter is assigned to a year. Modules can still override this."
-                      tags={selectedChapterTags}
-                      schools={schools}
-                      busy={busy}
-                      onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedChapter, schoolSlug, yearSlug)}
-                    />
-
-                    {quizzesLoading && <p className="text-xs text-muted-foreground">Loading quizzes...</p>}
-                    {quizError && <p className="text-xs text-red-600">{quizError}</p>}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-dashed border-slate-300 bg-slate-50">
-                  <CardContent className="p-4 text-sm text-muted-foreground">
-                    Select a chapter to manage assessments and chapter-level year tags.
-                  </CardContent>
-                </Card>
-              )}
-
-              {selectedModule ? (
-                <div className="space-y-3">
-                  <div className="flex justify-end">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedModule.id)}`}>
+                    <Button asChild variant="outline" className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}>
+                      <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedChapter.id)}`}>
                         <FilePenLine className="mr-2 h-4 w-4" />
-                        Open Module Editor
+                        Open Chapter Editor
                       </Link>
                     </Button>
                   </div>
-                  <AssignmentTagEditor
-                    title="Module Year Tags"
-                    description="Tag this module to specific schools and years. These tags override chapter defaults."
-                    tags={selectedModuleTags}
-                    schools={schools}
-                    busy={busy}
-                    onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
-                  />
-                </div>
-              ) : (
-                <Card className="border-dashed border-slate-300 bg-slate-50">
-                  <CardContent className="p-4 text-sm text-muted-foreground">
-                    Select a module to control year-level placement across schools.
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedAssessmentDraft && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {([
+                        {
+                          type: "pre" as AssessmentType,
+                          title: "Pre-test",
+                          helper: "Shown when students start this chapter.",
+                          enabled: selectedAssessmentDraft.preTestEnabled,
+                          quizId: selectedAssessmentDraft.preTestQuizId,
+                        },
+                        {
+                          type: "post" as AssessmentType,
+                          title: "Post-test",
+                          helper: "Shown after students finish the final lesson.",
+                          enabled: selectedAssessmentDraft.postTestEnabled,
+                          quizId: selectedAssessmentDraft.postTestQuizId,
+                        },
+                      ] as const).map((assessment) => (
+                        <div
+                          key={assessment.type}
+                          className="space-y-3 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.28)] dark:border-slate-800 dark:bg-slate-950"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {assessment.title}
+                              </p>
+                              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                {assessment.helper}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={assessment.enabled ? "default" : "outline"}
+                              disabled={busy || assessmentBusyId === selectedChapter.id}
+                              className={cn(
+                                "h-8 px-3 text-xs font-semibold",
+                                assessment.enabled
+                                  ? "bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white shadow-[0_16px_34px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
+                                  : secondaryPillButtonClassName
+                              )}
+                              onClick={() =>
+                                applyAssessmentUpdate(selectedChapter, {
+                                  ...(assessment.type === "pre"
+                                    ? { preTestEnabled: !assessment.enabled }
+                                    : { postTestEnabled: !assessment.enabled }),
+                                })
+                              }
+                            >
+                              {assessment.enabled ? "Enabled" : "Disabled"}
+                            </Button>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                              Linked quiz
+                            </label>
+                            <select
+                              className="h-10 w-full rounded-xl border border-[#dde5f2] bg-white px-3 text-sm text-slate-700 shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] focus:outline-none focus:ring-2 focus:ring-[#c9d9ff] disabled:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-900"
+                              value={assessment.quizId}
+                              disabled={busy || assessmentBusyId === selectedChapter.id || quizzesLoading}
+                              onChange={(event) => {
+                                const nextId = event.target.value;
+                                applyAssessmentUpdate(selectedChapter, {
+                                  ...(assessment.type === "pre"
+                                    ? { preTestQuizId: nextId }
+                                    : { postTestQuizId: nextId }),
+                                });
+                              }}
+                            >
+                              <option value="">Select a quiz...</option>
+                              {sortedQuizzes.map((quiz) => (
+                                <option key={quiz.id} value={quiz.id}>
+                                  {quiz.title}
+                                </option>
+                              ))}
+                            </select>
+                            {assessment.enabled && !assessment.quizId && (
+                              <p className="text-[11px] text-amber-600 dark:text-amber-300">
+                                Link a quiz so this assessment appears for students.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={busy || assessmentBusyId === selectedChapter.id}
+                              className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}
+                              onClick={() => openAssessmentDialog(selectedChapter, assessment.type)}
+                            >
+                              Create {assessment.title}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {quizzesLoading && <p className="text-xs text-slate-400 dark:text-slate-500">Loading quizzes...</p>}
+                  {quizError && <p className="text-xs text-red-600 dark:text-red-300">{quizError}</p>}
+                </CardContent>
+              </Card>
+            ) : (
+              <EmptySelectionCard>Select a chapter to manage assessments and chapter-wide settings.</EmptySelectionCard>
+            )}
+
+            {selectedModule ? (
+              <AssignmentTagEditor
+                title="Module Year Tags"
+                description="Tag modules to specific schools and years. These tags override chapter defaults."
+                tags={selectedModuleTags}
+                schools={schools}
+                busy={busy}
+                action={
+                  <Button asChild variant="outline" className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}>
+                    <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedModule.id)}`}>
+                      <FilePenLine className="mr-2 h-4 w-4" />
+                      Open Module Editor
+                    </Link>
+                  </Button>
+                }
+                onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
+              />
+            ) : (
+              <EmptySelectionCard>Select a module to control year-level placement across schools.</EmptySelectionCard>
+            )}
           </div>
+
+          {selectedChapter ? (
+            <AssignmentTagEditor
+              title="Chapter Year Tags"
+              description="Use these when the whole chapter is assigned to a year. Modules can still override this."
+              tags={selectedChapterTags}
+              schools={schools}
+              busy={busy}
+              onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedChapter, schoolSlug, yearSlug)}
+            />
+          ) : (
+            <EmptySelectionCard>Select a chapter to assign school and year tags across the full chapter.</EmptySelectionCard>
+          )}
         </div>
       )}
 

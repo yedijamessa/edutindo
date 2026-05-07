@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Microscope, PencilLine, Sparkles } from "lucide-react";
 import { LessonExportButton } from "@/components/lms/lesson-export-button";
 import { IntroductionToCellsFunnel } from "@/components/lms/lessons/introduction-to-cells-funnel";
+import { ModuleDocumentView } from "@/components/lms/module-document-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
+import { getModuleEditorDocument } from "@/lib/module-editor";
 
 type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
 
@@ -44,7 +46,8 @@ export async function CurriculumLessonPage({
   const chapterPath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}`;
   const materialsPath = `/${role}/materials`;
   const lessonContent = getCurriculumLessonContent(subject.slug, lesson.slug);
-  const isIntroCellsLesson = lessonContent.interactiveExperience;
+  const moduleDocument = await getModuleEditorDocument(lesson.id);
+  const isIntroCellsLesson = lessonContent.interactiveExperience && !moduleDocument;
   const postTestAvailable =
     role === "student" && !nextLesson && Boolean(chapter.postTestEnabled) && Boolean(chapter.postTestQuizId);
 
@@ -102,6 +105,8 @@ export async function CurriculumLessonPage({
 
           {isIntroCellsLesson ? (
             <IntroductionToCellsFunnel />
+          ) : moduleDocument ? (
+            <ModuleDocumentView document={moduleDocument} showAnswers={role !== "student"} />
           ) : (
             <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
               <Card>

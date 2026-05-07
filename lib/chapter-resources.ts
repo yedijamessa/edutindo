@@ -1,4 +1,4 @@
-import "server-only";
+import "@/lib/server-only";
 
 import { sqlQuery as sql } from "@/lib/postgres-query";
 

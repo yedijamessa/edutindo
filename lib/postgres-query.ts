@@ -1,4 +1,4 @@
-import "server-only";
+import "@/lib/server-only";
 
 import { type QueryResult, type QueryResultRow, sql as pooledSql } from "@vercel/postgres";
 

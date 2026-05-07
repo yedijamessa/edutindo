@@ -1,4 +1,4 @@
-import "server-only";
+import "@/lib/server-only";
 
 import { randomUUID } from "crypto";
 import {
@@ -481,6 +481,10 @@ export async function getModuleEditorDocument(nodeId: string): Promise<ModuleEdi
   `;
 
   const row = result.rows[0];
+  if (!row) {
+    return null;
+  }
+
   const pages = normalizePages(row?.pages, target.title);
 
   return {
