@@ -160,8 +160,17 @@ function NewModuleDialog({
               </div>
             ))
           )}
+          {/* Note pointing to curriculum portal for new lessons */}
+          <div className="mt-4 border-t border-[#f0f4fb] pt-4 text-center">
+            <p className="text-xs text-slate-500">
+              Can&apos;t find the lesson you need? You can create new lessons in the{" "}
+              <Link href="/admin/curriculum" className="font-semibold text-[#2f6fff] hover:underline" onClick={onClose}>
+                Curriculum Portal
+              </Link>
+              .
+            </p>
+          </div>
         </div>
-
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-[#f0f4fb] px-6 py-4">
           <button
