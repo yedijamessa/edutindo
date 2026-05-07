@@ -968,10 +968,7 @@ function AdminMaterialsExperience({
                             {chapter.title}
                           </h3>
                           <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
-                            {chapter.weekRange || "Week range not set"}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
-                            {chapter.lessonCount} lessons
+                            {chapter.weekRange || "Week range not set"} · {chapter.lessonCount} lessons
                           </p>
 
                           <Button
@@ -1063,7 +1060,15 @@ function AdminMaterialsExperience({
                             >
                               <td className="px-5 py-4">
                                 <div className="flex items-start gap-3">
-                                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#eef4ff] text-[#2f6fff]">
+                                  <div
+                                    className={cn(
+                                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px]",
+                                      kind === "lesson-plan" && "bg-[#eef4ff] text-[#2f6fff]",
+                                      kind === "worksheet" && "bg-[#ecfbf3] text-[#159a61]",
+                                      kind === "quiz" && "bg-[#fff1e7] text-[#f97316]",
+                                      kind === "slides" && "bg-[#f5efff] text-[#8b5cf6]"
+                                    )}
+                                  >
                                     <FileText className="h-5 w-5" />
                                   </div>
                                   <div className="min-w-0">
@@ -1087,7 +1092,7 @@ function AdminMaterialsExperience({
                                 </span>
                               </td>
                               <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
-                                {relatedChapter ? relatedChapter.title : "Not mapped"}
+                                {relatedChapter ? `Chapter ${(selectedSubject?.chapters.indexOf(relatedChapter) ?? -1) + 1} · ${relatedChapter.title}` : "Not mapped"}
                               </td>
                               <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
                                 {formatMaterialDate(material.updatedAt)}
@@ -1096,8 +1101,7 @@ function AdminMaterialsExperience({
                                 <div className="flex items-center gap-2">
                                   <Button
                                     asChild
-                                    variant="outline"
-                                    className="h-9 rounded-full border-[#d9e1ef] bg-white px-3 text-[#2f6fff] shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200"
+                                    className="h-9 rounded-full bg-[#2f6fff] px-4 text-sm text-white shadow-[0_12px_24px_-14px_rgba(37,99,235,0.65)] hover:bg-[#1d4ed8]"
                                   >
                                     <Link href={`/${role}/materials/${material.id}`}>Open Material</Link>
                                   </Button>

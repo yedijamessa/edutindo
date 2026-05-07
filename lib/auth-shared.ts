@@ -1,4 +1,4 @@
-export const PORTAL_OPTIONS = ["student", "teacher", "parent", "principal", "admin"] as const;
+export const PORTAL_OPTIONS = ["student", "teacher", "parent", "principal", "admin", "curriculum"] as const;
 export type PortalKey = (typeof PORTAL_OPTIONS)[number];
 
 export const SESSION_COOKIE_NAME = "edutindo_session";
@@ -8,6 +8,7 @@ const NON_ADMIN_PORTAL_PRIORITY: Exclude<PortalKey, "admin">[] = [
   "teacher",
   "parent",
   "principal",
+  "curriculum",
 ];
 
 export const PORTAL_HOME_PATHS: Record<PortalKey, string> = {
@@ -16,6 +17,7 @@ export const PORTAL_HOME_PATHS: Record<PortalKey, string> = {
   parent: "/parent",
   principal: "/principal",
   admin: "/admin",
+  curriculum: "/admin/modules",
 };
 
 type PortalResolverUser = {

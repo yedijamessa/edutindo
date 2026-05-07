@@ -555,3 +555,92 @@ export async function saveModuleEditorDocument(input: {
     updatedAt: new Date(row.updated_at).toISOString(),
   } satisfies ModuleEditorDocument;
 }
+
+export type ModuleListEntry = {
+  nodeId: string;
+  lessonTitle: string;
+  lessonSlug: string;
+  lessonCode: string;
+  week: string;
+  moduleTitle: string;
+  pageCount: number;
+  updatedAt: string;
+  /** Breadcrumbs: school → year → subject → chapter → lesson */
+  breadcrumbs: ModuleEditorBreadcrumb[];
+  /** Derived convenience fields */
+  subjectTitle: string;
+  chapterTitle: string;
+  schoolSlug: string;
+  yearSlug: string;
+  subjectSlug: string;
+  chapterSlug: string;
+};
+
+export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
+  await ensureModuleEditorSchema();
+  const targets = await listModuleEditorTargets();
+
+  type DocRow = {
+    curriculum_node_id: string;
+    title: string;
+    pages: unknown;
+    updated_at: Date;
+  };
+
+  const result = await sql<DocRow>`
+    SELECT curriculum_node_id, title, pages, updated_at
+    FROM module_editor_documents
+    WHERE node_type = 'lesson'
+    ORDER BY updated_at DESC
+  `;
+
+  const docMap = new Map<string, DocRow>();
+  for (const row of result.rows) {
+    docMap.set(row.curriculum_node_id, row);
+  }
+
+  const entries: ModuleListEntry[] = [];
+
+  for (const target of targets) {
+    if (target.nodeType !== "lesson") continue;
+    const doc = docMap.get(target.id);
+    if (!doc) continue;
+
+    const pages = normalizePages(doc.pages, target.title);
+    const crumbs = target.breadcrumbs;
+
+    const school = crumbs.find((b) => b.nodeType === "school");
+    const year = crumbs.find((b) => b.nodeType === "year");
+    const subject = crumbs.find((b) => b.nodeType === "subject");
+    const chapter = crumbs.find((b) => b.nodeType === "chapter");
+
+    entries.push({
+      nodeId: target.id,
+      lessonTitle: target.title,
+      lessonSlug: target.slug,
+      lessonCode: sanitizeText(target.metadata.lessonCode, 40),
+      week: sanitizeText(target.metadata.week, 40),
+      moduleTitle: sanitizeText(doc.title, 180) || target.title,
+      pageCount: pages.length,
+      updatedAt: new Date(doc.updated_at).toISOString(),
+      breadcrumbs: crumbs,
+      subjectTitle: subject?.title ?? "",
+      chapterTitle: chapter?.title ?? "",
+      schoolSlug: school?.slug ?? "",
+      yearSlug: year?.slug ?? "",
+      subjectSlug: subject?.slug ?? "",
+      chapterSlug: chapter?.slug ?? "",
+    });
+  }
+
+  return entries;
+}
+
+export async function deleteModuleDocument(nodeId: string): Promise<void> {
+  await ensureModuleEditorSchema();
+  await sql`
+    DELETE FROM module_editor_documents
+    WHERE curriculum_node_id = ${nodeId}
+  `;
+}
+

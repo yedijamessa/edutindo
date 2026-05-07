@@ -37,6 +37,7 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
       parent: "Parent",
       principal: "Principal",
       admin: "Admin",
+      curriculum: "Curriculum",
     }),
     []
   );

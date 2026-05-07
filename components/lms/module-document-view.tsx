@@ -1,43 +1,74 @@
-import { BookOpenText, CircleHelp, FileText, Image as ImageIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CircleHelp,
+  FileText,
+  GraduationCap,
+  Image as ImageIcon,
+  Info,
+  LayoutList,
+  PencilLine,
+  Plus,
+  StickyNote,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ModuleEditorDocument, ModuleEditorPage, ModuleEditorQuizBlock, ModuleEditorQuizType } from "@/types/module-editor";
+import type {
+  ModuleEditorDocument,
+  ModuleEditorPage,
+  ModuleEditorQuizBlock,
+  ModuleEditorQuizType,
+} from "@/types/module-editor";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
   switch (quizType) {
-    case "multiple-choice-single":
-      return "Multiple Choice";
-    case "multiple-choice-multiple":
-      return "Multiple Answer";
-    case "true-false":
-      return "True / False";
-    case "short-answer":
-      return "Short Answer";
-    case "fill-in-the-blank":
-      return "Fill in the Blank";
-    case "matching":
-      return "Matching";
-    case "ordering":
-      return "Ordering";
-    case "essay":
-      return "Extended Response";
-    default:
-      return "Quiz";
+    case "multiple-choice-single": return "Multiple Choice";
+    case "multiple-choice-multiple": return "Multiple Answer";
+    case "true-false": return "True / False";
+    case "short-answer": return "Short Answer";
+    case "fill-in-the-blank": return "Fill in the Blank";
+    case "matching": return "Matching";
+    case "ordering": return "Ordering";
+    case "essay": return "Extended Response";
+    default: return "Quiz";
   }
 }
 
 function renderParagraphs(value: string) {
   return value
     .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter((paragraph) => paragraph.length > 0)
-    .map((paragraph, index) => (
-      <p key={index} className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-        {paragraph}
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+    .map((p, i) => (
+      <p key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+        {p}
       </p>
     ));
 }
+
+function blockCount(page: ModuleEditorPage) {
+  return page.blocks.length;
+}
+
+function totalBlocks(document: ModuleEditorDocument) {
+  return document.pages.reduce((sum, page) => sum + page.blocks.length, 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────────────────────────────────────
 
 function QuestionBlock({
   block,
@@ -46,237 +77,542 @@ function QuestionBlock({
   block: ModuleEditorQuizBlock;
   showAnswers: boolean;
 }) {
-  const hasVisibleAcceptedAnswers =
+  const [expanded, setExpanded] = useState(true);
+
+  const hasAcceptedAnswers =
     showAnswers &&
     (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank") &&
-    block.acceptableAnswers.some((answer) => answer.trim().length > 0);
+    block.acceptableAnswers.some((a) => a.trim().length > 0);
 
   return (
-    <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="border-amber-300 bg-white text-amber-800">
-          {getQuizTypeLabel(block.quizType)}
-        </Badge>
-        <span className="text-xs font-medium text-amber-700">
-          {showAnswers ? "Answer key visible" : "Practice prompt"}
-        </span>
-      </div>
-
-      <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-900">
-        {block.prompt || "Quiz prompt"}
-      </p>
-
-      {(block.quizType === "multiple-choice-single" ||
-        block.quizType === "multiple-choice-multiple" ||
-        block.quizType === "true-false") && (
-        <div className="mt-3 space-y-2">
-          {block.options.map((option) => {
-            const isCorrect = showAnswers && block.correctOptionIds.includes(option.id);
-            return (
-              <div
-                key={option.id}
-                className={cn(
-                  "rounded-2xl border px-3 py-2 text-sm",
-                  isCorrect
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-slate-200 bg-white text-slate-700"
-                )}
-              >
-                {option.text || "Untitled option"}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {block.quizType === "matching" && (
-        <div className="mt-3 space-y-2">
-          {showAnswers ? (
-            block.matchingPairs.map((pair, index) => (
-              <div
-                key={pair.id}
-                className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-[1fr_auto_1fr]"
-              >
-                <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {pair.prompt || `Prompt ${index + 1}`}
-                </div>
-                <div className="flex items-center justify-center text-slate-400">=</div>
-                <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {pair.match || `Match ${index + 1}`}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-amber-300 bg-white px-4 py-3 text-sm text-slate-700">
-              Match each prompt with the correct answer as a partner or notebook task.
-            </div>
+    <div className="rounded-[20px] border border-[#f0e8d0] bg-[#fffdf7]">
+      {/* Header */}
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex rounded-full border border-[#f5d98f] bg-white px-2.5 py-0.5 text-xs font-semibold text-[#b45309]">
+            {getQuizTypeLabel(block.quizType)}
+          </span>
+          {showAnswers && (
+            <span className="text-xs font-medium text-[#b45309]">
+              Answer key visible
+            </span>
           )}
         </div>
-      )}
-
-      {block.quizType === "ordering" && (
-        <div className="mt-3 space-y-2">
-          {showAnswers ? (
-            block.orderingItems.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-              >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
-                  {index + 1}
-                </span>
-                <span>{item.text || `Step ${index + 1}`}</span>
-              </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-amber-300 bg-white px-4 py-3 text-sm text-slate-700">
-              Reorder the steps in your own notes before checking with your teacher.
-            </div>
-          )}
-        </div>
-      )}
-
-      {hasVisibleAcceptedAnswers && (
-        <div className="mt-3 space-y-2">
-          {block.acceptableAnswers
-            .filter((answer) => answer.trim().length > 0)
-            .map((answer, index) => (
-              <div
-                key={`${block.id}-${index}`}
-                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-              >
-                {answer}
-              </div>
-            ))}
-        </div>
-      )}
-
-      {!showAnswers &&
-        (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank" || block.quizType === "essay") && (
-          <div className="mt-3 rounded-2xl border border-dashed border-amber-300 bg-white px-4 py-3 text-sm text-slate-700">
-            Write your response before reviewing the answer key with your teacher.
-          </div>
+        {expanded ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
         )}
+      </button>
 
-      {showAnswers && block.explanation.trim() ? (
-        <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-          {block.explanation}
+      {expanded && (
+        <div className="border-t border-[#f0e8d0] px-5 pb-5">
+          <p className="mt-4 text-sm font-semibold leading-relaxed text-slate-900">
+            {block.prompt || "Quiz prompt"}
+          </p>
+
+          {/* Multiple choice / true-false options */}
+          {(block.quizType === "multiple-choice-single" ||
+            block.quizType === "multiple-choice-multiple" ||
+            block.quizType === "true-false") && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {block.options.map((option) => {
+                const isCorrect = showAnswers && block.correctOptionIds.includes(option.id);
+                return (
+                  <div
+                    key={option.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm",
+                      isCorrect
+                        ? "border-[#bef2d0] bg-[#eafaf1] text-[#059669]"
+                        : "border-[#e8eef8] bg-white text-slate-700"
+                    )}
+                  >
+                    {isCorrect && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    <span>{option.text || "Untitled option"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Explanation */}
+          {showAnswers && block.explanation.trim() ? (
+            <div className="mt-4 rounded-[14px] border border-[#dce7ff] bg-[#f0f6ff] px-4 py-3 text-sm text-[#1e40af]">
+              {block.explanation}
+            </div>
+          ) : null}
+
+          {/* Acceptable answers */}
+          {hasAcceptedAnswers && (
+            <div className="mt-3 space-y-2">
+              {block.acceptableAnswers
+                .filter((a) => a.trim().length > 0)
+                .map((a, i) => (
+                  <div
+                    key={i}
+                    className="rounded-[14px] border border-[#bef2d0] bg-[#eafaf1] px-4 py-2.5 text-sm text-[#059669]"
+                  >
+                    {a}
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
 
-function ModulePage({
+function PageContent({
   page,
   index,
+  total,
   showAnswers,
 }: {
   page: ModuleEditorPage;
   index: number;
+  total: number;
   showAnswers: boolean;
 }) {
   return (
-    <Card className="overflow-hidden border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">Page {index + 1}</Badge>
-          <Badge variant="outline">{page.blocks.length} block{page.blocks.length === 1 ? "" : "s"}</Badge>
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-3 rounded-[24px] border border-[#e5ecf8] bg-white p-6 shadow-[0_20px_48px_-40px_rgba(15,23,42,0.35)]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Page {index + 1} of {total}
+          </p>
+          <h2 className="mt-2 text-[1.6rem] font-bold tracking-tight text-slate-950">
+            {page.title}
+          </h2>
+          {page.description.trim() ? (
+            <p className="mt-1 text-sm leading-relaxed text-slate-500">{page.description}</p>
+          ) : null}
         </div>
-        <CardTitle className="text-2xl">{page.title}</CardTitle>
-        {page.description.trim() ? (
-          <CardDescription className="max-w-3xl text-sm leading-relaxed text-slate-600">
-            {page.description}
-          </CardDescription>
-        ) : null}
-      </CardHeader>
+        <FileText className="mt-1 h-5 w-5 shrink-0 text-slate-300" />
+      </div>
 
-      <CardContent className="space-y-4 p-6">
-        {page.blocks.map((block) => {
-          if (block.type === "text") {
-            return (
-              <div key={block.id} className="rounded-3xl border border-slate-200 bg-white p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-slate-500" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Text
-                  </span>
+      {/* Blocks */}
+      {page.blocks.map((block) => {
+        if (block.type === "text") {
+          return (
+            <div
+              key={block.id}
+              className="rounded-[24px] border border-[#e5ecf8] bg-white p-6 shadow-[0_16px_40px_-36px_rgba(15,23,42,0.3)]"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#eef4ff] text-[#2f6fff]">
+                  <BookOpen className="h-4 w-4" />
                 </div>
                 {block.title.trim() ? (
-                  <h3 className="mb-3 text-lg font-semibold text-slate-900">{block.title}</h3>
-                ) : null}
-                <div className="space-y-3">{renderParagraphs(block.body || "Add content to this page.")}</div>
-              </div>
-            );
-          }
-
-          if (block.type === "image") {
-            return (
-              <div key={block.id} className="rounded-3xl border border-slate-200 bg-white p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-slate-500" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Image
-                  </span>
-                </div>
-                {block.imageUrl.trim() ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={block.imageUrl}
-                    alt={block.altText || block.caption || "Module illustration"}
-                    className="max-h-[32rem] w-full rounded-2xl object-cover"
-                  />
+                  <h3 className="text-[1.05rem] font-semibold text-slate-950">{block.title}</h3>
                 ) : (
-                  <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-                    No image has been added yet.
-                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Content
+                  </span>
                 )}
-                {block.caption.trim() ? (
-                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{block.caption}</p>
-                ) : null}
               </div>
-            );
-          }
+              <div className="space-y-3 border-t border-[#f0f4fb] pt-4">
+                {renderParagraphs(block.body || "Content will appear here.")}
+              </div>
+            </div>
+          );
+        }
 
-          return <QuestionBlock key={block.id} block={block} showAnswers={showAnswers} />;
-        })}
-      </CardContent>
-    </Card>
+        if (block.type === "image") {
+          return (
+            <div
+              key={block.id}
+              className="rounded-[24px] border border-[#e5ecf8] bg-white p-6 shadow-[0_16px_40px_-36px_rgba(15,23,42,0.3)]"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5efff] text-[#8b5cf6]">
+                  <ImageIcon className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  Image
+                </span>
+              </div>
+              {block.imageUrl.trim() ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={block.imageUrl}
+                  alt={block.altText || block.caption || "Module illustration"}
+                  className="max-h-[32rem] w-full rounded-[18px] object-cover"
+                />
+              ) : (
+                <div className="flex h-48 items-center justify-center rounded-[18px] border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
+                  No image added yet.
+                </div>
+              )}
+              {block.caption.trim() ? (
+                <p className="mt-3 text-sm leading-relaxed text-slate-500">{block.caption}</p>
+              ) : null}
+            </div>
+          );
+        }
+
+        // Quiz block
+        return <QuestionBlock key={block.id} block={block} showAnswers={showAnswers} />;
+      })}
+    </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main export
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ModuleDocumentViewMeta {
+  lessonCode?: string;
+  chapterTitle?: string;
+  unitTitle?: string;
+  weekRange?: string;
+  backHref?: string;
+  nextHref?: string;
+  nextLessonCode?: string;
+  editHref?: string;
+  role?: string;
 }
 
 export function ModuleDocumentView({
   document,
   showAnswers = false,
+  meta,
 }: {
   document: ModuleEditorDocument;
   showAnswers?: boolean;
+  meta?: ModuleDocumentViewMeta;
 }) {
-  return (
-    <div className="space-y-6">
-      <Card className="border-slate-200 bg-white shadow-sm">
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">Saved Module</Badge>
-            <Badge variant="outline">{document.pages.length} page{document.pages.length === 1 ? "" : "s"}</Badge>
-            <Badge variant="outline">{showAnswers ? "Teacher View" : "Student View"}</Badge>
-          </div>
-          <CardTitle className="flex items-center gap-2 text-2xl">
-            <BookOpenText className="h-5 w-5 text-blue-600" />
-            {document.title}
-          </CardTitle>
-          <CardDescription className="flex items-center gap-2 text-sm text-slate-600">
-            <CircleHelp className="h-4 w-4" />
-            {showAnswers
-              ? "Answer keys and explanations are visible in this view."
-              : "Use the prompts below as guided lesson content and practice."}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+  const [currentPage, setCurrentPage] = useState(0);
+  // When showAnswers is false (student role) the mode is permanently locked to "student"
+  const [viewMode, setViewMode] = useState<"teacher" | "student">(
+    showAnswers ? "teacher" : "student"
+  );
+  const [note, setNote] = useState("");
 
-      {document.pages.map((page, index) => (
-        <ModulePage key={page.id} page={page} index={index} showAnswers={showAnswers} />
-      ))}
+  const pages = document.pages;
+  const page = pages[currentPage] ?? pages[0];
+  const pageIndex = Math.min(currentPage, pages.length - 1);
+  const progressPct = Math.round(((pageIndex + 1) / pages.length) * 100);
+  // Students never see answers regardless of viewMode
+  const effectiveShowAnswers = showAnswers && viewMode === "teacher";
+
+  return (
+    <div className="flex flex-col gap-0">
+      {/* ── Status bar ─────────────────────────────────────────────────────── */}
+      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e5ecf8] bg-white px-5 py-3 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)]">
+        <span className="inline-flex rounded-full bg-[#ff7a1a] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_16px_-10px_rgba(249,115,22,0.7)]">
+          Saved Module
+        </span>
+        <span className="inline-flex rounded-full border border-[#dce6ff] bg-[#f0f6ff] px-3 py-1 text-xs font-semibold text-[#2f6fff]">
+          {pages.length} {pages.length === 1 ? "page" : "pages"}
+        </span>
+        {/* View mode toggle — only shown for admin/teacher/curriculum, never for students */}
+        {showAnswers && (
+          <button
+            type="button"
+            onClick={() => setViewMode((v) => (v === "teacher" ? "student" : "teacher"))}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#dce6ff] bg-[#f0f6ff] px-3 py-1 text-xs font-semibold text-[#2f6fff] hover:bg-[#e4eeff] transition-colors"
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            {viewMode === "teacher" ? "Teacher View" : "Student View"}
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
+          <Info className="h-3.5 w-3.5" />
+          {effectiveShowAnswers
+            ? "Answer keys and explanations are visible in this view."
+            : showAnswers
+              ? "Switch to Teacher View to see answer keys."
+              : "Complete questions and submit for scoring."}
+        </div>
+      </div>
+
+      {/* ── Three-panel layout ─────────────────────────────────────────────── */}
+      <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
+        {/* ── Left sidebar: Lesson Outline ─────────────────────────────────── */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-[5.5rem] rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
+            <p className="text-[0.9rem] font-semibold text-slate-900">Lesson Outline</p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              {pages.length} {pages.length === 1 ? "page" : "pages"} / {totalBlocks(document)} blocks
+            </p>
+
+            {/* Progress bar */}
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#e8eef8]">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,#2f6fff,#1d4ed8)] transition-all duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+
+            {/* Page list */}
+            <nav className="mt-4 space-y-1">
+              {pages.map((p, i) => {
+                const isActive = i === pageIndex;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setCurrentPage(i)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition-colors",
+                      isActive
+                        ? "bg-[#eef4ff] text-[#2f6fff]"
+                        : "text-slate-600 hover:bg-[#f7faff]"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                        isActive
+                          ? "bg-[#2f6fff] text-white"
+                          : "bg-[#e8eef8] text-slate-500"
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("truncate text-xs font-semibold", isActive ? "text-[#2f6fff]" : "text-slate-800")}>
+                        {p.title}
+                      </p>
+                      <p className="text-[10px] text-slate-400">{blockCount(p)} block{blockCount(p) === 1 ? "" : "s"}</p>
+                    </div>
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                  </button>
+                );
+              })}
+            </nav>
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage(0)}
+              className="mt-3 flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+              View all pages
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Center: Page content ─────────────────────────────────────────── */}
+        <div className="min-w-0">
+          {page ? (
+            <PageContent
+              page={page}
+              index={pageIndex}
+              total={pages.length}
+              showAnswers={effectiveShowAnswers}
+            />
+          ) : (
+            <div className="rounded-[24px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-10 text-center text-sm text-slate-500">
+              No pages yet.
+            </div>
+          )}
+
+          {/* Page navigation */}
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+              disabled={pageIndex === 0}
+              className="flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-none transition-colors hover:border-[#c6d4f3] hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Previous Page
+            </button>
+            <span className="text-xs text-slate-400">
+              {pageIndex + 1} / {pages.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(pages.length - 1, p + 1))}
+              disabled={pageIndex === pages.length - 1}
+              className="flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-none transition-colors hover:border-[#c6d4f3] hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next Page
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Right sidebar: Quick Panel ───────────────────────────────────── */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-[5.5rem] space-y-4">
+            {/* Page Progress */}
+            <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
+              <p className="text-sm font-semibold text-slate-900">Quick Panel</p>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Page Progress</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Page {pageIndex + 1} of {pages.length}
+                  </p>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#e8eef8]">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,#2f6fff,#1d4ed8)] transition-all duration-300"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-400">{progressPct}% complete</p>
+                </div>
+
+                {/* View Mode toggle — hidden for students */}
+                {showAnswers && (
+                <div className="border-t border-[#f0f4fb] pt-3">
+                  <p className="text-xs font-semibold text-slate-500">View Mode</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("teacher")}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 rounded-[12px] border px-3 py-2 text-xs font-semibold transition-colors",
+                        viewMode === "teacher"
+                          ? "border-[#2f6fff] bg-[#eef4ff] text-[#2f6fff]"
+                          : "border-[#e5ecf8] bg-white text-slate-500 hover:bg-[#f7faff]"
+                      )}
+                    >
+                      <GraduationCap className="h-3.5 w-3.5" />
+                      Teacher
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("student")}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 rounded-[12px] border px-3 py-2 text-xs font-semibold transition-colors",
+                        viewMode === "student"
+                          ? "border-[#2f6fff] bg-[#eef4ff] text-[#2f6fff]"
+                          : "border-[#e5ecf8] bg-white text-slate-500 hover:bg-[#f7faff]"
+                      )}
+                    >
+                      <CircleHelp className="h-3.5 w-3.5" />
+                      Student
+                    </button>
+                  </div>
+                </div>
+                )} {/* end showAnswers view mode */}
+              </div>
+            </div>
+
+            {/* Quick Notes */}
+            <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
+              <div className="flex items-center gap-2">
+                <StickyNote className="h-4 w-4 text-slate-400" />
+                <p className="text-sm font-semibold text-slate-900">Quick Notes</p>
+              </div>
+              <p className="mt-1.5 text-xs leading-5 text-slate-400">
+                Add notes about this lesson for yourself or other teachers.
+              </p>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Type a note…"
+                rows={3}
+                className="mt-3 w-full resize-none rounded-[14px] border border-[#dce6ff] bg-[#f8fbff] px-3 py-2.5 text-xs text-slate-700 placeholder:text-slate-300 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#bcd2ff]"
+              />
+              <button
+                type="button"
+                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#dce6ff] bg-white py-2 text-xs font-semibold text-[#2f6fff] hover:bg-[#f0f6ff] transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Note
+              </button>
+            </div>
+
+            {/* Lesson Summary */}
+            {meta && (
+              <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
+                <p className="text-sm font-semibold text-slate-900">Lesson Summary</p>
+                <div className="mt-3 space-y-3">
+                  {meta.lessonCode && (
+                    <div className="flex items-start gap-3">
+                      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Lesson Code
+                        </p>
+                        <p className="text-xs font-semibold text-slate-800">{meta.lessonCode}</p>
+                      </div>
+                    </div>
+                  )}
+                  {meta.chapterTitle && (
+                    <div className="flex items-start gap-3">
+                      <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Chapter
+                        </p>
+                        <p className="text-xs font-semibold text-slate-800">{meta.chapterTitle}</p>
+                      </div>
+                    </div>
+                  )}
+                  {meta.unitTitle && (
+                    <div className="flex items-start gap-3">
+                      <LayoutList className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Unit
+                        </p>
+                        <p className="text-xs font-semibold text-slate-800">{meta.unitTitle}</p>
+                      </div>
+                    </div>
+                  )}
+                  {meta.weekRange && (
+                    <div className="flex items-start gap-3">
+                      <PencilLine className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Week Range
+                        </p>
+                        <p className="text-xs font-semibold text-slate-800">{meta.weekRange}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                        Total Blocks
+                      </p>
+                      <p className="text-xs font-semibold text-slate-800">
+                        {totalBlocks(document)} blocks
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* Mobile page switcher (shown only on small screens) */}
+      <div className="mt-5 lg:hidden">
+        <div className="flex flex-wrap gap-2">
+          {pages.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setCurrentPage(i)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                i === pageIndex
+                  ? "border-[#2f6fff] bg-[#2f6fff] text-white"
+                  : "border-[#d9e1ef] bg-white text-slate-600 hover:bg-[#f7faff]"
+              )}
+            >
+              {i + 1}. {p.title}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
