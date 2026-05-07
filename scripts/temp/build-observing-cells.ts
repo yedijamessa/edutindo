@@ -24,7 +24,7 @@ async function seed() {
           id: randomUUID(),
           type: "text",
           title: "What are living organisms made of?",
-          body: "![Different types of cells in your blood.](https://images.unsplash.com/photo-1632053002621-e2311f6d71b3?auto=format&fit=crop&q=80&w=400)\n\nLook around you. Can you see any dust? Most dust in your home is made of dead cells. These come from anything living in your house. To see the cells, you need to look through a microscope.\n\nAll living things, often called **organisms**, are made of **cells**. Cells are the building blocks of life. They are the smallest units found in an organism. Organisms like bacteria are made up of only one cell. Larger organisms, like you, are made up of millions of cells that are joined together.",
+          body: "![Different types of cells in your blood.](/images/cells/blood.jpg)\n\nLook around you. Can you see any dust? Most dust in your home is made of dead cells. These come from anything living in your house. To see the cells, you need to look through a microscope.\n\nAll living things, often called **organisms**, are made of **cells**. Cells are the building blocks of life. They are the smallest units found in an organism. Organisms like bacteria are made up of only one cell. Larger organisms, like you, are made up of millions of cells that are joined together.",
         },
         {
           id: randomUUID(),
@@ -53,7 +53,7 @@ async function seed() {
           id: randomUUID(),
           type: "text",
           title: "Robert Hooke and the microscope",
-          body: "![Cork cells](https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=400)\n\nCells were first seen around 350 years ago. Robert Hooke, a scientist, used a **microscope** to look at a thin slice of cork (a type of tree bark). He saw tiny room-like structures which he called 'cells'. These were plant cells.\n\n*Fun fact: There are many different types of cell in your blood.*",
+          body: "![Cork cells](/images/cells/cork.jpg)\n\nCells were first seen around 350 years ago. Robert Hooke, a scientist, used a **microscope** to look at a thin slice of cork (a type of tree bark). He saw tiny room-like structures which he called 'cells'. These were plant cells.\n\n*Fun fact: There are many different types of cell in your blood.*",
         },
         {
           id: randomUUID(),
@@ -88,7 +88,7 @@ async function seed() {
           id: randomUUID(),
           type: "text",
           title: "Using a microscope",
-          body: "![Parts of a microscope diagram](https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&q=80&w=600)\n\nFollow these steps to look at an object using a microscope:\n\n1. Move the stage to its lowest position.\n2. Place the object on the stage.\n3. Choose the objective lens with the lowest magnification.\n4. Look through the eyepiece. Turn the coarse-focus wheel slowly until you see the object.\n5. Turn the fine-focus wheel until the object comes into focus.\n6. Repeat Steps 1 to 5. This time, use an objective lens with a higher magnification to see the object in greater detail.",
+          body: "![Parts of a microscope diagram](/images/cells/microscope.png)\n\nFollow these steps to look at an object using a microscope:\n\n1. Move the stage to its lowest position.\n2. Place the object on the stage.\n3. Choose the objective lens with the lowest magnification.\n4. Look through the eyepiece. Turn the coarse-focus wheel slowly until you see the object.\n5. Turn the fine-focus wheel until the object comes into focus.\n6. Repeat Steps 1 to 5. This time, use an objective lens with a higher magnification to see the object in greater detail.",
         },
         {
           id: randomUUID(),
