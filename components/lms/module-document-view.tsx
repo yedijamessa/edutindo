@@ -19,6 +19,11 @@ import {
   PencilLine,
   Plus,
   StickyNote,
+  Lightbulb,
+  Search,
+  User,
+  Calculator,
+  Sigma,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -51,7 +56,7 @@ function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
 
 function renderMarkdown(value: string) {
   return (
-    <div className="prose prose-sm max-w-none text-slate-700 prose-p:leading-relaxed prose-headings:font-bold prose-headings:text-slate-900 prose-a:text-[#2f6fff] prose-a:no-underline hover:prose-a:underline prose-strong:font-bold prose-strong:text-slate-900 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1">
+    <div className="prose prose-sm max-w-none text-slate-700 prose-p:leading-relaxed prose-headings:font-bold prose-headings:text-slate-900 prose-a:text-[#2f6fff] prose-a:no-underline hover:prose-a:underline prose-strong:font-bold prose-strong:text-slate-900 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-img:float-right prose-img:ml-6 prose-img:w-[150px] sm:prose-img:w-[220px] prose-img:rounded-[12px] prose-img:object-cover prose-img:shadow-sm">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>
         {value || "Content will appear here."}
       </ReactMarkdown>
@@ -87,7 +92,7 @@ function QuestionBlock({
     block.acceptableAnswers.some((a) => a.trim().length > 0);
 
   return (
-    <div className="rounded-[20px] border border-[#f0e8d0] bg-[#fffdf7]">
+    <div className="rounded-[20px] border border-[#ffedd5] bg-[#fffaf5]">
       {/* Header */}
       <button
         type="button"
@@ -95,11 +100,12 @@ function QuestionBlock({
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex rounded-full border border-[#f5d98f] bg-white px-2.5 py-0.5 text-xs font-semibold text-[#b45309]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fdba74] bg-white px-3 py-1 text-xs font-bold text-[#ea580c] shadow-sm">
+            <PencilLine className="h-3.5 w-3.5" />
             {getQuizTypeLabel(block.quizType)}
           </span>
           {showAnswers && (
-            <span className="text-xs font-medium text-[#b45309]">
+            <span className="text-xs font-medium text-[#ea580c]">
               Answer key visible
             </span>
           )}
@@ -167,6 +173,48 @@ function QuestionBlock({
             </div>
           )}
 
+          {/* Fill-in-the-blank / Short Answer / Essay */}
+          {!showAnswers && (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank" || block.quizType === "essay") && (
+            <div className="mt-3">
+              {block.quizType === "essay" ? (
+                <textarea 
+                  placeholder="Type your answer here..."
+                  className="w-full rounded-[14px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff] transition-colors"
+                  rows={4}
+                />
+              ) : (
+                <input 
+                  type="text"
+                  placeholder="Type your answer here..."
+                  className="w-full rounded-[14px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff] transition-colors"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Matching */}
+          {!showAnswers && block.quizType === "matching" && (
+            <div className="mt-3 space-y-2">
+              {block.matchingPairs.map((pair) => {
+                 // Sort the matches alphabetically so they aren't obviously in the correct order
+                 const matchOptions = [...block.matchingPairs].map(p => p.match).sort((a, b) => a.localeCompare(b));
+                 
+                 return (
+                   <div key={pair.id} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-[14px] border border-[#e8eef8] bg-white px-4 py-2.5 text-sm">
+                     <span className="flex-1 font-medium text-slate-700">{pair.prompt}</span>
+                     <select className="w-full sm:w-1/2 rounded-[10px] border border-[#dce6ff] bg-[#f8fbff] px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-[#2f6fff] focus:ring-1 focus:ring-[#2f6fff] transition-colors">
+                       <option value="">Select match...</option>
+                       {matchOptions.map((matchOpt, i) => (
+                         <option key={i} value={matchOpt}>{matchOpt}</option>
+                       ))}
+                     </select>
+                   </div>
+                 );
+              })}
+            </div>
+          )}
+
+
           {/* Explanation */}
           {showAnswers && block.explanation.trim() ? (
             <div className="mt-4 rounded-[14px] border border-[#dce7ff] bg-[#f0f6ff] px-4 py-3 text-sm text-[#1e40af]">
@@ -228,27 +276,53 @@ function PageContent({
       {page.blocks.map((block) => {
         if (block.type === "text") {
           return (
-            <div
-              key={block.id}
-              className="rounded-[24px] border border-[#e5ecf8] bg-white p-6 shadow-[0_16px_40px_-36px_rgba(15,23,42,0.3)]"
-            >
-              <div className="mb-3 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#eef4ff] text-[#2f6fff]">
-                  <BookOpen className="h-4 w-4" />
-                </div>
-                {block.title.trim() ? (
-                  <h3 className="text-[1.05rem] font-semibold text-slate-950">{block.title}</h3>
-                ) : (
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Content
-                  </span>
+          return (() => {
+            const lower = block.title.toLowerCase();
+            let theme = {
+              bg: "bg-white",
+              border: "border-[#e5ecf8]",
+              iconBg: "bg-[#eef4ff]",
+              iconColor: "text-[#2f6fff]",
+              Icon: BookOpen,
+              titleColor: "text-slate-950",
+            };
+            if (lower.includes("key idea")) {
+              theme = { bg: "bg-[#f8fbff]", border: "border-[#dce7ff]", iconBg: "bg-[#2f6fff]", iconColor: "text-white", Icon: Lightbulb, titleColor: "text-slate-950" };
+            } else if (lower.includes("hooke") || lower.includes("living organisms") || lower.includes("magnification")) {
+              theme = { bg: "bg-[#f0fdf4]", border: "border-[#dcfce7]", iconBg: "bg-[#16a34a]", iconColor: "text-white", Icon: lower.includes("hooke") ? User : lower.includes("magnification") ? Calculator : BookOpen, titleColor: "text-[#166534]" };
+            } else if (lower.includes("observation")) {
+              theme = { bg: "bg-[#f8fbff]", border: "border-[#dce7ff]", iconBg: "bg-[#2f6fff]", iconColor: "text-white", Icon: Search, titleColor: "text-[#1e3a8a]" };
+            }
+
+            const { Icon } = theme;
+
+            return (
+              <div
+                key={block.id}
+                className={cn(
+                  "rounded-[24px] border p-6 shadow-[0_16px_40px_-36px_rgba(15,23,42,0.3)]",
+                  theme.bg,
+                  theme.border
                 )}
+              >
+                <div className="mb-3 flex items-center gap-3">
+                  <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", theme.iconBg, theme.iconColor)}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  {block.title.trim() ? (
+                    <h3 className={cn("text-[1.1rem] font-bold", theme.titleColor)}>{block.title}</h3>
+                  ) : (
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      Content
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-3 pt-1">
+                  {renderMarkdown(block.body)}
+                </div>
               </div>
-              <div className="space-y-3 border-t border-[#f0f4fb] pt-4">
-                {renderMarkdown(block.body)}
-              </div>
-            </div>
-          );
+            );
+          })();
         }
 
         if (block.type === "image") {
