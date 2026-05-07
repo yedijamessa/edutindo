@@ -272,10 +272,8 @@ function PageContent({
         <FileText className="mt-1 h-5 w-5 shrink-0 text-slate-300" />
       </div>
 
-      {/* Blocks */}
       {page.blocks.map((block) => {
         if (block.type === "text") {
-          return (
           return (() => {
             const lower = block.title.toLowerCase();
             let theme = {
