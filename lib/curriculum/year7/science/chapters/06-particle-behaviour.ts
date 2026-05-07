@@ -3,55 +3,55 @@ import { Year7ScienceChapter } from "../types";
 export const particleBehaviourChapter: Year7ScienceChapter = {
   slug: "chemical-science-particle-and-their-behaviour",
   order: 6,
-  unitTitle: "Chemical Science: Particle and Their Behaviour",
+  unitTitle: "Chemical Science: Particles and Their Behaviour",
   shortTitle: "Particles and Their Behaviour",
   strand: "Chemical Science",
   weekRange: "Weeks 13-15",
   lessons: [
     {
       week: "13",
-      lessonCode: "13.1",
+      lessonCode: "1.1",
       title: "The particle model",
     },
     {
       week: "13",
-      lessonCode: "13.2",
+      lessonCode: "1.2",
       title: "States of matter",
     },
     {
       week: "13",
-      lessonCode: "13.3",
+      lessonCode: "1.3",
       title: "Density",
     },
     {
       week: "14",
-      lessonCode: "14.1",
+      lessonCode: "1.4",
       title: "Melting and freezing",
     },
     {
       week: "14",
-      lessonCode: "14.2",
+      lessonCode: "1.5",
       title: "Boiling",
     },
     {
       week: "14",
-      lessonCode: "14.3",
-      title: "More change of state: evaporation, condensation, and sublimation",
+      lessonCode: "1.6",
+      title: "More changes of state",
     },
     {
       week: "15",
-      lessonCode: "15.1",
+      lessonCode: "1.7",
       title: "Diffusion",
     },
     {
       week: "15",
-      lessonCode: "15.2",
-      title: "Diffusion experiments: potato immersion in water vs salt water, ink diffusion",
+      lessonCode: "1.8",
+      title: "Diffusion practical and observation",
     },
     {
       week: "15",
-      lessonCode: "15.3",
-      title: "Presentation & discussion (how to connect diffusion, biology and bible)",
+      lessonCode: "1.9",
+      title: "What have I learned about particles and their behaviour?",
     },
   ],
   learningOutcomes: [

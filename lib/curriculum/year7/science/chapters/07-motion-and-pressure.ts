@@ -2,41 +2,46 @@ import { Year7ScienceChapter } from "../types";
 
 export const motionAndPressureChapter: Year7ScienceChapter = {
   slug: "physical-science-motion-and-pressure",
-  order: 7,
+  order: 13,
   unitTitle: "Physical Science: Motion and Pressure",
   shortTitle: "Motion and Pressure",
   strand: "Physical Science",
-  weekRange: "Weeks 16-17",
+  weekRange: "Weeks 31-33",
   lessons: [
     {
-      week: "16",
-      lessonCode: "16.1",
-      title: "Introduction of speed",
+      week: "31",
+      lessonCode: "4.1",
+      title: "Speed",
     },
     {
-      week: "16",
-      lessonCode: "16.2",
+      week: "31",
+      lessonCode: "4.2",
       title: "Motion graphs",
     },
     {
-      week: "16",
-      lessonCode: "16.3",
-      title: "Pressure in gases, liquids, and solids",
+      week: "32",
+      lessonCode: "4.3",
+      title: "Pressure in gases",
     },
     {
-      week: "17",
-      lessonCode: "17.1",
+      week: "32",
+      lessonCode: "4.4",
+      title: "Pressure in liquids",
+    },
+    {
+      week: "32",
+      lessonCode: "4.5",
+      title: "Pressure on solids",
+    },
+    {
+      week: "33",
+      lessonCode: "4.6",
       title: "Turning forces",
     },
     {
-      week: "17",
-      lessonCode: "17.2",
-      title: "Experiment",
-    },
-    {
-      week: "17",
-      lessonCode: "17.3",
-      title: "Paper writing & reflection",
+      week: "33",
+      lessonCode: "4.7",
+      title: "What have I learned about motion and pressure?",
     },
   ],
   learningOutcomes: [

@@ -2,41 +2,46 @@ import { Year7ScienceChapter } from "../types";
 
 export const healthAndLifestyleChapter: Year7ScienceChapter = {
   slug: "biological-science-health-and-lifestyle",
-  order: 8,
+  order: 4,
   unitTitle: "Biological Science: Health and Lifestyle",
   shortTitle: "Health and Lifestyle",
   strand: "Biological Science",
-  weekRange: "Weeks 18-19",
+  weekRange: "Weeks 9-10",
   lessons: [
     {
-      week: "18",
-      lessonCode: "18.1",
+      week: "9",
+      lessonCode: "3.1",
       title: "Nutrients",
     },
     {
-      week: "18",
-      lessonCode: "18.2",
+      week: "9",
+      lessonCode: "3.2",
       title: "Digestive system",
     },
     {
-      week: "18",
-      lessonCode: "18.3",
+      week: "9",
+      lessonCode: "3.3",
       title: "Food tests",
     },
     {
-      week: "19",
-      lessonCode: "19.1",
+      week: "10",
+      lessonCode: "3.4",
       title: "Unhealthy diet",
     },
     {
-      week: "19",
-      lessonCode: "19.2",
+      week: "10",
+      lessonCode: "3.5",
       title: "Bacteria and enzymes in digestion",
     },
     {
-      week: "19",
-      lessonCode: "19.3",
+      week: "10",
+      lessonCode: "3.6",
       title: "Harmful substances",
+    },
+    {
+      week: "10",
+      lessonCode: "3.7",
+      title: "What have I learned about health and lifestyle?",
     },
   ],
   learningOutcomes: [

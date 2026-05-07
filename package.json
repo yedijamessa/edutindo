@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "export": "echo \"next export is no longer needed; run npm run build\"",
-    "seed:english-ielts": "tsx scripts/seed-english-curriculum-from-ielts.ts"
+    "seed:english-ielts": "tsx scripts/seed-english-curriculum-from-ielts.ts",
+    "seed:science-year7": "tsx scripts/seed-year7-science-curriculum.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

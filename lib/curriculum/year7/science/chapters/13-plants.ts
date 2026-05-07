@@ -2,41 +2,46 @@ import { Year7ScienceChapter } from "../types";
 
 export const plantsChapter: Year7ScienceChapter = {
   slug: "biological-science-plants",
-  order: 13,
+  order: 5,
   unitTitle: "Biological Science: Plants",
   shortTitle: "Plants",
   strand: "Biological Science",
-  weekRange: "Weeks 27-28",
+  weekRange: "Weeks 11-12",
   lessons: [
     {
-      week: "27",
-      lessonCode: "27.1",
+      week: "11",
+      lessonCode: "4.1",
       title: "Photosynthesis",
     },
     {
-      week: "27",
-      lessonCode: "27.2",
+      week: "11",
+      lessonCode: "4.2",
       title: "Leaves",
     },
     {
-      week: "27",
-      lessonCode: "27.3",
+      week: "11",
+      lessonCode: "4.3",
       title: "Plant minerals",
     },
     {
-      week: "28",
-      lessonCode: "28.1",
+      week: "12",
+      lessonCode: "4.4",
       title: "Flowers and pollination",
     },
     {
-      week: "28",
-      lessonCode: "28.2",
+      week: "12",
+      lessonCode: "4.5",
       title: "Fertilization and germination",
     },
     {
-      week: "28",
-      lessonCode: "28.3",
+      week: "12",
+      lessonCode: "4.6",
       title: "Seed dispersal",
+    },
+    {
+      week: "12",
+      lessonCode: "4.7",
+      title: "What have I learned about plants?",
     },
   ],
   learningOutcomes: [

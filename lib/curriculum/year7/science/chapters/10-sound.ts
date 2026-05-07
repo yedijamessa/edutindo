@@ -2,41 +2,41 @@ import { Year7ScienceChapter } from "../types";
 
 export const soundChapter: Year7ScienceChapter = {
   slug: "physical-science-sound",
-  order: 10,
+  order: 11,
   unitTitle: "Physical Science: Sound",
   shortTitle: "Sound",
   strand: "Physical Science",
-  weekRange: "Weeks 21-22",
+  weekRange: "Weeks 27-28",
   lessons: [
     {
-      week: "21",
-      lessonCode: "21.1",
-      title: "Introduction of waves and sound",
+      week: "27",
+      lessonCode: "2.1",
+      title: "Waves",
     },
     {
-      week: "21",
-      lessonCode: "21.2",
+      week: "27",
+      lessonCode: "2.2",
+      title: "Sound",
+    },
+    {
+      week: "27",
+      lessonCode: "2.3",
       title: "Loudness and pitch",
     },
     {
-      week: "21",
-      lessonCode: "21.3",
+      week: "28",
+      lessonCode: "2.4",
       title: "Detecting sound",
     },
     {
-      week: "22",
-      lessonCode: "22.1",
+      week: "28",
+      lessonCode: "2.5",
       title: "Echoes and ultrasound",
     },
     {
-      week: "22",
-      lessonCode: "22.2",
-      title: "Experiment: measuring sound vibration using rice grain",
-    },
-    {
-      week: "22",
-      lessonCode: "22.3",
-      title: "Paper writing",
+      week: "28",
+      lessonCode: "2.6",
+      title: "What have I learned about sound?",
     },
   ],
   learningOutcomes: [
