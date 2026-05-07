@@ -32,6 +32,9 @@ import type {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
   switch (quizType) {
     case "multiple-choice-single": return "Multiple Choice";
@@ -46,16 +49,14 @@ function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
   }
 }
 
-function renderParagraphs(value: string) {
-  return value
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0)
-    .map((p, i) => (
-      <p key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-        {p}
-      </p>
-    ));
+function renderMarkdown(value: string) {
+  return (
+    <div className="prose prose-sm max-w-none text-slate-700 prose-p:leading-relaxed prose-headings:font-bold prose-headings:text-slate-900 prose-a:text-[#2f6fff] prose-a:no-underline hover:prose-a:underline prose-strong:font-bold prose-strong:text-slate-900 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {value || "Content will appear here."}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function blockCount(page: ModuleEditorPage) {
@@ -78,6 +79,7 @@ function QuestionBlock({
   showAnswers: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
   const hasAcceptedAnswers =
     showAnswers &&
@@ -122,19 +124,44 @@ function QuestionBlock({
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {block.options.map((option) => {
                 const isCorrect = showAnswers && block.correctOptionIds.includes(option.id);
+                const interactive = !showAnswers;
+                const isSelected = interactive && selectedOptions.includes(option.id);
+                
                 return (
-                  <div
+                  <button
                     key={option.id}
+                    type="button"
+                    disabled={!interactive}
+                    onClick={() => {
+                      if (!interactive) return;
+                      if (block.quizType === "multiple-choice-single" || block.quizType === "true-false") {
+                        setSelectedOptions([option.id]);
+                      } else {
+                        setSelectedOptions((prev) => 
+                          prev.includes(option.id) ? prev.filter((id) => id !== option.id) : [...prev, option.id]
+                        );
+                      }
+                    }}
                     className={cn(
-                      "flex items-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm",
+                      "flex w-full items-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm text-left transition-colors",
                       isCorrect
                         ? "border-[#bef2d0] bg-[#eafaf1] text-[#059669]"
-                        : "border-[#e8eef8] bg-white text-slate-700"
+                        : isSelected
+                          ? "border-[#2f6fff] bg-[#f0f6ff] text-[#1e40af] shadow-[inset_0_0_0_1px_#2f6fff]"
+                          : interactive 
+                            ? "border-[#e8eef8] bg-white text-slate-700 hover:border-[#2f6fff] hover:bg-[#f0f6ff]"
+                            : "border-[#e8eef8] bg-white text-slate-700 cursor-default"
                     )}
                   >
-                    {isCorrect && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    {isCorrect ? (
+                      <Check className="h-3.5 w-3.5 shrink-0" />
+                    ) : isSelected ? (
+                      <div className="h-3.5 w-3.5 shrink-0 rounded-full border-4 border-[#2f6fff] bg-white" />
+                    ) : interactive ? (
+                      <div className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-300 bg-white" />
+                    ) : null}
                     <span>{option.text || "Untitled option"}</span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -218,7 +245,7 @@ function PageContent({
                 )}
               </div>
               <div className="space-y-3 border-t border-[#f0f4fb] pt-4">
-                {renderParagraphs(block.body || "Content will appear here.")}
+                {renderMarkdown(block.body)}
               </div>
             </div>
           );
