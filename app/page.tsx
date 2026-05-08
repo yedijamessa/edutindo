@@ -212,7 +212,7 @@ function BuildingBlockConnector({
 
   return (
     <div
-      className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 lg:block ${
+      className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 xl:block ${
         isLeft ? "right-[-102px]" : "left-[-102px]"
       }`}
     >
@@ -240,18 +240,18 @@ function BuildingBlockCard({
   return (
     <Card className="relative overflow-visible rounded-[2rem] border border-sky-100/90 bg-white/95 shadow-[0_34px_70px_-44px_rgba(15,23,42,0.42)] backdrop-blur-sm">
       <span className={`absolute inset-y-0 ${accentEdgePosition} w-[7px] rounded-full bg-gradient-to-b ${item.accentClassName}`} />
-      <CardContent className="grid gap-5 px-6 py-7 sm:grid-cols-[104px_1px_1fr] sm:items-center sm:px-7">
+      <CardContent className="grid min-h-[180px] gap-5 px-5 py-6 sm:grid-cols-[88px_1px_1fr] sm:items-center sm:px-6 xl:min-h-[228px] xl:px-7 xl:py-7">
         <div className="flex justify-center sm:justify-start">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-sky-100 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.98),rgba(224,242,254,0.96))] shadow-[0_18px_34px_-24px_rgba(37,99,235,0.6)]">
-            <Icon className={`h-11 w-11 ${item.iconClassName}`} strokeWidth={1.8} />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-sky-100 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.98),rgba(224,242,254,0.96))] shadow-[0_18px_34px_-24px_rgba(37,99,235,0.6)] xl:h-24 xl:w-24">
+            <Icon className={`h-9 w-9 xl:h-11 xl:w-11 ${item.iconClassName}`} strokeWidth={1.8} />
           </div>
         </div>
         <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-sky-200 to-transparent sm:block" />
         <div className="text-center sm:text-left">
-          <p className="text-3xl font-black leading-[0.95] tracking-tight text-[#10255c] md:text-[3rem]">
+          <p className="text-[2.1rem] font-black leading-[0.92] tracking-tight text-[#10255c] xl:text-[2.75rem]">
             {item.title}
           </p>
-          <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-[1.15rem]">
+          <p className="mt-3 text-[0.98rem] leading-relaxed text-slate-600 xl:mt-4 xl:text-[1.08rem]">
             {item.description}
           </p>
         </div>
@@ -444,7 +444,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mt-10 grid gap-4 lg:hidden">
+            <div className="mt-10 grid gap-4 xl:hidden">
               {BUILDING_BLOCK_PILLARS.map((pillar) => (
                 <BuildingBlockPill
                   key={pillar.number}
@@ -457,7 +457,7 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className="mt-10 flex justify-center lg:hidden">
+            <div className="mt-10 flex justify-center xl:hidden">
               <div className="relative flex h-56 w-56 items-center justify-center">
                 <div className="absolute inset-[-22px] rounded-full border border-dashed border-sky-200/70" />
                 <div className="absolute inset-[-10px] rounded-full bg-sky-400/10 blur-2xl" />
@@ -475,7 +475,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mt-10 grid gap-5 lg:hidden">
+            <div className="mt-10 grid gap-5 md:grid-cols-2 xl:hidden">
               {BUILDING_BLOCKS.left.map((item) => (
                 <BuildingBlockCard key={`mobile-left-${item.title}`} item={item} side="left" />
               ))}
@@ -484,9 +484,9 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className="relative mt-12 hidden lg:block">
-              <div className="grid grid-cols-[minmax(0,1fr)_320px_minmax(0,1fr)] gap-x-8 gap-y-10">
-                <div className="pr-8">
+            <div className="relative mt-12 hidden xl:block">
+              <div className="grid grid-cols-[minmax(0,1fr)_260px_minmax(0,1fr)] gap-x-6 gap-y-8 2xl:grid-cols-[minmax(0,1fr)_288px_minmax(0,1fr)] 2xl:gap-x-8 2xl:gap-y-10">
+                <div className="pr-4 2xl:pr-8">
                   <BuildingBlockPill
                     number={BUILDING_BLOCK_PILLARS[0].number}
                     emphasis={BUILDING_BLOCK_PILLARS[0].emphasis}
@@ -496,7 +496,7 @@ export default function HomePage() {
                   />
                 </div>
                 <div />
-                <div className="pl-8">
+                <div className="pl-4 2xl:pl-8">
                   <BuildingBlockPill
                     number={BUILDING_BLOCK_PILLARS[1].number}
                     emphasis={BUILDING_BLOCK_PILLARS[1].emphasis}
@@ -506,16 +506,16 @@ export default function HomePage() {
                   />
                 </div>
 
-                <div className="pr-8">
+                <div className="pr-4 2xl:pr-8">
                   <BuildingBlockCard item={BUILDING_BLOCKS.left[0]} side="left" />
                 </div>
                 <div className="row-span-3 flex items-center justify-center">
-                  <div className="relative flex h-[288px] w-[288px] items-center justify-center">
-                    <div className="absolute inset-[-42px] rounded-full border border-dashed border-sky-200/80" />
-                    <div className="absolute inset-[-20px] rounded-full border border-white/80 shadow-[0_0_0_1px_rgba(191,219,254,0.7)]" />
-                    <div className="absolute inset-[-20px] rounded-full bg-sky-400/10 blur-3xl" />
+                  <div className="relative flex h-[230px] w-[230px] items-center justify-center 2xl:h-[288px] 2xl:w-[288px]">
+                    <div className="absolute inset-[-28px] rounded-full border border-dashed border-sky-200/80 2xl:inset-[-42px]" />
+                    <div className="absolute inset-[-14px] rounded-full border border-white/80 shadow-[0_0_0_1px_rgba(191,219,254,0.7)] 2xl:inset-[-20px]" />
+                    <div className="absolute inset-[-14px] rounded-full bg-sky-400/10 blur-3xl 2xl:inset-[-20px]" />
                     <div className="relative flex h-full w-full items-center justify-center rounded-full border-[8px] border-white bg-gradient-to-br from-sky-400 via-blue-500 to-blue-700 text-center shadow-[0_36px_80px_-30px_rgba(37,99,235,0.7)]">
-                      <p className="text-[2.15rem] font-black leading-[1.02] tracking-tight text-white">
+                      <p className="text-[1.75rem] font-black leading-[1.02] tracking-tight text-white 2xl:text-[2.15rem]">
                         EDUTINDO
                         <br />
                         CHRISTIAN
@@ -527,21 +527,21 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-                <div className="pl-8">
+                <div className="pl-4 2xl:pl-8">
                   <BuildingBlockCard item={BUILDING_BLOCKS.right[0]} side="right" />
                 </div>
 
-                <div className="pr-8">
+                <div className="pr-4 2xl:pr-8">
                   <BuildingBlockCard item={BUILDING_BLOCKS.left[1]} side="left" />
                 </div>
-                <div className="pl-8">
+                <div className="pl-4 2xl:pl-8">
                   <BuildingBlockCard item={BUILDING_BLOCKS.right[1]} side="right" />
                 </div>
 
-                <div className="pr-8">
+                <div className="pr-4 2xl:pr-8">
                   <BuildingBlockCard item={BUILDING_BLOCKS.left[2]} side="left" />
                 </div>
-                <div className="pl-8">
+                <div className="pl-4 2xl:pl-8">
                   <BuildingBlockCard item={BUILDING_BLOCKS.right[2]} side="right" />
                 </div>
               </div>
