@@ -9,7 +9,7 @@ import { cn } from "@/components/ui/button";
 type Founder = {
   role: string;
   name: string;
-  imageSrc: string;
+  imageSrc?: string;
   imageAlt: string;
   imagePosition?: string;
   imageScale?: number;
@@ -19,9 +19,9 @@ type Founder = {
 const FOUNDERS: Founder[] = [
   {
     role: "Advisory - Chair",
-    name: "U Siahaan",
+    name: "Ulbrits Siahaan",
     imageSrc: "/founders/ulbrits.jpeg",
-    imageAlt: "U Siahaan",
+    imageAlt: "Ulbrits Siahaan",
     imagePosition: "center 62%",
     lines: [
       "BSc in Computer Science, Bandung Institute of Technology + Bachelor in Theology, Doulos Theological Seminary Jakarta",
@@ -46,9 +46,9 @@ const FOUNDERS: Founder[] = [
   },
   {
     role: "Supervisory - Chair",
-    name: "A Martarina",
+    name: "Agustin Martarina",
     imageSrc: "/founders/agustin.jpg",
-    imageAlt: "A Martarina",
+    imageAlt: "Agustin Martarina",
     lines: [
       "MSc in Accounting, University of Indonesia",
       "Local Curriculum Expert",
@@ -58,9 +58,9 @@ const FOUNDERS: Founder[] = [
   },
   {
     role: "President/Chair",
-    name: "Dr S C Nabilla",
+    name: "Dr Sasza Chyntara Nabilla",
     imageSrc: "/founders/sasza.jpeg",
-    imageAlt: "Dr S C Nabilla",
+    imageAlt: "Dr Sasza Chyntara Nabilla",
     lines: [
       "DPhil in Material Science, University of Oxford",
       "Research Associate & Tutor at Imperial College London",
@@ -69,9 +69,9 @@ const FOUNDERS: Founder[] = [
   },
   {
     role: "Treasurer",
-    name: "Y M S Pramudito",
+    name: "Yedija Messa",
     imageSrc: "/founders/messa.jpeg",
-    imageAlt: "Y M S Pramudito",
+    imageAlt: "Yedija Messa",
     lines: [
       "MSc in Data Science, University of Manchester",
       "MBA Candidate",
@@ -81,9 +81,9 @@ const FOUNDERS: Founder[] = [
   },
   {
     role: "Secretary",
-    name: "A Aribowo",
+    name: "Andre Aribowo",
     imageSrc: "/founders/andre.jpeg",
-    imageAlt: "A Aribowo",
+    imageAlt: "Andre Aribowo",
     lines: [
       "MSc in Local Economic Development, LSE",
       "CIMA Qualified",
@@ -91,14 +91,71 @@ const FOUNDERS: Founder[] = [
       "Endowment / Corp Finance Background",
     ],
   },
+  {
+    role: "ELL Teacher",
+    name: "Vanessa Caitlin",
+    imageSrc: "/founders/vanessa-caitlin.jpeg",
+    imageAlt: "Vanessa Caitlin",
+    lines: [
+      "MA in International Education, University of Manchester (Candidate)",
+      "English Language Learner (ELL) Teacher for IB Primary Years Programme",
+      "IB & TES Certified",
+      "Private Tutor (English)",
+    ],
+  },
 ];
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2);
+}
+
+function FounderAvatar({
+  founder,
+  sizeClassName,
+  ringClassName,
+}: {
+  founder: Founder;
+  sizeClassName: string;
+  ringClassName: string;
+}) {
+  const { imageSrc, imageAlt, imagePosition, imageScale, name } = founder;
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(imageSrc) && !imageFailed;
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-full", sizeClassName, ringClassName)}>
+      {showImage ? (
+        <Image
+          src={imageSrc}
+          alt={imageAlt}
+          fill
+          className="object-cover"
+          onError={() => setImageFailed(true)}
+          style={{
+            objectPosition: imagePosition ?? "center",
+            transform: `scale(${imageScale ?? 1})`,
+          }}
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 text-lg font-bold text-white">
+          {getInitials(name)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FounderDetail({
   founder,
 }: {
   founder: Founder;
 }) {
-  const { role, name, imageSrc, imageAlt, imagePosition, imageScale, lines } = founder;
+  const { role, name, lines } = founder;
   return (
     <Card className="overflow-hidden border border-sky-100/80 bg-white/90 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.45)] backdrop-blur-sm">
       <CardContent className="p-0">
@@ -108,15 +165,11 @@ function FounderDetail({
             <div className="pointer-events-none absolute -left-14 bottom-0 h-40 w-40 rounded-full bg-blue-100/80 blur-2xl" />
 
             <div className="relative mx-auto w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl ring-2 ring-sky-100">
-              <Image
-                src={imageSrc}
-                alt={imageAlt}
-                fill
-                className="object-cover"
-                style={{
-                  objectPosition: imagePosition ?? "center",
-                  transform: `scale(${imageScale ?? 1})`,
-                }}
+              <FounderAvatar
+                key={`${founder.name}-${founder.imageSrc ?? "fallback"}`}
+                founder={founder}
+                sizeClassName="h-full w-full"
+                ringClassName=""
               />
             </div>
 
@@ -194,15 +247,10 @@ export default function AboutPage() {
                       isActive ? "ring-sky-200" : "ring-white group-hover:ring-sky-100"
                     )}
                   >
-                    <Image
-                      src={f.imageSrc}
-                      alt={f.name}
-                      fill
-                      className="object-cover"
-                      style={{
-                        objectPosition: f.imagePosition ?? "center",
-                        transform: `scale(${f.imageScale ?? 1})`,
-                      }}
+                    <FounderAvatar
+                      founder={f}
+                      sizeClassName="h-full w-full"
+                      ringClassName=""
                     />
                   </div>
 
