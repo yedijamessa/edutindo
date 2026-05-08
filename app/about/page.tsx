@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
+import { Check, CheckCircle2, Heart } from "lucide-react";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/components/ui/button";
 
@@ -92,7 +92,7 @@ const FOUNDERS: Founder[] = [
     ],
   },
   {
-    role: "ELL Teacher",
+    role: "Curriculum",
     name: "Vanessa Caitlin",
     imageSrc: "/founders/vanessa-caitlin.jpeg",
     imageAlt: "Vanessa Caitlin",
@@ -114,21 +114,24 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
+function getFounderCardSpanClassName(index: number) {
+  if (index < 3) return "lg:col-span-4";
+  return "lg:col-span-3";
+}
+
 function FounderAvatar({
   founder,
-  sizeClassName,
-  ringClassName,
+  className,
 }: {
   founder: Founder;
-  sizeClassName: string;
-  ringClassName: string;
+  className?: string;
 }) {
   const { imageSrc, imageAlt, imagePosition, imageScale, name } = founder;
   const [imageFailed, setImageFailed] = useState(false);
   const resolvedImageSrc = imageFailed ? undefined : imageSrc;
 
   return (
-    <div className={cn("relative overflow-hidden rounded-full", sizeClassName, ringClassName)}>
+    <div className={cn("relative overflow-hidden rounded-full", className)}>
       {resolvedImageSrc ? (
         <Image
           src={resolvedImageSrc}
@@ -142,7 +145,7 @@ function FounderAvatar({
           }}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 text-lg font-bold text-white">
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 text-xl font-bold text-white">
           {getInitials(name)}
         </div>
       )}
@@ -150,136 +153,128 @@ function FounderAvatar({
   );
 }
 
-function FounderDetail({
-  founder,
-}: {
-  founder: Founder;
-}) {
-  const { role, name, lines } = founder;
+function FounderDetail({ founder }: { founder: Founder }) {
   return (
-    <Card className="overflow-hidden border border-sky-100/80 bg-white/90 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.45)] backdrop-blur-sm">
-      <CardContent className="p-0">
-        <div className="grid md:grid-cols-[280px_1fr]">
-          <div className="relative isolate overflow-hidden bg-gradient-to-b from-sky-50 via-blue-50 to-white p-8 md:p-10">
-            <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-sky-200/50 blur-2xl" />
-            <div className="pointer-events-none absolute -left-14 bottom-0 h-40 w-40 rounded-full bg-blue-100/80 blur-2xl" />
-
-            <div className="relative mx-auto w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl ring-2 ring-sky-100">
-              <FounderAvatar
-                key={`${founder.name}-${founder.imageSrc ?? "fallback"}`}
-                founder={founder}
-                sizeClassName="h-full w-full"
-                ringClassName=""
-              />
-            </div>
-
-            <div className="relative mt-6 text-center">
-              <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">
-                {role}
-              </p>
-            </div>
+    <div className="overflow-hidden rounded-[2rem] border border-sky-100/80 bg-white/95 shadow-[0_34px_90px_-54px_rgba(15,23,42,0.45)] backdrop-blur-sm">
+      <div className="grid lg:grid-cols-[430px_1fr]">
+        <div className="relative isolate overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.55),_transparent_34%),linear-gradient(180deg,#eef6ff,#ffffff)] px-8 py-10 sm:px-10 sm:py-12">
+          <div className="absolute left-6 top-6 grid grid-cols-5 gap-2 opacity-70">
+            {Array.from({ length: 20 }).map((_, index) => (
+              <span key={index} className="h-1.5 w-1.5 rounded-full bg-sky-200" />
+            ))}
           </div>
 
-          <div className="p-8 md:p-10 lg:p-12">
-            <h3 translate="no" className="notranslate text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
-              {name}
-            </h3>
-            <div className="mt-7 space-y-4">
-              {lines.map((l, idx) => (
-                <p key={idx} className="relative pl-6 text-base leading-relaxed text-slate-600">
-                  <span className="absolute left-0 top-[0.62rem] h-2 w-2 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 shadow-[0_0_0_3px_rgba(14,165,233,0.15)]" />
-                  {l}
-                </p>
-              ))}
+          <div className="relative mx-auto flex max-w-[240px] flex-col items-center">
+            <div className="relative h-52 w-52 overflow-hidden rounded-full border-4 border-white shadow-[0_22px_48px_-24px_rgba(30,64,175,0.45)] ring-1 ring-sky-100">
+              <FounderAvatar founder={founder} className="h-full w-full" />
             </div>
+
+            <p className="mt-6 inline-flex rounded-full border border-sky-200 bg-white/95 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700 shadow-sm">
+              {founder.role}
+            </p>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="px-8 py-10 sm:px-10 sm:py-12">
+          <h2
+            translate="no"
+            className="notranslate font-serif text-4xl font-semibold tracking-tight text-[#122454] md:text-5xl"
+          >
+            {founder.name}
+          </h2>
+
+          <div className="mt-8 space-y-5">
+            {founder.lines.map((line) => (
+              <div key={line} className="flex items-start gap-4">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                <p className="text-base leading-relaxed text-slate-600">{line}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function AboutPage() {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(FOUNDERS.length - 1);
   const activeFounder = FOUNDERS[activeIndex];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen overflow-hidden bg-[#f7fbff]">
+      <Section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(191,219,254,0.32),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)]">
+        <div className="pointer-events-none absolute -left-24 top-0 h-[420px] w-[420px] rounded-full border border-white/60 bg-white/35 blur-[1px]" />
+        <div className="pointer-events-none absolute right-[-140px] top-16 h-[520px] w-[520px] rounded-full bg-blue-100/40 blur-3xl" />
+        <div className="pointer-events-none absolute left-[-120px] bottom-0 h-[420px] w-[420px] rounded-full bg-sky-100/50 blur-3xl" />
 
+        <div className="relative mx-auto max-w-6xl">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-5 py-1.5 text-xs font-bold uppercase tracking-[0.26em] text-blue-600 shadow-sm">
+              Serving Team
+            </p>
+            <h1 className="mt-6 font-serif text-5xl font-semibold tracking-tight text-[#122454] md:text-7xl">
+              The Serving Team
+            </h1>
 
-      {/* Founders */}
-      <Section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(14,116,144,0.10),_transparent_48%),linear-gradient(to_bottom,_#f8fbff,_#f1f5f9)] dark:bg-slate-900">
-        <div className="pointer-events-none absolute -left-24 top-28 h-72 w-72 rounded-full bg-cyan-200/30 blur-3xl" />
-        <div className="pointer-events-none absolute -right-24 bottom-20 h-72 w-72 rounded-full bg-blue-200/30 blur-3xl" />
+            <div className="mt-5 flex items-center justify-center gap-3 text-blue-500">
+              <span className="h-[2px] w-24 rounded-full bg-gradient-to-r from-transparent via-blue-500 to-blue-500" />
+              <Heart className="h-5 w-5" strokeWidth={1.8} />
+              <span className="h-[2px] w-24 rounded-full bg-gradient-to-l from-transparent via-blue-500 to-blue-500" />
+            </div>
 
-        <div className="relative text-center max-w-3xl mx-auto mb-12">
-          <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-4 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700 shadow-sm">
-            Serving Team
-          </p>
-          <h2 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900">The Serving Team</h2>
-        </div>
+            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
+              Dedicated professionals and educators serving with heart and purpose.
+            </p>
+          </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 mb-12">
-          {FOUNDERS.map((f, index) => {
-            const isActive = index === activeIndex;
-            return (
-              <button
-                key={f.name}
-                onClick={() => setActiveIndex(index)}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-                  isActive
-                    ? "-translate-y-0.5 border-sky-300 bg-white shadow-[0_16px_40px_-30px_rgba(14,116,144,0.95)]"
-                    : "border-slate-200/80 bg-white/85 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white"
-                )}
-              >
-                <span
+          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-12">
+            {FOUNDERS.map((founder, index) => {
+              const isActive = index === activeIndex;
+
+              return (
+                <button
+                  key={founder.name}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
                   className={cn(
-                    "absolute inset-x-0 top-0 h-1 transition-all duration-300",
-                    isActive ? "bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600" : "bg-slate-100 group-hover:bg-sky-100"
+                    "group relative rounded-[1.75rem] border bg-white/95 px-6 py-5 text-center shadow-[0_22px_60px_-42px_rgba(15,23,42,0.38)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                    getFounderCardSpanClassName(index),
+                    isActive
+                      ? "border-blue-400 shadow-[0_28px_70px_-42px_rgba(37,99,235,0.45)]"
+                      : "border-sky-100/80 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white"
                   )}
-                />
+                >
+                  {isActive ? (
+                    <span className="absolute right-4 top-4 inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_10px_20px_-12px_rgba(37,99,235,0.8)]">
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </span>
+                  ) : null}
 
-                <div className="relative flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-full overflow-hidden relative bg-slate-200 ring-2 transition-all duration-300",
-                      isActive ? "ring-sky-200" : "ring-white group-hover:ring-sky-100"
-                    )}
+                  <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-slate-200 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.35)]">
+                    <FounderAvatar founder={founder} className="h-full w-full" />
+                  </div>
+
+                  <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">
+                    {founder.role}
+                  </p>
+                  <h2
+                    translate="no"
+                    className="notranslate mt-2 font-serif text-[1.15rem] font-semibold leading-tight text-[#122454] md:text-[1.35rem]"
                   >
-                    <FounderAvatar
-                      founder={f}
-                      sizeClassName="h-full w-full"
-                      ringClassName=""
-                    />
-                  </div>
+                    {founder.name}
+                  </h2>
+                  <span className={cn("mx-auto mt-4 block h-[2px] w-7 rounded-full", isActive ? "bg-blue-500" : "bg-blue-300")} />
+                </button>
+              );
+            })}
+          </div>
 
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 leading-none mb-1">
-                      {f.role}
-                    </p>
-                    <p
-                      translate="no"
-                      className={cn(
-                        "notranslate text-base font-semibold leading-tight truncate",
-                        isActive ? "text-sky-700" : "text-slate-900"
-                      )}
-                    >
-                      {f.name}
-                    </p>
-                  </div>
-
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="max-w-5xl mx-auto">
-          <FounderDetail founder={activeFounder} />
+          <div className="mt-7">
+            <FounderDetail founder={activeFounder} />
+          </div>
         </div>
       </Section>
-
     </div>
   );
 }
