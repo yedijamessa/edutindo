@@ -3,52 +3,60 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 
-const HOMEPAGE_CAROUSEL_SLIDES = [
+const HOMEPAGE_PHOTO_SOURCES = [
+  "/homepage-photos-archive/01.jpg",
+  "/homepage-photos-archive/02.jpg",
+  "/homepage-photos-archive/03.jpg",
+  "/homepage-photos-archive/04.jpg",
+  "/homepage-photos-archive/05.jpg",
+  "/homepage-photos-archive/06.jpg",
+  "/homepage-photos-archive/07.jpg",
+  "/homepage-photos-archive/08.jpg",
+  "/homepage-photos-archive/09.jpg",
+  "/homepage-photos-archive/10.jpg",
+  "/homepage-photos-archive/11.jpg",
+  "/homepage-photos-archive/12.jpg",
+  "/homepage-photos-archive/13.jpg",
+  "/homepage-photos-archive/14.jpg",
+  "/homepage-photos-archive/15.jpg",
+  "/homepage-photos-archive/16.jpg",
+  "/homepage-photos-archive/17.jpg",
+  "/homepage-photos-archive/18.jpg",
+  "/homepage-photos-archive/19.jpg",
+  "/homepage-photos-archive/20.jpg",
+  "/homepage-photos-archive/21.jpg",
+  "/homepage-photos-archive/22.jpg",
+  "/homepage-photos-archive/23.jpg",
+  "/homepage-photos-archive/24.jpg",
+  "/homepage-photos-archive/25.png",
+  "/homepage-photos-archive/26.png",
+  "/homepage-photos-archive/27.png",
+  "/homepage-photos-archive/28.png",
+];
+
+const HOMEPAGE_CAROUSEL_SLIDES = HOMEPAGE_PHOTO_SOURCES.map((src, index) => ({
+  src,
+  alt: `Edutindo learning and community photo ${index + 1}`,
+}));
+
+const HOMEPAGE_FEATURE_IMAGES = [
   {
-    src: "/homepage-carousel/1.jpg",
-    alt: "Rural primary school learning in Indonesia",
-    referenceUrl: "https://blogs.worldbank.org/en/eastasiapacific/hard-truth-challenges-primary-education-rural-and-remote-indonesia",
+    src: HOMEPAGE_PHOTO_SOURCES[0],
+    alt: "Edutindo school partnership activity",
   },
   {
-    src: "/homepage-carousel/2.jpg",
-    alt: "Child-friendly school support in an Indonesian village",
-    referenceUrl: "https://www.globalgiving.org/projects/child-friendly-school-in-indonesian-village",
+    src: HOMEPAGE_PHOTO_SOURCES[1],
+    alt: "Edutindo STEAM learning activity",
   },
   {
-    src: "/homepage-carousel/5.jpg",
-    alt: "Remote elementary school conditions in Sulawesi",
-    referenceUrl: "https://news.detik.com/berita/d-3707337/memprihatinkan-begini-kondisi-sd-negeri-di-pedalaman-sulawesi",
-  },
-  {
-    src: "/homepage-carousel/6.jpg",
-    alt: "Rural education improvement perspective",
-    referenceUrl: "https://govinsider.asia/intl-en/article/four-ways-improve-rural-education",
-  },
-  {
-    src: "/homepage-carousel/7.jpg",
-    alt: "Primary school classroom scene in Indonesia",
-    referenceUrl: "https://www.robertharding.com/preview/1242-227/primary-school-classroom-full-students-houy-mieng-village",
-  },
-  {
-    src: "/homepage-carousel/8.jpg",
-    alt: "Village school building initiative in Indonesia",
-    referenceUrl: "https://www.globalgiving.org/projects/build-a-village-school-in-indonesia/",
-  },
-  {
-    src: "/homepage-carousel/9.jpg",
-    alt: "Rural schools adapting to new normal conditions",
-    referenceUrl: "https://www.thejakartapost.com/academia/2020/06/13/addressing-the-new-normal-for-schools-in-rural-areas.html",
-  },
-  {
-    src: "/homepage-carousel/10.jpg",
-    alt: "Historical school context in Indonesia",
-    referenceUrl: "https://histclo.com/schun/country/other/indo/is-uni.html",
+    src: HOMEPAGE_PHOTO_SOURCES[2],
+    alt: "Edutindo faith-centered learning activity",
   },
 ];
 
@@ -119,15 +127,12 @@ export default function HomePage() {
                 priority
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/75 via-slate-900/30 to-transparent p-4">
-                <a
-                  href={currentSlide.referenceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-white hover:text-sky-200 transition-colors"
-                >
-                  Reference {activeSlide + 1}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                <p className="text-xs sm:text-sm font-semibold text-white">
+                  Edutindo photo archive
+                  <span className="ml-2 text-white/80">
+                    {activeSlide + 1} / {HOMEPAGE_CAROUSEL_SLIDES.length}
+                  </span>
+                </p>
               </div>
 
               <button
@@ -187,8 +192,8 @@ export default function HomePage() {
             <Card className="border-none shadow-none bg-orange-500 overflow-hidden">
               <div className="relative h-44">
                 <Image
-                  src="/homepage/eti-group-project.png"
-                  alt="Students collaborating in a classroom"
+                  src={HOMEPAGE_FEATURE_IMAGES[0].src}
+                  alt={HOMEPAGE_FEATURE_IMAGES[0].alt}
                   fill
                   className="object-cover"
                 />
@@ -203,8 +208,8 @@ export default function HomePage() {
             <Card className="border-none shadow-none bg-cyan-500 overflow-hidden">
               <div className="relative h-44">
                 <Image
-                  src="/homepage/eti-steam-lab.png"
-                  alt="Students working on STEAM projects"
+                  src={HOMEPAGE_FEATURE_IMAGES[1].src}
+                  alt={HOMEPAGE_FEATURE_IMAGES[1].alt}
                   fill
                   className="object-cover"
                 />
@@ -219,8 +224,8 @@ export default function HomePage() {
             <Card className="border-none shadow-none bg-yellow-400 overflow-hidden">
               <div className="relative h-44">
                 <Image
-                  src="/homepage/eti-activity-bible.png"
-                  alt="Students in Bible-focused learning activity"
+                  src={HOMEPAGE_FEATURE_IMAGES[2].src}
+                  alt={HOMEPAGE_FEATURE_IMAGES[2].alt}
                   fill
                   className="object-cover"
                 />
