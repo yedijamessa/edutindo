@@ -210,9 +210,7 @@ export default function AboutPage() {
 
         <div className="relative mx-auto max-w-6xl">
           <div className="mx-auto max-w-4xl text-center">
-            <p className="inline-flex rounded-full border border-sky-200 bg-white/90 px-5 py-1.5 text-xs font-bold uppercase tracking-[0.26em] text-blue-600 shadow-sm">
-              Serving Team
-            </p>
+
             <h1 className="mt-6 font-serif text-5xl font-semibold tracking-tight text-[#122454] md:text-7xl">
               The Serving Team
             </h1>
