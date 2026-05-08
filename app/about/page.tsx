@@ -125,13 +125,13 @@ function FounderAvatar({
 }) {
   const { imageSrc, imageAlt, imagePosition, imageScale, name } = founder;
   const [imageFailed, setImageFailed] = useState(false);
-  const showImage = Boolean(imageSrc) && !imageFailed;
+  const resolvedImageSrc = imageFailed ? undefined : imageSrc;
 
   return (
     <div className={cn("relative overflow-hidden rounded-full", sizeClassName, ringClassName)}>
-      {showImage ? (
+      {resolvedImageSrc ? (
         <Image
-          src={imageSrc}
+          src={resolvedImageSrc}
           alt={imageAlt}
           fill
           className="object-cover"
