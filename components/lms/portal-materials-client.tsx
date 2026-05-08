@@ -1268,8 +1268,8 @@ function StudentMaterialsExperience({
 
   return (
     <div className="bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_40%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
-      <div className="mx-auto flex w-full max-w-[1440px] gap-6 px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-16">
-        <aside className="sticky top-[5.25rem] hidden h-[calc(100vh-6.5rem)] w-[240px] shrink-0 flex-col justify-between rounded-[30px] border border-white/70 bg-white/88 p-5 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.36)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82 lg:flex">
+      <div className="mx-auto flex w-full max-w-[1440px] gap-6 px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-24">
+        <aside className="sticky top-[5.25rem] hidden max-h-[calc(100vh-6.5rem)] w-[240px] shrink-0 flex-col gap-8 self-start overflow-y-auto rounded-[30px] border border-white/70 bg-white/88 p-5 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.36)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82 lg:flex">
           <div className="space-y-6">
             <div className="px-2">
               <h2 className="text-[1.5rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
@@ -1304,7 +1304,7 @@ function StudentMaterialsExperience({
             </nav>
           </div>
 
-          <div className="space-y-5">
+          <div className="mt-auto space-y-5">
             <StudentSidebarPromo />
 
             <div className="border-t border-[#e6edf8] px-2 pt-4 dark:border-slate-800">
