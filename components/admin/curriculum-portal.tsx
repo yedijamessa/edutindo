@@ -1706,7 +1706,8 @@ export function CurriculumPortal() {
                   How This Builder Works
                 </CardTitle>
                 <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
-                  Create reusable modules first, group them into chapters, then place chapters under a subject.
+                  Build your subject structure here: subjects, chapters, and lessons. Reusable modules are created in
+                  the Module Library and assigned to lessons later.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1715,7 +1716,7 @@ export function CurriculumPortal() {
                     { label: selectedSchool?.title ?? "Select school", active: Boolean(selectedSchool) },
                     { label: selectedSubject?.title ?? "Select subject", active: Boolean(selectedSubject) },
                     { label: selectedChapter?.title ?? "Select chapter", active: Boolean(selectedChapter) },
-                    { label: selectedModule?.title ?? "Select module", active: Boolean(selectedModule) },
+                    { label: selectedModule?.title ?? "Select lesson", active: Boolean(selectedModule) },
                   ].map((item, index, items) => (
                     <div key={`${item.label}-${index}`} className="flex items-center gap-2">
                       <span
@@ -1750,8 +1751,8 @@ export function CurriculumPortal() {
                 </div>
 
                 <div className="rounded-[22px] border border-dashed border-[#cfd9ea] bg-slate-50/80 p-4 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-400">
-                  Module tags override chapter tags. Use chapter tags when the whole chapter belongs to a year,
-                  and module tags when a chapter is split across years.
+                  Lesson tags override chapter tags. Use chapter tags when the whole chapter belongs to a year,
+                  and lesson tags when a chapter is split across years.
                 </div>
               </CardContent>
             </Card>
@@ -1797,7 +1798,7 @@ export function CurriculumPortal() {
             {selectedSubject ? (
               <NodeColumn
                 title="Manage Chapters"
-                description={`Inside subject: ${selectedSubject.title}. Add chapters and organise reusable module groups.`}
+                description={`Inside subject: ${selectedSubject.title}. Add chapters and organise the lesson structure.`}
                 nodeType="chapter"
                 parentId={selectedSubject.id}
                 nodes={chapters}
@@ -1839,8 +1840,8 @@ export function CurriculumPortal() {
 
             {selectedChapter ? (
               <NodeColumn
-                title="Manage Modules"
-                description={`Inside chapter: ${selectedChapter.title}. Build the reusable modules here.`}
+                title="Manage Lessons"
+                description={`Inside chapter: ${selectedChapter.title}. Add lessons here, then attach reusable modules from the Module Library.`}
                 nodeType="lesson"
                 parentId={selectedChapter.id}
                 nodes={lessons}
@@ -1871,7 +1872,7 @@ export function CurriculumPortal() {
                 lessonPreviewBasePath={null}
               />
             ) : (
-              <EmptySelectionCard>Select or add a chapter to manage its modules.</EmptySelectionCard>
+              <EmptySelectionCard>Select or add a chapter to manage its lessons.</EmptySelectionCard>
             )}
           </div>
 
@@ -1885,14 +1886,14 @@ export function CurriculumPortal() {
                         Chapter Settings
                       </CardTitle>
                       <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
-                        Set chapter-wide defaults like assessments and year tags. Module tags can override
+                        Set chapter-wide defaults like assessments and year tags. Lesson tags can override
                         these.
                       </CardDescription>
                     </div>
                     <Button asChild variant="outline" className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}>
-                      <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedChapter.id)}`}>
+                      <Link href="/admin/modules">
                         <FilePenLine className="mr-2 h-4 w-4" />
-                        Open Chapter Editor
+                        Open Module Library
                       </Link>
                     </Button>
                   </div>
@@ -2009,23 +2010,23 @@ export function CurriculumPortal() {
 
             {selectedModule ? (
               <AssignmentTagEditor
-                title="Module Year Tags"
-                description="Tag modules to specific schools and years. These tags override chapter defaults."
+                title="Lesson Year Tags"
+                description="Tag lessons to specific schools and years. These tags override chapter defaults."
                 tags={selectedModuleTags}
                 schools={schools}
                 busy={busy}
                 action={
                   <Button asChild variant="outline" className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}>
-                    <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(selectedModule.id)}`}>
+                    <Link href={`/admin/modules?lessonId=${encodeURIComponent(selectedModule.id)}`}>
                       <FilePenLine className="mr-2 h-4 w-4" />
-                      Open Module Editor
+                      Manage Module Assignment
                     </Link>
                   </Button>
                 }
                 onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
               />
             ) : (
-              <EmptySelectionCard>Select a module to control year-level placement across schools.</EmptySelectionCard>
+              <EmptySelectionCard>Select a lesson to control year-level placement across schools.</EmptySelectionCard>
             )}
           </div>
 

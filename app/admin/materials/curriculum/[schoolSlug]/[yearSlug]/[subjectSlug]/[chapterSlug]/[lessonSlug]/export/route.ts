@@ -4,7 +4,7 @@ import { SESSION_COOKIE_NAME } from "@/lib/auth-shared";
 import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
 import { buildLessonExportHtml, getLessonExportFileBaseName } from "@/lib/lesson-export";
-import { getModuleEditorDocument } from "@/lib/module-editor";
+import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
 
 export const runtime = "nodejs";
 
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest, context: Context) {
     }
 
     const lessonContent = getCurriculumLessonContent(lessonContext.subject.slug, lessonContext.lesson.slug);
-    const moduleDocument = await getModuleEditorDocument(lessonContext.lesson.id);
+    const moduleDocument = await getAssignedModuleDocumentForLesson(lessonContext.lesson.id);
     const html = buildLessonExportHtml({
       context: lessonContext,
       lessonContent,

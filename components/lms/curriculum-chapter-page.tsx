@@ -141,9 +141,9 @@ export async function CurriculumChapterPage({
                               <td className="py-3 pl-3 text-right">
                                 <div className="flex justify-end gap-2">
                                   <Button asChild variant="outline" size="sm">
-                                    <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(lesson.id)}`}>
+                                    <Link href={`/admin/modules?lessonId=${encodeURIComponent(lesson.id)}`}>
                                       <PencilLine className="mr-2 h-4 w-4" />
-                                      Edit
+                                      Manage Module
                                     </Link>
                                   </Button>
                                   <LessonExportButton

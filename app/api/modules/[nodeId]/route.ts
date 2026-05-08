@@ -21,17 +21,17 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { nodeId } = await params;
+  const { nodeId: moduleId } = await params;
 
-  if (!nodeId || typeof nodeId !== "string" || nodeId.trim().length === 0) {
-    return NextResponse.json({ error: "Invalid nodeId" }, { status: 400 });
+  if (!moduleId || typeof moduleId !== "string" || moduleId.trim().length === 0) {
+    return NextResponse.json({ error: "Invalid moduleId" }, { status: 400 });
   }
 
   try {
-    await deleteModuleDocument(nodeId.trim());
+    await deleteModuleDocument(moduleId.trim());
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[DELETE /api/modules/:nodeId]", error);
+    console.error("[DELETE /api/modules/:moduleId]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

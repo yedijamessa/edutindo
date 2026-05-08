@@ -10,7 +10,7 @@ import {
   updateCurriculumNode,
 } from "@/lib/curriculum-portal";
 import { englishBlueprintByYear, type EnglishBlueprintChapter, type EnglishBlueprintLesson, type EnglishBlueprintSourceRef } from "@/lib/curriculum/english-ielts-blueprint";
-import { getModuleEditorDocument, saveModuleEditorDocument } from "@/lib/module-editor";
+import { assignModuleToLesson, getAssignedModuleIdForLesson, getModuleEditorDocument, saveModuleEditorDocument } from "@/lib/module-editor";
 import type { ModuleEditorBlock, ModuleEditorDocument, ModuleEditorPage, ModuleEditorQuizBlock } from "@/types/module-editor";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -808,8 +808,7 @@ function buildLessonDocument(chapter: EnglishBlueprintChapter, lesson: EnglishBl
   ];
 
   return {
-    nodeId: "",
-    nodeType: "lesson",
+    id: "",
     title: lesson.title,
     pages: pages.length > 0 ? pages : [buildOverviewPage(chapter, lesson)],
     updatedAt: null,
@@ -973,18 +972,27 @@ async function seedLessonDocuments() {
           null;
         if (!lessonTree) continue;
 
-        const existingDocument = await getModuleEditorDocument(lessonTree.id);
+        const existingModuleId = await getAssignedModuleIdForLesson(lessonTree.id);
+        const existingDocument = existingModuleId ? await getModuleEditorDocument(existingModuleId) : null;
         if (existingDocument && !overwriteDocs) {
           continue;
         }
 
         const document = buildLessonDocument(chapter, lesson);
-        await saveModuleEditorDocument({
-          nodeId: lessonTree.id,
+        const savedDocument = await saveModuleEditorDocument({
+          moduleId: existingDocument?.id ?? null,
           title: document.title,
           pages: document.pages,
           actorUserId: ACTOR_USER_ID,
         });
+
+        if (!existingModuleId) {
+          await assignModuleToLesson({
+            moduleId: savedDocument.id,
+            lessonId: lessonTree.id,
+            actorUserId: ACTOR_USER_ID,
+          });
+        }
       }
     }
   }

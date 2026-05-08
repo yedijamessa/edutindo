@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
-import { getModuleEditorDocument } from "@/lib/module-editor";
+import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
 
 type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
 
@@ -54,7 +54,7 @@ export async function CurriculumLessonPage({
   const chapterPath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}`;
   const materialsPath = `/${role}/materials`;
   const lessonContent = getCurriculumLessonContent(subject.slug, lesson.slug);
-  const moduleDocument = await getModuleEditorDocument(lesson.id);
+  const moduleDocument = await getAssignedModuleDocumentForLesson(lesson.id);
   const isIntroCellsLesson = lessonContent.interactiveExperience && !moduleDocument;
   const postTestAvailable =
     role === "student" && !nextLesson && Boolean(chapter.postTestEnabled) && Boolean(chapter.postTestQuizId);
@@ -104,11 +104,23 @@ export async function CurriculumLessonPage({
                 variant="outline"
                 className="h-10 rounded-full border-[#d9e1ef] bg-white px-4 text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff]"
               >
-                <Link href={`/admin/module-editor?nodeId=${encodeURIComponent(lesson.id)}`}>
+                <Link href={`/admin/modules?lessonId=${encodeURIComponent(lesson.id)}`}>
                   <PencilLine className="mr-2 h-4 w-4" />
-                  Edit Module
+                  Manage Module Assignment
                 </Link>
               </Button>
+              {moduleDocument && (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 rounded-full border-[#d9e1ef] bg-white px-4 text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff]"
+                >
+                  <Link href={`/admin/module-editor?moduleId=${encodeURIComponent(moduleDocument.id)}`}>
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Edit Assigned Module
+                  </Link>
+                </Button>
+              )}
               <LessonExportButton
                 exportPath={`${chapterPath}/${lesson.slug}/export`}
                 lessonTitle={lesson.title}

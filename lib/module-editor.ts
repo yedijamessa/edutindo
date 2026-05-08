@@ -13,6 +13,7 @@ import type {
   ModuleEditorBreadcrumb,
   ModuleEditorDocument,
   ModuleEditorImageBlock,
+  ModuleLessonAssignment,
   ModuleEditorNodeType,
   ModuleEditorPage,
   ModuleEditorQuizBlock,
@@ -24,12 +25,18 @@ import type {
   ModuleEditorTextBlock,
 } from "@/types/module-editor";
 
-type ModuleEditorRow = {
-  curriculum_node_id: string;
-  node_type: string;
+type ModuleEditorModuleRow = {
+  id: string;
   title: string;
   pages: unknown;
+  created_at: Date;
   updated_at: Date;
+};
+
+type ModuleEditorAssignmentRow = {
+  lesson_id: string;
+  module_id: string;
+  assigned_at: Date;
 };
 
 let moduleEditorSchemaReady: Promise<void> | null = null;
@@ -392,8 +399,70 @@ async function ensureModuleEditorSchema() {
       `;
 
       await sql`
-        CREATE INDEX IF NOT EXISTS module_editor_documents_node_type_idx
-        ON module_editor_documents (node_type, updated_at DESC)
+        CREATE TABLE IF NOT EXISTS module_editor_modules (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL DEFAULT '',
+          pages JSONB NOT NULL DEFAULT '[]'::jsonb,
+          updated_by_user_id TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS module_editor_lesson_assignments (
+          lesson_id TEXT PRIMARY KEY REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
+          module_id TEXT NOT NULL REFERENCES module_editor_modules(id) ON DELETE CASCADE,
+          assigned_by_user_id TEXT,
+          assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS module_editor_modules_updated_at_idx
+        ON module_editor_modules (updated_at DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS module_editor_lesson_assignments_module_id_idx
+        ON module_editor_lesson_assignments (module_id, assigned_at DESC)
+      `;
+
+      await sql`
+        INSERT INTO module_editor_modules (
+          id,
+          title,
+          pages,
+          updated_by_user_id,
+          created_at,
+          updated_at
+        )
+        SELECT
+          curriculum_node_id,
+          title,
+          pages,
+          updated_by_user_id,
+          COALESCE(updated_at, NOW()),
+          COALESCE(updated_at, NOW())
+        FROM module_editor_documents
+        ON CONFLICT (id) DO NOTHING
+      `;
+
+      await sql`
+        INSERT INTO module_editor_lesson_assignments (
+          lesson_id,
+          module_id,
+          assigned_by_user_id,
+          assigned_at
+        )
+        SELECT
+          curriculum_node_id,
+          curriculum_node_id,
+          updated_by_user_id,
+          COALESCE(updated_at, NOW())
+        FROM module_editor_documents
+        WHERE node_type = 'lesson'
+        ON CONFLICT (lesson_id) DO NOTHING
       `;
     } catch (error) {
       moduleEditorSchemaReady = null;
@@ -402,6 +471,21 @@ async function ensureModuleEditorSchema() {
   })();
 
   return moduleEditorSchemaReady;
+}
+
+function getModuleTitle(value: unknown) {
+  return sanitizeText(value, 180) || "Untitled Module";
+}
+
+function mapModuleDocument(row: ModuleEditorModuleRow): ModuleEditorDocument {
+  const title = getModuleTitle(row.title);
+
+  return {
+    id: row.id,
+    title,
+    pages: normalizePages(row.pages, title),
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
 }
 
 function mapTargetFromLineage(lineage: CurriculumNode[]): ModuleEditorTarget | null {
@@ -460,187 +544,245 @@ export async function getModuleEditorTarget(nodeId: string) {
   return mapTargetFromLineage(lineage);
 }
 
-export async function getModuleEditorDocument(nodeId: string): Promise<ModuleEditorDocument | null> {
+export async function getAssignedModuleIdForLesson(lessonId: string): Promise<string | null> {
   await ensureModuleEditorSchema();
-  const target = await getModuleEditorTarget(nodeId);
+  const cleanedLessonId = sanitizeText(lessonId, 180);
+  if (!cleanedLessonId) return null;
 
-  if (!target) {
-    return null;
-  }
+  const result = await sql<{ module_id: string }>`
+    SELECT module_id
+    FROM module_editor_lesson_assignments
+    WHERE lesson_id = ${cleanedLessonId}
+    LIMIT 1
+  `;
 
-  const result = await sql<ModuleEditorRow>`
+  return result.rows[0]?.module_id ?? null;
+}
+
+export async function getModuleEditorDocument(moduleId: string): Promise<ModuleEditorDocument | null> {
+  await ensureModuleEditorSchema();
+  const cleanedModuleId = sanitizeText(moduleId, 180);
+  if (!cleanedModuleId) return null;
+
+  const result = await sql<ModuleEditorModuleRow>`
     SELECT
-      curriculum_node_id,
-      node_type,
+      id,
       title,
       pages,
+      created_at,
       updated_at
-    FROM module_editor_documents
-    WHERE curriculum_node_id = ${target.id}
+    FROM module_editor_modules
+    WHERE id = ${cleanedModuleId}
     LIMIT 1
   `;
 
   const row = result.rows[0];
-  if (!row) {
-    return null;
-  }
+  return row ? mapModuleDocument(row) : null;
+}
 
-  const pages = normalizePages(row?.pages, target.title);
+export async function getAssignedModuleDocumentForLesson(lessonId: string): Promise<ModuleEditorDocument | null> {
+  const moduleId = await getAssignedModuleIdForLesson(lessonId);
+  if (!moduleId) return null;
 
-  return {
-    nodeId: target.id,
-    nodeType: target.nodeType,
-    title: sanitizeText(row?.title ?? target.title, 180) || target.title,
-    pages,
-    updatedAt: row?.updated_at ? new Date(row.updated_at).toISOString() : null,
-  };
+  return getModuleEditorDocument(moduleId);
 }
 
 export async function saveModuleEditorDocument(input: {
-  nodeId: string;
+  moduleId?: string | null;
   title: unknown;
   pages: unknown;
   actorUserId?: string;
 }) {
   await ensureModuleEditorSchema();
-  const target = await getModuleEditorTarget(input.nodeId);
-
-  if (!target) {
-    throw new Error("Editor target was not found.");
-  }
-
-  const title = sanitizeText(input.title, 180) || target.title;
-  const pages = normalizePages(input.pages, target.title);
+  const moduleId = sanitizeText(input.moduleId, 180) || randomUUID();
+  const title = getModuleTitle(input.title);
+  const pages = normalizePages(input.pages, title);
   const actorUserId = sanitizeText(input.actorUserId, 180) || null;
 
-  const result = await sql<ModuleEditorRow>`
-    INSERT INTO module_editor_documents (
-      curriculum_node_id,
-      node_type,
+  const result = await sql<ModuleEditorModuleRow>`
+    INSERT INTO module_editor_modules (
+      id,
       title,
       pages,
       updated_by_user_id,
+      created_at,
       updated_at
     )
     VALUES (
-      ${target.id},
-      ${target.nodeType},
+      ${moduleId},
       ${title},
       ${JSON.stringify(pages)},
       ${actorUserId},
+      NOW(),
       NOW()
     )
-    ON CONFLICT (curriculum_node_id)
+    ON CONFLICT (id)
     DO UPDATE SET
-      node_type = EXCLUDED.node_type,
       title = EXCLUDED.title,
       pages = EXCLUDED.pages,
       updated_by_user_id = EXCLUDED.updated_by_user_id,
       updated_at = NOW()
     RETURNING
-      curriculum_node_id,
-      node_type,
+      id,
       title,
       pages,
+      created_at,
       updated_at
   `;
 
-  const row = result.rows[0];
-
-  return {
-    nodeId: row.curriculum_node_id,
-    nodeType: target.nodeType,
-    title: row.title,
-    pages: normalizePages(row.pages, target.title),
-    updatedAt: new Date(row.updated_at).toISOString(),
-  } satisfies ModuleEditorDocument;
+  return mapModuleDocument(result.rows[0]);
 }
 
 export type ModuleListEntry = {
-  nodeId: string;
-  lessonTitle: string;
-  lessonSlug: string;
-  lessonCode: string;
-  week: string;
+  moduleId: string;
   moduleTitle: string;
   pageCount: number;
   updatedAt: string;
-  /** Breadcrumbs: school → year → subject → chapter → lesson */
-  breadcrumbs: ModuleEditorBreadcrumb[];
-  /** Derived convenience fields */
-  subjectTitle: string;
-  chapterTitle: string;
-  schoolSlug: string;
-  yearSlug: string;
-  subjectSlug: string;
-  chapterSlug: string;
+  assignments: ModuleLessonAssignment[];
 };
+
+function mapLessonAssignment(target: ModuleEditorTarget): ModuleLessonAssignment {
+  const school = target.breadcrumbs.find((item) => item.nodeType === "school");
+  const year = target.breadcrumbs.find((item) => item.nodeType === "year");
+  const subject = target.breadcrumbs.find((item) => item.nodeType === "subject");
+  const chapter = target.breadcrumbs.find((item) => item.nodeType === "chapter");
+
+  return {
+    lessonId: target.id,
+    lessonTitle: target.title,
+    lessonSlug: target.slug,
+    lessonCode: sanitizeText(target.metadata.lessonCode, 40),
+    week: sanitizeText(target.metadata.week, 40),
+    breadcrumbs: target.breadcrumbs,
+    subjectTitle: subject?.title ?? "",
+    chapterTitle: chapter?.title ?? "",
+    schoolSlug: school?.slug ?? "",
+    yearSlug: year?.slug ?? "",
+    subjectSlug: subject?.slug ?? "",
+    chapterSlug: chapter?.slug ?? "",
+  };
+}
 
 export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
   await ensureModuleEditorSchema();
   const targets = await listModuleEditorTargets();
+  const [moduleResult, assignmentResult] = await Promise.all([
+    sql<ModuleEditorModuleRow>`
+      SELECT id, title, pages, created_at, updated_at
+      FROM module_editor_modules
+      ORDER BY updated_at DESC
+    `,
+    sql<ModuleEditorAssignmentRow>`
+      SELECT lesson_id, module_id, assigned_at
+      FROM module_editor_lesson_assignments
+      ORDER BY assigned_at DESC
+    `,
+  ]);
 
-  type DocRow = {
-    curriculum_node_id: string;
-    title: string;
-    pages: unknown;
-    updated_at: Date;
-  };
-
-  const result = await sql<DocRow>`
-    SELECT curriculum_node_id, title, pages, updated_at
-    FROM module_editor_documents
-    WHERE node_type = 'lesson'
-    ORDER BY updated_at DESC
-  `;
-
-  const docMap = new Map<string, DocRow>();
-  for (const row of result.rows) {
-    docMap.set(row.curriculum_node_id, row);
-  }
-
-  const entries: ModuleListEntry[] = [];
-
+  const lessonMap = new Map<string, ModuleLessonAssignment>();
   for (const target of targets) {
     if (target.nodeType !== "lesson") continue;
-    const doc = docMap.get(target.id);
-    if (!doc) continue;
-
-    const pages = normalizePages(doc.pages, target.title);
-    const crumbs = target.breadcrumbs;
-
-    const school = crumbs.find((b) => b.nodeType === "school");
-    const year = crumbs.find((b) => b.nodeType === "year");
-    const subject = crumbs.find((b) => b.nodeType === "subject");
-    const chapter = crumbs.find((b) => b.nodeType === "chapter");
-
-    entries.push({
-      nodeId: target.id,
-      lessonTitle: target.title,
-      lessonSlug: target.slug,
-      lessonCode: sanitizeText(target.metadata.lessonCode, 40),
-      week: sanitizeText(target.metadata.week, 40),
-      moduleTitle: sanitizeText(doc.title, 180) || target.title,
-      pageCount: pages.length,
-      updatedAt: new Date(doc.updated_at).toISOString(),
-      breadcrumbs: crumbs,
-      subjectTitle: subject?.title ?? "",
-      chapterTitle: chapter?.title ?? "",
-      schoolSlug: school?.slug ?? "",
-      yearSlug: year?.slug ?? "",
-      subjectSlug: subject?.slug ?? "",
-      chapterSlug: chapter?.slug ?? "",
-    });
+    lessonMap.set(target.id, mapLessonAssignment(target));
   }
 
-  return entries;
+  const assignmentsByModuleId = new Map<string, ModuleLessonAssignment[]>();
+  for (const row of assignmentResult.rows) {
+    const lesson = lessonMap.get(row.lesson_id);
+    if (!lesson) continue;
+
+    const nextAssignments = assignmentsByModuleId.get(row.module_id) ?? [];
+    nextAssignments.push(lesson);
+    assignmentsByModuleId.set(row.module_id, nextAssignments);
+  }
+
+  return moduleResult.rows.map((row) => {
+    const document = mapModuleDocument(row);
+
+    return {
+      moduleId: row.id,
+      moduleTitle: document.title,
+      pageCount: document.pages.length,
+      updatedAt: document.updatedAt ?? new Date(row.updated_at).toISOString(),
+      assignments: assignmentsByModuleId.get(row.id) ?? [],
+    };
+  });
 }
 
-export async function deleteModuleDocument(nodeId: string): Promise<void> {
+export async function assignModuleToLesson(input: {
+  moduleId: string;
+  lessonId: string;
+  actorUserId?: string;
+}) {
   await ensureModuleEditorSchema();
+  const moduleId = sanitizeText(input.moduleId, 180);
+  const lessonId = sanitizeText(input.lessonId, 180);
+  const actorUserId = sanitizeText(input.actorUserId, 180) || null;
+
+  if (!moduleId) {
+    throw new Error("Module was not found.");
+  }
+
+  if (!lessonId) {
+    throw new Error("Lesson was not found.");
+  }
+
+  const [moduleDocument, lessonTarget] = await Promise.all([
+    getModuleEditorDocument(moduleId),
+    getModuleEditorTarget(lessonId),
+  ]);
+
+  if (!moduleDocument) {
+    throw new Error("Module was not found.");
+  }
+
+  if (!lessonTarget || lessonTarget.nodeType !== "lesson") {
+    throw new Error("Lesson was not found.");
+  }
+
   await sql`
-    DELETE FROM module_editor_documents
-    WHERE curriculum_node_id = ${nodeId}
+    INSERT INTO module_editor_lesson_assignments (
+      lesson_id,
+      module_id,
+      assigned_by_user_id,
+      assigned_at
+    )
+    VALUES (
+      ${lessonId},
+      ${moduleId},
+      ${actorUserId},
+      NOW()
+    )
+    ON CONFLICT (lesson_id)
+    DO UPDATE SET
+      module_id = EXCLUDED.module_id,
+      assigned_by_user_id = EXCLUDED.assigned_by_user_id,
+      assigned_at = NOW()
+  `;
+
+  return {
+    moduleId,
+    lessonId,
+  };
+}
+
+export async function unassignModuleFromLesson(lessonId: string): Promise<void> {
+  await ensureModuleEditorSchema();
+  const cleanedLessonId = sanitizeText(lessonId, 180);
+  if (!cleanedLessonId) return;
+
+  await sql`
+    DELETE FROM module_editor_lesson_assignments
+    WHERE lesson_id = ${cleanedLessonId}
   `;
 }
 
+export async function deleteModuleDocument(moduleId: string): Promise<void> {
+  await ensureModuleEditorSchema();
+  const cleanedModuleId = sanitizeText(moduleId, 180);
+  if (!cleanedModuleId) return;
+
+  await sql`
+    DELETE FROM module_editor_modules
+    WHERE id = ${cleanedModuleId}
+  `;
+}

@@ -1,38 +1,52 @@
-import { listModuleDocuments } from "@/lib/module-editor";
-import { listModuleEditorTargets } from "@/lib/module-editor";
-import { ModuleLibraryClient } from "@/components/admin/module-library-client";
+import { ModuleLibraryClient, type LessonStub } from "@/components/admin/module-library-client";
+import { listModuleDocuments, listModuleEditorTargets } from "@/lib/module-editor";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminModulesPage() {
+type AdminModulesPageProps = {
+  searchParams: Promise<{ lessonId?: string }>;
+};
+
+function mapLessonTargetToStub(target: Awaited<ReturnType<typeof listModuleEditorTargets>>[number]): LessonStub {
+  return {
+    lessonId: target.id,
+    lessonTitle: target.title,
+    lessonSlug: target.slug,
+    lessonCode: String(target.metadata.lessonCode ?? ""),
+    week: String(target.metadata.week ?? ""),
+    breadcrumbs: target.breadcrumbs,
+    subjectTitle: target.breadcrumbs.find((item) => item.nodeType === "subject")?.title ?? "",
+    chapterTitle: target.breadcrumbs.find((item) => item.nodeType === "chapter")?.title ?? "",
+    schoolSlug: target.breadcrumbs.find((item) => item.nodeType === "school")?.slug ?? "",
+    yearSlug: target.breadcrumbs.find((item) => item.nodeType === "year")?.slug ?? "",
+    subjectSlug: target.breadcrumbs.find((item) => item.nodeType === "subject")?.slug ?? "",
+    chapterSlug: target.breadcrumbs.find((item) => item.nodeType === "chapter")?.slug ?? "",
+  };
+}
+
+export default async function AdminModulesPage({ searchParams }: AdminModulesPageProps) {
+  const { lessonId } = await searchParams;
   const [modules, allTargets] = await Promise.all([
     listModuleDocuments(),
     listModuleEditorTargets(),
   ]);
 
-  // Build the list of lessons WITHOUT a module from allTargets
-  const moduledNodeIds = new Set(modules.map((m) => m.nodeId));
-  const lessonsWithoutModule = allTargets
-    .filter((t) => t.nodeType === "lesson" && !moduledNodeIds.has(t.id))
-    .map((t) => ({
-      nodeId: t.id,
-      lessonTitle: t.title,
-      lessonSlug: t.slug,
-      lessonCode: String(t.metadata.lessonCode ?? ""),
-      week: String(t.metadata.week ?? ""),
-      breadcrumbs: t.breadcrumbs,
-      subjectTitle: t.breadcrumbs.find((b) => b.nodeType === "subject")?.title ?? "",
-      chapterTitle: t.breadcrumbs.find((b) => b.nodeType === "chapter")?.title ?? "",
-      schoolSlug: t.breadcrumbs.find((b) => b.nodeType === "school")?.slug ?? "",
-      yearSlug: t.breadcrumbs.find((b) => b.nodeType === "year")?.slug ?? "",
-      subjectSlug: t.breadcrumbs.find((b) => b.nodeType === "subject")?.slug ?? "",
-      chapterSlug: t.breadcrumbs.find((b) => b.nodeType === "chapter")?.slug ?? "",
-    }));
+  const lessons = allTargets
+    .filter((target) => target.nodeType === "lesson")
+    .map(mapLessonTargetToStub);
+
+  const assignedLessonIds = new Set(
+    modules.flatMap((module) => module.assignments.map((assignment) => assignment.lessonId))
+  );
+  const lessonsWithoutModule = lessons.filter((lesson) => !assignedLessonIds.has(lesson.lessonId));
+  const initialLessonId = (lessonId || "").trim() || null;
 
   return (
     <ModuleLibraryClient
       modules={modules}
+      lessons={lessons}
       lessonsWithoutModule={lessonsWithoutModule}
+      initialLessonId={initialLessonId}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { saveModuleEditorDocument } from "../../lib/module-editor";
+import { assignModuleToLesson, saveModuleEditorDocument } from "../../lib/module-editor";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import path from "path";
@@ -6,7 +6,7 @@ import path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 async function seed() {
-  const nodeId = "cfe6f213-9692-4093-bd5d-a30de3187900"; // 1.1 Observing cells
+  const lessonId = "cfe6f213-9692-4093-bd5d-a30de3187900"; // 1.1 Observing cells
 
   const pages = [
     {
@@ -171,10 +171,15 @@ async function seed() {
     },
   ];
 
-  await saveModuleEditorDocument({
-    nodeId,
+  const document = await saveModuleEditorDocument({
     title: "1.1 Observing cells",
     pages,
+    actorUserId: "system-auto-build",
+  });
+
+  await assignModuleToLesson({
+    moduleId: document.id,
+    lessonId,
     actorUserId: "system-auto-build",
   });
 

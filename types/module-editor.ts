@@ -86,9 +86,23 @@ export interface ModuleEditorTarget {
 }
 
 export interface ModuleEditorDocument {
-  nodeId: string;
-  nodeType: ModuleEditorNodeType;
+  id: string;
   title: string;
   pages: ModuleEditorPage[];
   updatedAt: string | null;
+}
+
+export interface ModuleLessonAssignment {
+  lessonId: string;
+  lessonTitle: string;
+  lessonSlug: string;
+  lessonCode: string;
+  week: string;
+  breadcrumbs: ModuleEditorBreadcrumb[];
+  subjectTitle: string;
+  chapterTitle: string;
+  schoolSlug: string;
+  yearSlug: string;
+  subjectSlug: string;
+  chapterSlug: string;
 }

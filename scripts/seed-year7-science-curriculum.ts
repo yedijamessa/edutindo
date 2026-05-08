@@ -14,7 +14,7 @@ import {
   type Year7ScienceChapter,
   type Year7ScienceLesson,
 } from "@/lib/curriculum/year7/science";
-import { getModuleEditorDocument, saveModuleEditorDocument } from "@/lib/module-editor";
+import { assignModuleToLesson, getAssignedModuleIdForLesson, getModuleEditorDocument, saveModuleEditorDocument } from "@/lib/module-editor";
 import type { ModuleEditorBlock, ModuleEditorPage } from "@/types/module-editor";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -297,17 +297,26 @@ async function reorderScienceChapters(subjectTree: CurriculumNode, ensuredChapte
 }
 
 async function ensureLessonDocument(chapter: Year7ScienceChapter, lesson: Year7ScienceLesson, lessonNodeId: string) {
-  const existingDocument = await getModuleEditorDocument(lessonNodeId);
+  const existingModuleId = await getAssignedModuleIdForLesson(lessonNodeId);
+  const existingDocument = existingModuleId ? await getModuleEditorDocument(existingModuleId) : null;
   if (existingDocument && !overwriteDocs) {
     return;
   }
 
-  await saveModuleEditorDocument({
-    nodeId: lessonNodeId,
+  const savedDocument = await saveModuleEditorDocument({
+    moduleId: existingDocument?.id ?? null,
     title: lesson.title,
     pages: buildLessonPages(chapter, lesson),
     actorUserId: ACTOR_USER_ID,
   });
+
+  if (!existingModuleId) {
+    await assignModuleToLesson({
+      moduleId: savedDocument.id,
+      lessonId: lessonNodeId,
+      actorUserId: ACTOR_USER_ID,
+    });
+  }
 }
 
 async function syncScienceYear7Curriculum() {
