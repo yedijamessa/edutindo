@@ -58,16 +58,16 @@ const HOMEPAGE_CAROUSEL_SLIDES = HOMEPAGE_PHOTO_SOURCES.map((src, index) => ({
 
 const HOMEPAGE_FEATURE_IMAGES = [
   {
-    src: HOMEPAGE_PHOTO_SOURCES[0],
-    alt: "Edutindo school partnership activity",
+    src: "/homepage/eti-group-project.png",
+    alt: "Students collaborating in a classroom",
   },
   {
-    src: HOMEPAGE_PHOTO_SOURCES[1],
-    alt: "Edutindo STEAM learning activity",
+    src: "/homepage/eti-steam-lab.png",
+    alt: "Students working on STEAM projects",
   },
   {
-    src: HOMEPAGE_PHOTO_SOURCES[2],
-    alt: "Edutindo faith-centered learning activity",
+    src: "/homepage/eti-activity-bible.png",
+    alt: "Students in Bible-focused learning activity",
   },
 ];
 
