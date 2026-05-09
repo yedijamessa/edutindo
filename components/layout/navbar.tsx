@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { Menu, X, ArrowLeft } from "lucide-react"
+import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
@@ -36,7 +37,8 @@ export function Navbar() {
     const [isAuthenticated, setIsAuthenticated] = React.useState(false)
     const [authResolved, setAuthResolved] = React.useState(false)
     const pathname = usePathname()
-    const isFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
+    const isLegacyFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
+    const isFocusedScienceRoute = isLegacyFocusedScienceRoute || isCurriculumLessonFocusRoute(pathname)
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
     const isAdminRoute = pathname.startsWith("/admin")
     const showAdminBackButton = isAdminRoute && pathname !== "/admin" && isAdminUser

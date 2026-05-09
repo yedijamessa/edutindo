@@ -1,6 +1,16 @@
+"use client"
+
 import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
 
 export function Footer() {
+    const pathname = usePathname()
+
+    if (isCurriculumLessonFocusRoute(pathname)) {
+        return null
+    }
+
     return (
         <footer className="bg-[#0b1d3a] text-white">
             <div className="container-custom py-12 md:py-14">
