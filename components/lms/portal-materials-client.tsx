@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
@@ -2058,6 +2058,7 @@ function LegacyPortalMaterialsExperience({
 }
 
 export function PortalMaterialsClient({ role, materials }: PortalMaterialsClientProps) {
+  const searchParams = useSearchParams();
   const [legacySearchQuery, setLegacySearchQuery] = useState("");
   const [outlineLoading, setOutlineLoading] = useState(true);
   const [outlineError, setOutlineError] = useState("");
@@ -2067,6 +2068,9 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
   const [selectedSchoolSlug, setSelectedSchoolSlug] = useState("");
   const [selectedYearSlug, setSelectedYearSlug] = useState("");
   const [selectedSubjectSlug, setSelectedSubjectSlug] = useState("");
+  const requestedSchoolSlug = searchParams.get("school")?.trim() ?? "";
+  const requestedYearSlug = searchParams.get("year")?.trim() ?? "";
+  const requestedSubjectSlug = searchParams.get("subject")?.trim() ?? "";
 
   useEffect(() => {
     let mounted = true;
@@ -2116,12 +2120,19 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
       return;
     }
 
+    if (requestedSchoolSlug && schools.some((school) => school.slug === requestedSchoolSlug)) {
+      if (selectedSchoolSlug !== requestedSchoolSlug) {
+        setSelectedSchoolSlug(requestedSchoolSlug);
+      }
+      return;
+    }
+
     if (!selectedSchoolSlug || !schools.some((school) => school.slug === selectedSchoolSlug)) {
       const preferredSchool =
         schools.find((school) => school.slug === defaultSchoolSlug) ?? schools[0];
       setSelectedSchoolSlug(preferredSchool?.slug ?? "");
     }
-  }, [defaultSchoolSlug, schools, selectedSchoolSlug]);
+  }, [defaultSchoolSlug, requestedSchoolSlug, schools, selectedSchoolSlug]);
 
   const selectedSchool = useMemo(
     () => schools.find((school) => school.slug === selectedSchoolSlug) ?? null,
@@ -2137,17 +2148,24 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
       return;
     }
 
+    if (requestedYearSlug && years.some((year) => year.slug === requestedYearSlug)) {
+      if (selectedYearSlug !== requestedYearSlug) {
+        setSelectedYearSlug(requestedYearSlug);
+      }
+      return;
+    }
+
     if (!selectedYearSlug || !years.some((year) => year.slug === selectedYearSlug)) {
       setSelectedYearSlug(years[0].slug);
     }
-  }, [years, selectedYearSlug]);
+  }, [requestedYearSlug, selectedYearSlug, years]);
 
   const selectedYear = useMemo(
     () => years.find((year) => year.slug === selectedYearSlug) ?? null,
     [years, selectedYearSlug]
   );
 
-  const subjects = selectedYear?.subjects ?? [];
+  const subjects = useMemo(() => selectedYear?.subjects ?? [], [selectedYear]);
 
   useEffect(() => {
     if (subjects.length === 0) {
@@ -2155,10 +2173,17 @@ export function PortalMaterialsClient({ role, materials }: PortalMaterialsClient
       return;
     }
 
+    if (requestedSubjectSlug && subjects.some((subject) => subject.slug === requestedSubjectSlug)) {
+      if (selectedSubjectSlug !== requestedSubjectSlug) {
+        setSelectedSubjectSlug(requestedSubjectSlug);
+      }
+      return;
+    }
+
     if (!selectedSubjectSlug || !subjects.some((subject) => subject.slug === selectedSubjectSlug)) {
       setSelectedSubjectSlug(subjects[0].slug);
     }
-  }, [subjects, selectedSubjectSlug]);
+  }, [requestedSubjectSlug, selectedSubjectSlug, subjects]);
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.slug === selectedSubjectSlug) ?? null,

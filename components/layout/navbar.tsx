@@ -18,13 +18,6 @@ const navItems = [
     { name: "Contact", href: "/contact" },
 ]
 
-const portalItems = [
-    { name: "Student Portal", href: "/student" },
-    { name: "Teacher Portal", href: "/teacher" },
-    { name: "Parent Portal", href: "/parent" },
-    { name: "Principal Portal", href: "/principal" },
-]
-
 const portalRoutePrefixes = ["/student", "/teacher", "/parent", "/principal", "/admin"] as const
 const headerSurfaceClassName =
     "border-b border-[#d8cdb7] bg-[#fdf5e3]/95 shadow-[0_10px_28px_-24px_rgba(78,58,38,0.85)] backdrop-blur supports-[backdrop-filter]:bg-[#fdf5e3]/88"
@@ -34,8 +27,6 @@ const subtleHeaderButtonClassName =
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isAdminUser, setIsAdminUser] = React.useState(false)
-    const [isAuthenticated, setIsAuthenticated] = React.useState(false)
-    const [authResolved, setAuthResolved] = React.useState(false)
     const pathname = usePathname()
     const isLegacyFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isFocusedScienceRoute = isLegacyFocusedScienceRoute || isCurriculumLessonFocusRoute(pathname)
@@ -51,7 +42,6 @@ export function Navbar() {
                 const res = await fetch("/api/auth/me", { cache: "no-store" })
                 const data = await res.json()
                 if (!isMounted) return
-                setIsAuthenticated(Boolean(data?.authenticated))
                 setIsAdminUser(
                     Boolean(
                         data?.authenticated &&
@@ -61,11 +51,8 @@ export function Navbar() {
             } catch (error) {
                 console.error("navbar auth state load error:", error)
                 if (isMounted) {
-                    setIsAuthenticated(false)
                     setIsAdminUser(false)
                 }
-            } finally {
-                if (isMounted) setAuthResolved(true)
             }
         }
 
@@ -75,16 +62,6 @@ export function Navbar() {
             isMounted = false
         }
     }, [pathname])
-
-    const getPortalHref = React.useCallback(
-        (portalPath: string) => {
-            if (authResolved && !isAuthenticated) {
-                return `/demo-access?next=${encodeURIComponent(portalPath)}`
-            }
-            return portalPath
-        },
-        [authResolved, isAuthenticated]
-    )
 
     if (isFocusedScienceRoute) {
         return null
@@ -200,25 +177,6 @@ export function Navbar() {
                                 {item.name}
                             </Link>
                         ))}
-
-                        <div className="border-t pt-4">
-                            <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500">PORTALS</p>
-                            {portalItems.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={getPortalHref(item.href)}
-                                    className={cn(
-                                        "block py-2 text-sm font-medium transition-colors hover:text-slate-900",
-                                        pathname.startsWith(item.href)
-                                            ? "text-slate-900"
-                                            : "text-slate-600"
-                                    )}
-                                    onClick={() => setIsOpen(false)}
-                                >
-                                    {item.name}
-                                </Link>
-                            ))}
-                        </div>
 
                         {!isPortalRoute && (
                             <Button

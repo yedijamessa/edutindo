@@ -15,6 +15,7 @@ import { ModuleDocumentView } from "@/components/lms/module-document-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
+import { buildCurriculumMaterialsHref } from "@/lib/curriculum-navigation";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
 import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
 
@@ -53,6 +54,16 @@ export async function CurriculumLessonPage({
 
   const chapterPath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}`;
   const materialsPath = `/${role}/materials`;
+  const schoolMaterialsPath = buildCurriculumMaterialsHref(role, { schoolSlug: school.slug });
+  const yearMaterialsPath = buildCurriculumMaterialsHref(role, {
+    schoolSlug: school.slug,
+    yearSlug: year.slug,
+  });
+  const subjectMaterialsPath = buildCurriculumMaterialsHref(role, {
+    schoolSlug: school.slug,
+    yearSlug: year.slug,
+    subjectSlug: subject.slug,
+  });
   const lessonContent = getCurriculumLessonContent(subject.slug, lesson.slug);
   const moduleDocument = await getAssignedModuleDocumentForLesson(lesson.id);
   const isIntroCellsLesson = lessonContent.interactiveExperience && !moduleDocument;
@@ -68,11 +79,17 @@ export async function CurriculumLessonPage({
             Learning Materials
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="whitespace-nowrap text-slate-500">{school.title}</span>
+          <Link href={schoolMaterialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
+            {school.title}
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="whitespace-nowrap text-slate-500">{year.title}</span>
+          <Link href={yearMaterialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
+            {year.title}
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="whitespace-nowrap text-slate-500">{subject.title}</span>
+          <Link href={subjectMaterialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
+            {subject.title}
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           <Link href={chapterPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
             {chapter.title}

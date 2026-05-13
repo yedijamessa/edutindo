@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChapterResourceManager } from "@/components/lms/chapter-resource-manager";
+import { buildCurriculumMaterialsHref } from "@/lib/curriculum-navigation";
 import { getCurriculumChapterContext } from "@/lib/curriculum-portal";
 
 export type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
@@ -49,6 +50,16 @@ export async function CurriculumChapterPage({
   const { school, year, subject, chapter, previousChapter, nextChapter } = context;
   const chapterBasePath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}`;
   const materialsPath = `/${role}/materials`;
+  const schoolMaterialsPath = buildCurriculumMaterialsHref(role, { schoolSlug: school.slug });
+  const yearMaterialsPath = buildCurriculumMaterialsHref(role, {
+    schoolSlug: school.slug,
+    yearSlug: year.slug,
+  });
+  const subjectMaterialsPath = buildCurriculumMaterialsHref(role, {
+    schoolSlug: school.slug,
+    yearSlug: year.slug,
+    subjectSlug: subject.slug,
+  });
   const canManageResources = role === "teacher" || role === "principal" || role === "admin";
   const canExportLessons = role === "admin";
   const yearLevel = resolveYearLevel(year.title, year.yearLevel);
@@ -64,11 +75,17 @@ export async function CurriculumChapterPage({
               Learning Materials
             </Link>
             <ChevronRight className="w-4 h-4 shrink-0" />
-            <span className="whitespace-nowrap">{school.title}</span>
+            <Link href={schoolMaterialsPath} className="hover:text-foreground transition-colors whitespace-nowrap">
+              {school.title}
+            </Link>
             <ChevronRight className="w-4 h-4 shrink-0" />
-            <span className="whitespace-nowrap">{year.title}</span>
+            <Link href={yearMaterialsPath} className="hover:text-foreground transition-colors whitespace-nowrap">
+              {year.title}
+            </Link>
             <ChevronRight className="w-4 h-4 shrink-0" />
-            <span className="whitespace-nowrap">{subject.title}</span>
+            <Link href={subjectMaterialsPath} className="hover:text-foreground transition-colors whitespace-nowrap">
+              {subject.title}
+            </Link>
             <ChevronRight className="w-4 h-4 shrink-0" />
             <span className="text-foreground font-medium whitespace-nowrap">{chapter.title}</span>
           </div>
