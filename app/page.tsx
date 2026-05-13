@@ -82,7 +82,10 @@ export default function HomePage() {
 
         <div className="relative z-10 grid items-center gap-10 sm:gap-12 lg:grid-cols-2">
           <div className="min-w-0 space-y-6 sm:space-y-8">
-            <Badge variant="secondary" className="max-w-full whitespace-normal px-4 py-1 text-xs leading-relaxed sm:text-sm">
+            <Badge
+              variant="secondary"
+              className="mx-auto flex w-fit max-w-full whitespace-normal px-4 py-1 text-center text-xs leading-relaxed sm:mx-0 sm:text-left sm:text-sm"
+            >
               EDUKASI TERANG INDONESIA (EDUTINDO) FOUNDATION
             </Badge>
 
