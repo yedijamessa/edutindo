@@ -2,7 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronRight, FilePenLine, GripVertical, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  Bell,
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  FilePenLine,
+  FlaskConical,
+  GripVertical,
+  LibraryBig,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Rocket,
+  School,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1053,6 +1074,7 @@ export function CurriculumPortal() {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, ChapterWeekDraft>>({});
   const [chapterWeekBusyId, setChapterWeekBusyId] = useState<string | null>(null);
+  const [chapterTitleDraft, setChapterTitleDraft] = useState("");
   const [assessmentDrafts, setAssessmentDrafts] = useState<Record<string, ChapterAssessmentDraft>>({});
   const [assessmentBusyId, setAssessmentBusyId] = useState<string | null>(null);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -1194,6 +1216,10 @@ export function CurriculumPortal() {
     [chapters, selectedChapterId]
   );
 
+  useEffect(() => {
+    setChapterTitleDraft(selectedChapter?.title ?? "");
+  }, [selectedChapter]);
+
   const lessons = useMemo(
     () => selectedChapter?.children.filter((node) => node.nodeType === "lesson") ?? [],
     [selectedChapter]
@@ -1213,6 +1239,15 @@ export function CurriculumPortal() {
   const selectedModule = useMemo(
     () => lessons.find((item) => item.id === selectedModuleId) ?? null,
     [lessons, selectedModuleId]
+  );
+
+  const allChapters = useMemo(
+    () => subjects.flatMap((subject) => subject.children.filter((node) => node.nodeType === "chapter")),
+    [subjects]
+  );
+  const allLessons = useMemo(
+    () => allChapters.flatMap((chapter) => chapter.children.filter((node) => node.nodeType === "lesson")),
+    [allChapters]
   );
 
   useEffect(() => {
@@ -1278,17 +1313,22 @@ export function CurriculumPortal() {
     }));
   };
 
-  const createNode = async (nodeType: NodeType, parentId: string | null) => {
-    const title = drafts[nodeType].trim();
+  const createNode = async (
+    nodeType: NodeType,
+    parentId: string | null,
+    override?: { title?: string; metadata?: Record<string, unknown> }
+  ) => {
+    const title = (override?.title ?? drafts[nodeType]).trim();
     if (!title) return null;
 
-    const metadata: Record<string, unknown> = {};
+    const metadata: Record<string, unknown> = { ...(override?.metadata ?? {}) };
     if (nodeType === "chapter") {
-      metadata.weekRange = formatChapterWeekRange(chapterWeekStartDraft, chapterWeekEndDraft);
+      metadata.weekRange =
+        metadata.weekRange ?? formatChapterWeekRange(chapterWeekStartDraft, chapterWeekEndDraft);
     }
     if (nodeType === "lesson") {
-      metadata.week = lessonWeekDraft.trim();
-      metadata.lessonCode = lessonCodeDraft.trim();
+      metadata.week = metadata.week ?? lessonWeekDraft.trim();
+      metadata.lessonCode = metadata.lessonCode ?? lessonCodeDraft.trim();
     }
 
     setBusy(true);
@@ -1404,6 +1444,38 @@ export function CurriculumPortal() {
       "Chapter week range updated."
     );
     setChapterWeekBusyId(null);
+  };
+
+  const saveSelectedChapterDetails = async () => {
+    if (!selectedChapter) return;
+
+    const draft = chapterWeekDrafts[selectedChapter.id] ?? parseChapterWeekDraft(selectedChapter.metadata.weekRange);
+    const nextWeekRange = formatChapterWeekRange(draft.start, draft.end);
+    const nextTitle = chapterTitleDraft.trim();
+    const currentWeekRange = text(selectedChapter.metadata.weekRange);
+
+    if (!nextTitle) {
+      setError("Chapter title is required.");
+      return;
+    }
+
+    if (nextTitle === selectedChapter.title && nextWeekRange === currentWeekRange) {
+      return;
+    }
+
+    await saveNode(
+      selectedChapter,
+      nextTitle,
+      { ...(selectedChapter.metadata ?? {}), weekRange: nextWeekRange },
+      "Chapter updated."
+    );
+  };
+
+  const createPromptedNode = async (nodeType: NodeType, parentId: string | null) => {
+    const label = nodeLabelByType[nodeType];
+    const title = window.prompt(`Add ${label.toLowerCase()}`);
+    if (!title?.trim()) return;
+    await createNode(nodeType, parentId, { title });
   };
 
   const updateAssessmentDraft = (chapterId: string, updates: Partial<ChapterAssessmentDraft>) => {
@@ -1626,23 +1698,141 @@ export function CurriculumPortal() {
     dragStateRef.current = null;
   };
 
+  const workflowSteps = [
+    {
+      title: "Select School",
+      description: "Add your schools and assign year groups.",
+    },
+    {
+      title: "Choose Subject",
+      description: "Create reusable subjects.",
+    },
+    {
+      title: "Organise Chapters",
+      description: "Break content into chapters by weeks.",
+    },
+    {
+      title: "Add Lessons",
+      description: "Attach modules from the library.",
+    },
+  ];
+  const workflowStep = selectedModule ? 4 : selectedChapter ? 3 : selectedSubject ? 2 : 1;
+  const selectedSchoolChapterTags = selectedSchool
+    ? selectedChapterTags.filter((tag) => tag.schoolSlug === selectedSchool.slug)
+    : [];
+
   return (
-    <div className="space-y-5">
-      <section className="rounded-[30px] border border-[#93a4bd] bg-[linear-gradient(180deg,rgba(255,248,233,0.98)_0%,rgba(255,252,245,0.98)_100%)] p-5 shadow-[0_28px_80px_-60px_rgba(15,23,42,0.42)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(15,23,42,0.9)_100%)] sm:p-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="relative flex h-[102px] w-[102px] shrink-0 items-center justify-center rounded-full border border-[#f2bf73] bg-white/80 shadow-[0_24px_55px_-42px_rgba(245,158,11,0.9)] dark:border-amber-700/60 dark:bg-slate-900/90">
-            <Sparkles className="absolute left-7 top-5 h-4 w-4 text-[#1d4ed8]" />
-            <Sparkles className="absolute right-7 top-8 h-3.5 w-3.5 text-[#fb923c]" />
-            <BookOpen className="h-12 w-12 text-[#153e7d] dark:text-blue-200" strokeWidth={1.9} />
+    <div className="space-y-5 text-slate-900">
+      <header className="flex flex-col gap-4 rounded-[28px] border border-[#dce7f6] bg-white/88 px-5 py-4 shadow-[0_22px_60px_-48px_rgba(37,99,235,0.3)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/88 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+            <BookOpen className="h-6 w-6" />
           </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[2.35rem]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Admin</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
               Curriculum Portal
             </h1>
-            <p className="max-w-3xl text-[15px] leading-7 text-slate-500 dark:text-slate-300">
-              Build a global library in the order Subject, Chapter, Module. Schools and years are tagging
-              rules, not the primary hierarchy.
-            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <button className="inline-flex h-10 items-center gap-2 rounded-full px-3 font-semibold text-slate-600 transition-colors hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+            <CircleHelp className="h-4 w-4" />
+            Help
+          </button>
+          <button className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+            <Bell className="h-4 w-4" />
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff6b1a] px-1 text-[10px] font-bold text-white">
+              3
+            </span>
+          </button>
+          <button className="inline-flex h-10 items-center gap-2 rounded-full border border-[#dce7f6] bg-white px-2.5 pr-3 font-semibold text-slate-700 shadow-sm transition-colors hover:bg-[#f7faff] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0b1d3a] text-xs font-bold text-white">
+              AD
+            </span>
+            Admin
+            <ChevronDown className="h-4 w-4 text-slate-400" />
+          </button>
+        </div>
+      </header>
+
+      <section className="rounded-[30px] border border-[#d7e5fb] bg-[linear-gradient(180deg,rgba(238,246,255,0.95)_0%,rgba(248,251,255,0.98)_100%)] p-5 shadow-[0_28px_80px_-60px_rgba(37,99,235,0.42)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(15,23,42,0.9)_100%)] sm:p-6">
+        <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_220px] xl:items-center">
+          <div className="flex items-center gap-4">
+            <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-[#cfe0ff] bg-white shadow-[0_24px_55px_-42px_rgba(37,99,235,0.55)] dark:border-slate-700 dark:bg-slate-900">
+              <Sparkles className="absolute left-5 top-5 h-3.5 w-3.5 text-[#ff9b52]" />
+              <Rocket className="h-11 w-11 text-[#2f6fff]" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">How it works</h2>
+              <p className="mt-2 max-w-[220px] text-sm leading-6 text-slate-500 dark:text-slate-300">
+                Build your curriculum structure in a simple step-by-step flow.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4">
+            {workflowSteps.map((step, index) => {
+              const stepNumber = index + 1;
+              const active = workflowStep === stepNumber;
+              const complete = workflowStep > stepNumber;
+
+              return (
+                <div key={step.title} className="relative min-w-0">
+                  {index < workflowSteps.length - 1 && (
+                    <div className="absolute left-[42px] right-[-12px] top-5 hidden h-px bg-[#d7e5fb] md:block" />
+                  )}
+                  <div className="relative flex items-start gap-3 md:block">
+                    <div
+                      className={cn(
+                        "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-bold",
+                        active || complete
+                          ? "border-[#2f6fff] bg-[#2f6fff] text-white shadow-[0_14px_28px_-18px_rgba(47,111,255,0.9)]"
+                          : "border-[#d8e4f7] bg-white text-slate-500 dark:bg-slate-900"
+                      )}
+                    >
+                      {stepNumber}
+                    </div>
+                    <div className="mt-0 md:mt-3">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{step.title}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">{step.description}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              className={cn("h-12 justify-center gap-2 rounded-2xl text-sm font-semibold", primaryActionClassName)}
+              onClick={() => {
+                if (!selectedSubject) {
+                  createPromptedNode("subject", null);
+                  return;
+                }
+                if (!selectedChapter) {
+                  createPromptedNode("chapter", selectedSubject.id);
+                  return;
+                }
+                createPromptedNode("lesson", selectedChapter.id);
+              }}
+            >
+              Start Building
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className={cn("h-11 justify-center gap-2 rounded-2xl text-sm font-semibold", secondaryPillButtonClassName)}
+            >
+              <Link href="/admin/modules">
+                <LibraryBig className="h-4 w-4" />
+                View Module Library
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -1666,214 +1856,581 @@ export function CurriculumPortal() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[1.02fr_1fr]">
-            <NodeColumn
-              title="Manage Schools"
-              description="Schools are usage tags. Add schools here, then assign content to year groups below."
-              nodeType="school"
-              parentId={null}
-              nodes={schools}
-              selectedId={selectedSchoolId}
-              disabled={false}
-              addDisabledReason=""
-              draftTitle={drafts.school}
-              draftWeekRangeStart=""
-              draftWeekRangeEnd=""
-              draftWeek=""
-              draftLessonCode=""
-              busy={busy}
-              onDraftTitleChange={(value) => setDraft("school", value)}
-              onDraftWeekRangeStartChange={() => undefined}
-              onDraftWeekRangeEndChange={() => undefined}
-              onDraftWeekChange={() => undefined}
-              onDraftLessonCodeChange={() => undefined}
-              onSelect={setSelectedSchoolId}
-              onCreate={() => createNode("school", null)}
-              onRename={renameNode}
-              onDelete={deleteNode}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              canDropOnNode={canDropOnNode}
-              canDropAtEnd={canDropAtEnd}
-              onDropOnNode={dropOnNode}
-              onDropAtEnd={dropAtEnd}
-            />
+        <div className="space-y-5">
+          <section className="flex flex-wrap items-center gap-2 rounded-[24px] border border-[#e0eaf7] bg-white/88 px-4 py-3 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
+            <span className="mr-2 font-semibold text-slate-600 dark:text-slate-300">Current path:</span>
+            {[
+              { label: selectedSchool?.title ?? "Select school", icon: School },
+              { label: selectedSubject?.title ?? "Select subject", icon: FlaskConical },
+              { label: selectedChapter?.title ?? "Select chapter", icon: BookOpen },
+              { label: selectedModule?.title ?? "Select lesson", icon: FilePenLine },
+            ].map((item, index, items) => {
+              const Icon = item.icon;
 
-            <Card className={surfaceCardClassName}>
-              <CardHeader className="space-y-2 pb-4">
-                <CardTitle className="text-[1.45rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                  How This Builder Works
-                </CardTitle>
-                <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
-                  Build your subject structure here: subjects, chapters, and lessons. Reusable modules are created in
-                  the Module Library and assigned to lessons later.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  {[
-                    { label: selectedSchool?.title ?? "Select school", active: Boolean(selectedSchool) },
-                    { label: selectedSubject?.title ?? "Select subject", active: Boolean(selectedSubject) },
-                    { label: selectedChapter?.title ?? "Select chapter", active: Boolean(selectedChapter) },
-                    { label: selectedModule?.title ?? "Select lesson", active: Boolean(selectedModule) },
-                  ].map((item, index, items) => (
-                    <div key={`${item.label}-${index}`} className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold",
-                          item.active
-                            ? "bg-[#ff6b1a] text-white shadow-[0_14px_30px_-20px_rgba(255,107,26,0.95)]"
-                            : "border border-[#d8dfea] bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
-                        )}
+              return (
+                <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+                  <span className="inline-flex h-9 items-center gap-2 rounded-full border border-[#e0eaf7] bg-white px-4 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+                    <Icon className="h-4 w-4 text-slate-500" />
+                    {item.label}
+                  </span>
+                  {index < items.length - 1 && <ChevronRight className="h-4 w-4 text-slate-300" />}
+                </div>
+              );
+            })}
+          </section>
+
+          <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)_320px]">
+            <aside className="rounded-[28px] border border-[#e0eaf7] bg-white/92 p-4 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] dark:border-slate-800 dark:bg-slate-900/88">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">Structure</h2>
+                <button
+                  type="button"
+                  onClick={() => createPromptedNode("school", null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d8e4f7] text-[#2f6fff] transition-colors hover:bg-[#eef4ff]"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <ChevronDown className="h-4 w-4" />
+                  <School className="h-4 w-4 text-slate-500" />
+                  Schools
+                </div>
+
+                <div className="space-y-2 border-l border-dashed border-[#d7e5fb] pl-4">
+                  {schools.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[#d7e5fb] px-3 py-4 text-sm text-slate-400">
+                      No schools yet.
+                    </div>
+                  ) : (
+                    schools.map((school) => {
+                      const activeSchool = school.id === selectedSchoolId;
+
+                      return (
+                        <div key={school.id} className="space-y-2">
+                          <div
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition-colors",
+                              activeSchool
+                                ? "bg-[#eef4ff] text-[#2f6fff]"
+                                : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300"
+                            )}
+                          >
+                            <button type="button" onClick={() => setSelectedSchoolId(school.id)} className="flex min-w-0 items-center gap-2">
+                              <School className="h-4 w-4" />
+                              <span className="truncate">{school.title}</span>
+                            </button>
+                            <span className="flex items-center gap-1">
+                              {activeSchool && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      renameNode(school);
+                                    }}
+                                    className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      deleteNode(school);
+                                    }}
+                                    className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              )}
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            </span>
+                          </div>
+
+                          {activeSchool && (
+                            <div className="ml-4 space-y-1 border-l border-dashed border-[#d7e5fb] pl-4">
+                              {subjects.map((subject) => {
+                                const activeSubject = subject.id === selectedSubjectId;
+
+                                return (
+                                  <div key={subject.id} className="space-y-1">
+                                    <div
+                                      className={cn(
+                                        "flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm transition-colors",
+                                        activeSubject
+                                          ? "bg-[#f3f7ff] font-semibold text-[#174ea6]"
+                                          : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300"
+                                      )}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedSubjectId(subject.id);
+                                          setSelectedChapterId(null);
+                                          setSelectedModuleId(null);
+                                        }}
+                                        className="flex min-w-0 items-center gap-2"
+                                      >
+                                        <FlaskConical className="h-4 w-4 shrink-0" />
+                                        <span className="truncate">{subject.title}</span>
+                                      </button>
+                                      {activeSubject && (
+                                        <span className="ml-auto flex items-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              renameNode(subject);
+                                            }}
+                                            className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              deleteNode(subject);
+                                            }}
+                                            className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {activeSubject && (
+                                      <div className="ml-4 space-y-1 border-l border-dashed border-[#d7e5fb] pl-3">
+                                        {chapters.map((chapter) => {
+                                          const activeChapter = chapter.id === selectedChapterId;
+
+                                          return (
+                                            <div
+                                              key={chapter.id}
+                                              className={cn(
+                                                "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition-colors",
+                                                activeChapter
+                                                  ? "bg-[#eef4ff] font-semibold text-[#2f6fff]"
+                                                  : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300"
+                                              )}
+                                            >
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedChapterId(chapter.id);
+                                                  setSelectedModuleId(null);
+                                                }}
+                                                className="flex min-w-0 items-center gap-2"
+                                              >
+                                                <BookOpen className="h-4 w-4" />
+                                                <span className="truncate">{chapter.title}</span>
+                                              </button>
+                                              {activeChapter && (
+                                                <span className="flex items-center gap-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                      event.stopPropagation();
+                                                      renameNode(chapter);
+                                                    }}
+                                                    className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                                  >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                      event.stopPropagation();
+                                                      deleteNode(chapter);
+                                                    }}
+                                                    className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
+                                                  >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                  </button>
+                                                  <MoreVertical className="h-4 w-4 text-slate-400" />
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn("h-10 justify-center rounded-2xl text-xs font-semibold", secondaryPillButtonClassName)}
+                  onClick={() => createPromptedNode("subject", null)}
+                >
+                  Add Subject
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!selectedSubject}
+                  className={cn("h-10 justify-center rounded-2xl text-xs font-semibold", secondaryPillButtonClassName)}
+                  onClick={() => selectedSubject && createPromptedNode("chapter", selectedSubject.id)}
+                >
+                  Add Chapter
+                </Button>
+              </div>
+
+              <div className="mt-5 border-t border-[#edf2f8] pt-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <span>Year tags</span>
+                  <CircleHelp className="h-3.5 w-3.5 text-slate-400" />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {YEAR_OPTIONS.map((year) => (
+                    <span
+                      key={year.slug}
+                      className="inline-flex h-9 items-center rounded-2xl border border-[#d8e4f7] bg-[#fbfdff] px-4 text-xs font-semibold text-[#2f6fff]"
+                    >
+                      {year.title}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            <section className="rounded-[28px] border border-[#e0eaf7] bg-white/92 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] dark:border-slate-800 dark:bg-slate-900/88">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf2f8] px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">Chapter Builder</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex h-9 items-center gap-2 rounded-2xl border border-[#dce7ff] bg-[#f4f8ff] px-3 text-xs font-semibold text-[#2f6fff]">
+                    <LibraryBig className="h-4 w-4" />
+                    {lessons.length} modules
+                  </span>
+                  <span className="inline-flex h-9 items-center gap-2 rounded-2xl border border-[#ffe1cf] bg-[#fff6ef] px-3 text-xs font-semibold text-[#f97316]">
+                    <CalendarDays className="h-4 w-4" />
+                    {selectedChapter ? text(selectedChapter.metadata.weekRange) || "No weeks" : "No chapter"}
+                  </span>
+                </div>
+              </div>
+
+              {selectedChapter ? (
+                <div className="space-y-5 p-5">
+                  <div>
+                    <p className="text-base font-bold text-slate-950 dark:text-slate-50">Chapter details</p>
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_120px_120px_minmax(220px,1fr)_150px]">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Chapter title</label>
+                        <Input
+                          value={chapterTitleDraft}
+                          onChange={(event) => setChapterTitleDraft(event.target.value)}
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Start week</label>
+                        <Input
+                          value={chapterWeekDrafts[selectedChapter.id]?.start ?? ""}
+                          onChange={(event) => updateChapterWeekDraft(selectedChapter.id, "start", event.target.value)}
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">End week</label>
+                        <Input
+                          value={chapterWeekDrafts[selectedChapter.id]?.end ?? ""}
+                          onChange={(event) => updateChapterWeekDraft(selectedChapter.id, "end", event.target.value)}
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Year tags</label>
+                        <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-[#dde5f2] bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-950">
+                          {selectedSchool ? (
+                            YEAR_OPTIONS.map((year) => {
+                              const active = hasAssignmentTag(selectedChapterTags, selectedSchool.slug, year.slug);
+
+                              return (
+                                <button
+                                  key={year.slug}
+                                  type="button"
+                                  onClick={() => toggleAssignmentTag(selectedChapter, selectedSchool.slug, year.slug)}
+                                  className={cn(
+                                    "inline-flex h-8 items-center rounded-xl px-3 text-xs font-semibold transition-colors",
+                                    active
+                                      ? "bg-[#eef4ff] text-[#2f6fff]"
+                                      : "bg-[#f8fafc] text-slate-500 hover:text-slate-900"
+                                  )}
+                                >
+                                  {year.title}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <span className="px-2 text-xs text-slate-400">Select a school first</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          className={cn("h-11 w-full rounded-xl text-sm font-semibold", primaryActionClassName)}
+                          onClick={saveSelectedChapterDetails}
+                          disabled={busy}
+                        >
+                          Save Chapter
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#edf2f8] pt-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-base font-bold text-slate-950 dark:text-slate-50">Lessons / Modules</p>
+                      <Button
+                        type="button"
+                        className={cn("h-10 rounded-xl px-4 text-sm font-semibold", primaryActionClassName)}
+                        onClick={() => createPromptedNode("lesson", selectedChapter.id)}
                       >
-                        {item.label}
-                      </span>
-                      {index < items.length - 1 && (
-                        <ChevronRight className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Lesson / Module
+                      </Button>
+                    </div>
+
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        createNode("lesson", selectedChapter.id);
+                      }}
+                      className="mt-4 grid gap-3 rounded-[22px] border border-[#edf2f8] bg-[#fbfdff] p-3 md:grid-cols-[110px_150px_minmax(0,1fr)_150px]"
+                    >
+                      <Input
+                        value={lessonWeekDraft}
+                        onChange={(event) => setLessonWeekDraft(event.target.value)}
+                        placeholder="Week"
+                        className={compactFieldClassName}
+                      />
+                      <Input
+                        value={lessonCodeDraft}
+                        onChange={(event) => setLessonCodeDraft(event.target.value)}
+                        placeholder="Module code"
+                        className={compactFieldClassName}
+                      />
+                      <Input
+                        value={drafts.lesson}
+                        onChange={(event) => setDraft("lesson", event.target.value)}
+                        placeholder="Lesson / module title"
+                        className={compactFieldClassName}
+                      />
+                      <Button type="submit" disabled={busy || !drafts.lesson.trim()} className="h-9 rounded-xl">
+                        Add
+                      </Button>
+                    </form>
+
+                    <div className="mt-4 overflow-x-auto rounded-[22px] border border-[#edf2f8]">
+                      <div className="min-w-[680px]">
+                      <div className="grid grid-cols-[54px_82px_132px_minmax(0,1fr)_90px] gap-3 bg-[#f8fbff] px-4 py-3 text-xs font-semibold text-slate-500">
+                        <span />
+                        <span>Week</span>
+                        <span>Module code</span>
+                        <span>Lesson / Module title</span>
+                        <span className="text-right">Actions</span>
+                      </div>
+                      {lessons.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-sm text-slate-400">No lessons yet.</div>
+                      ) : (
+                        lessons.map((lesson) => {
+                          const activeLesson = lesson.id === selectedModuleId;
+                          const canDropHere = canDropOnNode(lesson);
+
+                          return (
+                            <div
+                              key={lesson.id}
+                              draggable={!busy}
+                              onDragStart={(event) => handleDragStart(lesson, event)}
+                              onDragEnd={handleDragEnd}
+                              onDragOver={(event) => {
+                                if (!canDropHere) return;
+                                event.preventDefault();
+                              }}
+                              onDrop={(event) => {
+                                if (!canDropHere) return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                dropOnNode(lesson, lessons);
+                              }}
+                              className={cn(
+                                "grid grid-cols-[54px_82px_132px_minmax(0,1fr)_90px] items-center gap-3 border-t border-[#edf2f8] px-4 py-3 text-sm transition-colors",
+                                activeLesson ? "bg-[#f4f8ff]" : "bg-white dark:bg-slate-950"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 text-slate-300">
+                                <GripVertical className="h-4 w-4" />
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedModuleId(lesson.id)}
+                                  className={cn(
+                                    "h-4 w-4 rounded-full border",
+                                    activeLesson ? "border-[#2f6fff] bg-[#2f6fff]" : "border-slate-300"
+                                  )}
+                                />
+                              </div>
+                              <span className="text-slate-600 dark:text-slate-300">{text(lesson.metadata.week) || "-"}</span>
+                              <span className="inline-flex w-fit rounded-xl bg-[#f1f5f9] px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                                {text(lesson.metadata.lessonCode) || "Module"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedModuleId(lesson.id)}
+                                className="truncate text-left font-medium text-slate-700 hover:text-slate-950 dark:text-slate-100"
+                              >
+                                {lesson.title}
+                              </button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => renameNode(lesson)}
+                                  className="h-8 w-8 rounded-full text-slate-500"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteNode(lesson)}
+                                  className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5">
+                  <EmptySelectionCard>Select or add a chapter to start building lessons.</EmptySelectionCard>
+                </div>
+              )}
+            </section>
+
+            <aside className="space-y-5">
+              <section className="rounded-[28px] border border-[#e0eaf7] bg-white/92 p-5 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] dark:border-slate-800 dark:bg-slate-900/88">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-[#f97316]" />
+                  <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">Quick Actions</h2>
+                </div>
+                <div className="mt-4 space-y-4">
+                  {[
+                    {
+                      title: "Add your schools",
+                      description: "Create schools and assign year groups.",
+                      action: () => createPromptedNode("school", null),
+                      icon: School,
+                    },
+                    {
+                      title: "Create reusable subjects",
+                      description: "Build subjects that can be used across schools.",
+                      action: () => createPromptedNode("subject", null),
+                      icon: FlaskConical,
+                    },
+                    {
+                      title: "Split content into chapters",
+                      description: "Organise topics by weeks and years.",
+                      action: () => selectedSubject && createPromptedNode("chapter", selectedSubject.id),
+                      icon: BookOpen,
+                    },
+                    {
+                      title: "Attach lesson modules",
+                      description: "Add lessons from the Module Library.",
+                      action: () => selectedChapter && createPromptedNode("lesson", selectedChapter.id),
+                      icon: FilePenLine,
+                    },
+                  ].map((item, index) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <button
+                        key={item.title}
+                        type="button"
+                        onClick={item.action}
+                        className="flex w-full items-start gap-3 text-left"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2f6fff] text-xs font-bold text-white">
+                          {index + 1}
+                        </span>
+                        <span className="flex min-w-0 gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#e0eaf7] bg-[#fbfdff] text-slate-500">
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span>
+                            <span className="block text-sm font-semibold text-slate-900 dark:text-slate-50">
+                              {item.title}
+                            </span>
+                            <span className="mt-0.5 block text-xs leading-5 text-slate-500 dark:text-slate-300">
+                              {item.description}
+                            </span>
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="rounded-[28px] border border-[#e0eaf7] bg-white/92 p-5 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] dark:border-slate-800 dark:bg-slate-900/88">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-[#2f6fff]" />
+                  <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">Your Progress</h2>
+                </div>
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {[
+                    { label: "Schools", value: schools.length, tone: "text-[#2f6fff] bg-[#f4f8ff]" },
+                    { label: "Subjects", value: subjects.length, tone: "text-[#159a61] bg-[#effbf5]" },
+                    { label: "Chapters", value: allChapters.length, tone: "text-[#f97316] bg-[#fff6ef]" },
+                    { label: "Lessons", value: allLessons.length, tone: "text-[#8b5cf6] bg-[#f7f3ff]" },
+                  ].map((item) => (
+                    <div key={item.label} className={cn("rounded-2xl px-2 py-3 text-center", item.tone)}>
+                      <p className="text-2xl font-bold">{item.value}</p>
+                      <p className="mt-1 text-[11px] font-medium">{item.label}</p>
                     </div>
                   ))}
                 </div>
-
-                <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">Available year tags</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {YEAR_OPTIONS.map((year) => (
-                      <span
-                        key={year.slug}
-                        className="inline-flex h-9 items-center rounded-full border border-[#d8dfea] bg-white px-4 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                      >
-                        {year.title}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] border border-dashed border-[#cfd9ea] bg-slate-50/80 p-4 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-400">
-                  Lesson tags override chapter tags. Use chapter tags when the whole chapter belongs to a year,
-                  and lesson tags when a chapter is split across years.
-                </div>
-              </CardContent>
-            </Card>
+              </section>
+            </aside>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-3">
-            <NodeColumn
-              title="Manage Subjects"
-              description="Global subjects shared across schools and years."
-              nodeType="subject"
-              parentId={null}
-              nodes={subjects}
-              selectedId={selectedSubjectId}
-              disabled={false}
-              addDisabledReason=""
-              draftTitle={drafts.subject}
-              draftWeekRangeStart=""
-              draftWeekRangeEnd=""
-              draftWeek=""
-              draftLessonCode=""
-              busy={busy}
-              onDraftTitleChange={(value) => setDraft("subject", value)}
-              onDraftWeekRangeStartChange={() => undefined}
-              onDraftWeekRangeEndChange={() => undefined}
-              onDraftWeekChange={() => undefined}
-              onDraftLessonCodeChange={() => undefined}
-              onSelect={(nodeId) => {
-                setSelectedSubjectId(nodeId);
-                setSelectedChapterId(null);
-                setSelectedModuleId(null);
-              }}
-              onCreate={() => createNode("subject", null)}
-              onRename={renameNode}
-              onDelete={deleteNode}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              canDropOnNode={canDropOnNode}
-              canDropAtEnd={canDropAtEnd}
-              onDropOnNode={dropOnNode}
-              onDropAtEnd={dropAtEnd}
-            />
-
-            {selectedSubject ? (
-              <NodeColumn
-                title="Manage Chapters"
-                description={`Inside subject: ${selectedSubject.title}. Add chapters and organise the lesson structure.`}
-                nodeType="chapter"
-                parentId={selectedSubject.id}
-                nodes={chapters}
-                selectedId={selectedChapterId}
-                disabled={false}
-                addDisabledReason=""
-                draftTitle={drafts.chapter}
-                draftWeekRangeStart={chapterWeekStartDraft}
-                draftWeekRangeEnd={chapterWeekEndDraft}
-                draftWeek=""
-                draftLessonCode=""
-                busy={busy}
-                onDraftTitleChange={(value) => setDraft("chapter", value)}
-                onDraftWeekRangeStartChange={(value) => setChapterWeekStartDraft(normalizeWeekInput(value))}
-                onDraftWeekRangeEndChange={(value) => setChapterWeekEndDraft(normalizeWeekInput(value))}
-                onDraftWeekChange={() => undefined}
-                onDraftLessonCodeChange={() => undefined}
-                onSelect={(nodeId) => {
-                  setSelectedChapterId(nodeId);
-                  setSelectedModuleId(null);
-                }}
-                onCreate={() => createNode("chapter", selectedSubject.id)}
-                onRename={renameNode}
-                onDelete={deleteNode}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                canDropOnNode={canDropOnNode}
-                canDropAtEnd={canDropAtEnd}
-                onDropOnNode={dropOnNode}
-                onDropAtEnd={dropAtEnd}
-                chapterWeekDrafts={chapterWeekDrafts}
-                chapterWeekBusyId={chapterWeekBusyId}
-                onChapterWeekDraftChange={updateChapterWeekDraft}
-                onSaveChapterWeek={saveChapterWeek}
-              />
-            ) : (
-              <EmptySelectionCard>Select or add a subject to manage its chapters.</EmptySelectionCard>
-            )}
-
-            {selectedChapter ? (
-              <NodeColumn
-                title="Manage Lessons"
-                description={`Inside chapter: ${selectedChapter.title}. Add lessons here, then attach reusable modules from the Module Library.`}
-                nodeType="lesson"
-                parentId={selectedChapter.id}
-                nodes={lessons}
-                selectedId={selectedModuleId}
-                disabled={false}
-                addDisabledReason=""
-                draftTitle={drafts.lesson}
-                draftWeekRangeStart=""
-                draftWeekRangeEnd=""
-                draftWeek={lessonWeekDraft}
-                draftLessonCode={lessonCodeDraft}
-                busy={busy}
-                onDraftTitleChange={(value) => setDraft("lesson", value)}
-                onDraftWeekRangeStartChange={() => undefined}
-                onDraftWeekRangeEndChange={() => undefined}
-                onDraftWeekChange={setLessonWeekDraft}
-                onDraftLessonCodeChange={setLessonCodeDraft}
-                onSelect={setSelectedModuleId}
-                onCreate={() => createNode("lesson", selectedChapter.id)}
-                onRename={renameNode}
-                onDelete={deleteNode}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                canDropOnNode={canDropOnNode}
-                canDropAtEnd={canDropAtEnd}
-                onDropOnNode={dropOnNode}
-                onDropAtEnd={dropAtEnd}
-                lessonPreviewBasePath={null}
-              />
-            ) : (
-              <EmptySelectionCard>Select or add a chapter to manage its lessons.</EmptySelectionCard>
-            )}
+          <div className="flex items-center gap-3 rounded-[24px] border border-[#dbe7fb] bg-white/82 px-5 py-4 text-sm text-[#2451a6] shadow-sm dark:border-slate-800 dark:bg-slate-900/88 dark:text-blue-200">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2f6fff] text-xs font-bold text-white">
+              i
+            </span>
+            <span>
+              Lesson tags override chapter tags. Use lesson tags only when a chapter is split across years.
+              {selectedSchoolChapterTags.length > 0 ? ` Current chapter tags: ${selectedSchoolChapterTags.length}.` : ""}
+            </span>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

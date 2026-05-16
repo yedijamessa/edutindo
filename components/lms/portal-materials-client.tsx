@@ -5,12 +5,15 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowRight,
   BarChart3,
   BookOpen,
   CalendarDays,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   Dumbbell,
   DoorOpen,
   EllipsisVertical,
@@ -20,15 +23,20 @@ import {
   GitBranch,
   GraduationCap,
   HelpCircle,
+  House,
+  Lightbulb,
   LayoutGrid,
   LayoutDashboard,
   Monitor,
   Palette,
+  PlayCircle,
   School,
   Search,
+  Settings,
   SlidersHorizontal,
   Sparkles,
   StickyNote,
+  Users,
   Video,
 } from "lucide-react";
 import { SidebarNav } from "@/components/lms/sidebar-nav";
@@ -509,59 +517,40 @@ function AdminMaterialsExperience({
   selectedSubjectMaterials: Material[];
   subjectMaterialCounts: Record<string, number>;
 }) {
-  const [subjectSearchQuery, setSubjectSearchQuery] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState<SubjectFilterKey>("all");
   const [materialSearchQuery, setMaterialSearchQuery] = useState("");
   const [materialFilter, setMaterialFilter] = useState<MaterialFilterKey>("all");
-  const [showAllSubjects, setShowAllSubjects] = useState(false);
-  const [pickerPanel, setPickerPanel] = useState<"school" | "year" | null>(null);
+  const [chapterSearchQuery, setChapterSearchQuery] = useState("");
+  const [selectedChapterSlug, setSelectedChapterSlug] = useState("");
+  const [pickerPanel, setPickerPanel] = useState<"school" | "year" | "subject" | null>(null);
 
   useEffect(() => {
-    setShowAllSubjects(false);
-    setSubjectSearchQuery("");
-    setSubjectFilter("all");
     setMaterialSearchQuery("");
     setMaterialFilter("all");
+    setChapterSearchQuery("");
     setPickerPanel(null);
   }, [selectedSchoolSlug, selectedYearSlug]);
 
   useEffect(() => {
     setMaterialSearchQuery("");
     setMaterialFilter("all");
+    setChapterSearchQuery("");
   }, [selectedSubjectSlug]);
 
-  const filteredSubjects = useMemo(() => {
-    const query = normalizeText(subjectSearchQuery);
-
-    return subjects.filter((subject) => {
-      const subjectCategory = getSubjectCategory(subject);
-      const matchesCategory = subjectFilter === "all" || subjectCategory === subjectFilter;
-      const matchesQuery =
-        !query ||
-        normalizeText(`${subject.title} ${subject.description} ${subject.slug}`).includes(query);
-
-      return matchesCategory && matchesQuery;
-    });
-  }, [subjectFilter, subjectSearchQuery, subjects]);
-
-  const subjectGridItems = useMemo(() => {
-    if (!selectedSubject) {
-      return showAllSubjects ? filteredSubjects : filteredSubjects.slice(0, 8);
+  useEffect(() => {
+    if (!selectedSubject?.chapters.length) {
+      setSelectedChapterSlug("");
+      return;
     }
 
-    const list = [...filteredSubjects];
-    const hasSelected = list.some((subject) => subject.id === selectedSubject.id);
-
-    if (!hasSelected) {
-      list.unshift(selectedSubject);
+    if (!selectedChapterSlug || !selectedSubject.chapters.some((chapter) => chapter.slug === selectedChapterSlug)) {
+      setSelectedChapterSlug(selectedSubject.chapters[0]?.slug ?? "");
     }
+  }, [selectedChapterSlug, selectedSubject]);
 
-    const deduped = list.filter(
-      (subject, index, collection) => collection.findIndex((entry) => entry.id === subject.id) === index
-    );
-
-    return showAllSubjects ? deduped : deduped.slice(0, 8);
-  }, [filteredSubjects, selectedSubject, showAllSubjects]);
+  const selectedChapter = useMemo(
+    () => selectedSubject?.chapters.find((chapter) => chapter.slug === selectedChapterSlug) ?? null,
+    [selectedChapterSlug, selectedSubject]
+  );
 
   const filteredAdminMaterials = useMemo(() => {
     const query = normalizeText(materialSearchQuery);
@@ -588,568 +577,566 @@ function AdminMaterialsExperience({
     }));
   }, [filteredAdminMaterials, selectedSubject]);
 
+  const filteredChapters = useMemo(() => {
+    const query = normalizeText(chapterSearchQuery);
+    const chapters = selectedSubject?.chapters ?? [];
+
+    if (!query) return chapters;
+
+    return chapters.filter((chapter) =>
+      normalizeText(`${chapter.title} ${chapter.slug} ${chapter.weekRange}`).includes(query)
+    );
+  }, [chapterSearchQuery, selectedSubject]);
+
+  const selectedChapterMaterialRows = useMemo(() => {
+    if (!selectedChapter) return [];
+    return materialRows.filter(({ relatedChapter }) => relatedChapter?.id === selectedChapter.id);
+  }, [materialRows, selectedChapter]);
+
   const hasSchools = schools.length > 0;
   const hasYears = years.length > 0;
   const hasSubjects = subjects.length > 0;
-  const hasFilteredSubjectOverflow = filteredSubjects.length > 8;
+  const chapterHref =
+    selectedSchool && selectedYear && selectedSubject && selectedChapter
+      ? `/${role}/materials/curriculum/${selectedSchool.slug}/${selectedYear.slug}/${selectedSubject.slug}/${selectedChapter.slug}`
+      : null;
+  const adminSidebarItems = [
+    { label: "Dashboard", href: "/admin", icon: House },
+    { label: "Classes", href: "/teacher", icon: GraduationCap },
+    { label: "Students", href: "/teacher/students", icon: Users },
+    { label: "Learning Materials", href: "/admin/materials", icon: BookOpen, active: true },
+    { label: "Assignments", href: "/student/quizzes", icon: ClipboardList },
+    { label: "Reports", href: "/principal", icon: BarChart3 },
+    { label: "Settings", href: "/admin/access", icon: Settings },
+  ];
 
   return (
-    <div className="bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_50%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
-      <main className="mx-auto w-full max-w-[1180px] px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-16">
-        <div className="space-y-5">
-          <section className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/82 p-6 shadow-[0_40px_90px_-64px_rgba(37,99,235,0.45)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/78 sm:p-8">
-            <div className="absolute inset-y-0 right-0 hidden w-72 bg-[radial-gradient(circle_at_center,rgba(147,197,253,0.22),transparent_68%)] lg:block dark:bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.18),transparent_68%)]" />
-            <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
-              <div className="space-y-3">
-                <h1 className="text-4xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[3rem]">
-                  Learning Materials
-                </h1>
-                <p className="max-w-3xl text-[15px] leading-7 text-slate-500 dark:text-slate-300">
-                  Browse and access curriculum-aligned materials organized by school, year,
-                  subject, chapters, and content.
-                </p>
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f4f8ff_48%,#fbfdff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
+      <div className="mx-auto flex min-h-screen max-w-[1680px]">
+        <aside className="hidden w-[240px] shrink-0 border-r border-[#e1eaf6] bg-white/88 px-5 py-6 backdrop-blur xl:flex xl:flex-col dark:border-slate-800 dark:bg-slate-900/88">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <p className="text-lg font-bold tracking-tight text-slate-950 dark:text-slate-50">EDUTINDO</p>
+          </div>
+
+          <nav className="mt-8 space-y-1.5">
+            {adminSidebarItems.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold transition-colors",
+                    item.active
+                      ? "bg-[#eef4ff] text-[#2f6fff]"
+                      : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto space-y-4">
+            <div className="rounded-[22px] border border-[#dce7ff] bg-[#fbfdff] p-4 dark:border-slate-700 dark:bg-slate-950">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#2f6fff]">
+                <Lightbulb className="h-4 w-4" />
+                How to use this page
               </div>
-              <MaterialsHeroArtwork />
+              <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-300">
+                Choose a chapter on the left to explore its materials and resources.
+              </p>
+              <button className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#2f6fff]">
+                View quick guide
+                <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
-          </section>
 
-          <section className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-            <div className="grid gap-4 xl:grid-cols-4">
-              {[
-                { step: 1, title: "School", hint: "Choose school", complete: true },
-                { step: 2, title: "Year", hint: "Choose year", complete: true },
-                { step: 3, title: "Subject", hint: "Choose subject", complete: true },
-                {
-                  step: 4,
-                  title: "Chapters & Materials",
-                  hint: "Explore content",
-                  complete: false,
-                },
-              ].map((item, index) => (
-                <div key={item.step} className="flex items-center gap-4">
-                  <div
-                    className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-                      item.complete
-                        ? "bg-[#2f6fff] text-white shadow-[0_18px_36px_-24px_rgba(37,99,235,0.9)]"
-                        : "border border-[#dfe7f5] bg-[#f4f7fb] text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    )}
-                  >
-                    {item.step}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
-                        {item.title}
-                      </p>
-                      {index < 3 && (
-                        <div className="hidden h-px flex-1 bg-[#d7e2f6] xl:block dark:bg-slate-700" />
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.hint}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-300">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff] text-[#2f6fff]">
+                <HelpCircle className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="font-semibold text-slate-700 dark:text-slate-100">Need help?</p>
+                <p className="text-xs">Visit our Help Center</p>
+              </div>
             </div>
-          </section>
+          </div>
+        </aside>
 
-          {outlineLoading ? (
-            <Card className="border-white/80 bg-white/88 shadow-[0_28px_70px_-58px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/80">
-              <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-300">
-                Loading curriculum outline...
-              </CardContent>
-            </Card>
-          ) : outlineError ? (
-            <Card className="border-red-100 bg-white/88 shadow-[0_28px_70px_-58px_rgba(15,23,42,0.45)] dark:border-red-900/50 dark:bg-slate-900/80">
-              <CardContent className="p-6 text-sm text-red-600 dark:text-red-300">
-                {outlineError}
-              </CardContent>
-            </Card>
-          ) : !hasSchools ? (
-            <Card className="border-white/80 bg-white/88 shadow-[0_28px_70px_-58px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/80">
-              <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-300">
-                No curriculum found yet. Create a school, then add years, subjects, chapters, and
-                lessons in Curriculum Portal.
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <section className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:p-6">
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <div className="space-y-3 lg:border-r lg:border-[#e8eef8] lg:pr-6 dark:lg:border-slate-800">
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      Selected School
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex min-h-[4rem] min-w-[16rem] flex-1 items-center gap-3 rounded-[20px] border border-[#dce6ff] bg-[#edf3ff] px-4 py-3 text-[#245ff2] dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/85 dark:bg-slate-900/80">
-                          <School className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#6a8ad9] dark:text-blue-300/80">
-                            School
-                          </p>
-                          <p className="mt-0.5 text-[15px] font-semibold">
-                            {selectedSchool?.title ?? "Choose a school"}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setPickerPanel((current) => (current === "school" ? null : "school"))}
-                        className="h-11 rounded-full border-[#d8cdb7] bg-white/80 px-5 text-slate-700 shadow-none hover:border-[#cabb9f] hover:bg-white hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:bg-slate-900"
-                        disabled={schools.length <= 1}
-                      >
-                        Change
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 lg:pl-2">
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      Selected Year
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex min-h-[4rem] min-w-[16rem] flex-1 items-center gap-3 rounded-[20px] border border-[#dce6ff] bg-[#edf3ff] px-4 py-3 text-[#245ff2] dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/85 dark:bg-slate-900/80">
-                          <CalendarDays className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#6a8ad9] dark:text-blue-300/80">
-                            Year
-                          </p>
-                          <p className="mt-0.5 text-[15px] font-semibold">
-                            {selectedYear?.title ?? "Choose a year"}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setPickerPanel((current) => (current === "year" ? null : "year"))}
-                        className="h-11 rounded-full border-[#d8cdb7] bg-white/80 px-5 text-slate-700 shadow-none hover:border-[#cabb9f] hover:bg-white hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:bg-slate-900"
-                        disabled={years.length <= 1}
-                      >
-                        Change
-                      </Button>
-                    </div>
-                  </div>
-
-                  {pickerPanel === "school" && (
-                    <div className="lg:col-span-2">
-                      <div className="rounded-[22px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] px-4 py-4 dark:border-slate-700 dark:bg-slate-900/60">
-                        <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-200">
-                          Choose school
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {schools.map((school) => (
-                            <Button
-                              key={school.id}
-                              type="button"
-                              variant={school.slug === selectedSchoolSlug ? "default" : "outline"}
-                              onClick={() => {
-                                setSelectedSchoolSlug(school.slug);
-                                setPickerPanel(null);
-                              }}
-                              className={cn(
-                                "h-10 rounded-full px-4",
-                                school.slug === selectedSchoolSlug
-                                  ? "bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white"
-                                  : "border-[#d9e1ef] bg-white text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                              )}
-                            >
-                              {school.title}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {pickerPanel === "year" && (
-                    <div className="lg:col-span-2">
-                      <div className="rounded-[22px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] px-4 py-4 dark:border-slate-700 dark:bg-slate-900/60">
-                        <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-200">
-                          Choose year
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {years.map((year) => (
-                            <Button
-                              key={year.id}
-                              type="button"
-                              variant={year.slug === selectedYearSlug ? "default" : "outline"}
-                              onClick={() => {
-                                setSelectedYearSlug(year.slug);
-                                setPickerPanel(null);
-                              }}
-                              className={cn(
-                                "h-10 rounded-full px-4",
-                                year.slug === selectedYearSlug
-                                  ? "bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white"
-                                  : "border-[#d9e1ef] bg-white text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                              )}
-                            >
-                              {year.title}
-                            </Button>
-                          ))}
-                          {!hasYears && (
-                            <p className="text-sm text-slate-500 dark:text-slate-300">
-                              No years configured for this school yet.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:p-6">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                    Browse Subjects
-                  </h2>
-                  <p className="text-[15px] text-slate-500 dark:text-slate-300">
-                    Select a subject to view its chapters and materials.
+        <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <div className="space-y-4">
+            <section className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_30px_80px_-58px_rgba(37,99,235,0.38)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82">
+              <div className="absolute inset-y-0 right-0 hidden w-[32rem] bg-[radial-gradient(circle_at_center,rgba(147,197,253,0.2),transparent_68%)] lg:block" />
+              <div className="relative grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[2.35rem]">
+                    Learning Materials
+                  </h1>
+                  <p className="mt-3 text-[15px] leading-7 text-slate-500 dark:text-slate-300">
+                    Browse curriculum-aligned materials by school, year, subject, and chapter.
                   </p>
                 </div>
+                <MaterialsHeroArtwork />
+              </div>
+            </section>
 
-                <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="relative w-full xl:max-w-[16rem]">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      value={subjectSearchQuery}
-                      onChange={(event) => setSubjectSearchQuery(event.target.value)}
-                      placeholder="Search subjects..."
-                      className="h-11 rounded-full border-[#d9e1ef] bg-white pl-10 shadow-none focus-visible:ring-[#bcd2ff] dark:border-slate-700 dark:bg-slate-900"
-                    />
+            <section className="rounded-[24px] border border-white/70 bg-white/90 px-5 py-4 shadow-[0_24px_60px_-52px_rgba(15,23,42,0.3)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82">
+              <div className="grid gap-4 xl:grid-cols-4">
+                {[
+                  { step: 1, title: "Select School", hint: selectedSchool?.title ?? "Choose school", done: Boolean(selectedSchool) },
+                  { step: 2, title: "Select Year", hint: selectedYear?.title ?? "Choose year", done: Boolean(selectedYear) },
+                  { step: 3, title: "Select Subject", hint: selectedSubject?.title ?? "Choose subject", done: Boolean(selectedSubject) },
+                  { step: 4, title: "Explore Chapters & Materials", hint: "", done: false },
+                ].map((item, index) => (
+                  <div key={item.step} className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold",
+                        item.done
+                          ? "border-[#87d38b] bg-[#f3fff4] text-[#2e9b3d]"
+                          : index === 3
+                            ? "border-[#2f6fff] bg-[#2f6fff] text-white"
+                            : "border-[#dfe7f5] bg-white text-slate-400 dark:bg-slate-950"
+                      )}
+                    >
+                      {item.done ? <Check className="h-4 w-4" /> : item.step}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-50">{item.title}</p>
+                        {index < 3 && <div className="hidden h-px flex-1 bg-[#d8e4f7] xl:block" />}
+                      </div>
+                      {item.hint ? <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-300">{item.hint}</p> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {outlineLoading ? (
+              <Card className="border-white/80 bg-white/88 shadow-[0_28px_70px_-58px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/80">
+                <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-300">
+                  Loading curriculum outline...
+                </CardContent>
+              </Card>
+            ) : outlineError ? (
+              <Card className="border-red-100 bg-white/88 shadow-[0_28px_70px_-58px_rgba(15,23,42,0.45)] dark:border-red-900/50 dark:bg-slate-900/80">
+                <CardContent className="p-6 text-sm text-red-600 dark:text-red-300">
+                  {outlineError}
+                </CardContent>
+              </Card>
+            ) : !hasSchools ? (
+              <Card className="border-white/80 bg-white/88 shadow-[0_28px_70px_-58px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/80">
+                <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-300">
+                  No curriculum found yet. Create a school, then add years, subjects, chapters, and lessons in Curriculum Portal.
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <section className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-[0_24px_60px_-52px_rgba(15,23,42,0.3)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82">
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
+                    <span>Home</span>
+                    <ChevronRight className="h-4 w-4" />
+                    <span>Learning Materials</span>
+                    <ChevronRight className="h-4 w-4" />
+                    <span>{selectedSubject?.title ?? "Subject"}</span>
+                    <ChevronRight className="h-4 w-4" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-100">Chapters</span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {subjectFilterOptions.map((option) => {
-                      const isActive = subjectFilter === option.key;
+                  <div className="mt-4 grid gap-3 xl:grid-cols-4">
+                    {[
+                      {
+                        key: "school" as const,
+                        label: "Selected School",
+                        value: selectedSchool?.title ?? "Choose school",
+                        icon: School,
+                        disabled: schools.length <= 1,
+                      },
+                      {
+                        key: "year" as const,
+                        label: "Selected Year",
+                        value: selectedYear?.title ?? "Choose year",
+                        icon: CalendarDays,
+                        disabled: years.length <= 1,
+                      },
+                      {
+                        key: "subject" as const,
+                        label: "Selected Subject",
+                        value: selectedSubject?.title ?? "Choose subject",
+                        icon: FlaskConical,
+                        disabled: subjects.length <= 1,
+                      },
+                    ].map((item) => {
+                      const Icon = item.icon;
 
                       return (
-                        <Button
-                          key={option.key}
-                          type="button"
-                          variant="outline"
-                          onClick={() => setSubjectFilter(option.key)}
-                          className={cn(
-                            "h-10 rounded-full border px-4 text-sm shadow-none",
-                            isActive
-                              ? "border-[#2f6fff] bg-[#2f6fff] text-white hover:bg-[#2f6fff]"
-                              : "border-[#d9e1ef] bg-white text-slate-600 hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                          )}
-                        >
-                          {option.label}
-                        </Button>
+                        <div key={item.key} className="rounded-[22px] border border-[#e3ebf7] bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+                                <Icon className="h-5 w-5" />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-slate-500">{item.label}</p>
+                                <p className="truncate text-sm font-bold text-slate-950 dark:text-slate-50">{item.value}</p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setPickerPanel((current) => (current === item.key ? null : item.key))}
+                              className="h-9 px-2 text-xs font-semibold text-[#2f6fff]"
+                              disabled={item.disabled}
+                            >
+                              Change
+                            </Button>
+                          </div>
+                        </div>
                       );
                     })}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowAllSubjects((current) => !current)}
-                      className="h-10 rounded-full border-[#d9e1ef] bg-white px-4 text-slate-600 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                    >
-                      <SlidersHorizontal className="mr-2 h-4 w-4" />
-                      More Filters
-                    </Button>
+                    <div className="rounded-[22px] border border-[#e3ebf7] bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff6ef] text-[#f97316]">
+                            <BookOpen className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">{selectedSubject?.title ?? "Subject"} Overview</p>
+                            <p className="text-sm font-bold text-slate-950 dark:text-slate-50">
+                              {selectedSubject?.chapterCount ?? 0} chapters · {selectedSubject?.lessonCount ?? 0} lessons
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  {subjectGridItems.map((subject) => {
-                    const isActive = subject.slug === selectedSubjectSlug;
-                    const materialCount = subjectMaterialCounts[subject.id] ?? 0;
-                    const visual = getSubjectVisual(subject);
-                    const Icon = visual.icon;
-
-                    return (
-                      <button
-                        key={subject.id}
-                        type="button"
-                        onClick={() => setSelectedSubjectSlug(subject.slug)}
-                        className={cn(
-                          "relative rounded-[24px] border bg-white p-5 text-left shadow-[0_24px_48px_-42px_rgba(15,23,42,0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#c6d4f3] hover:shadow-[0_32px_64px_-44px_rgba(37,99,235,0.3)] dark:bg-slate-900 dark:shadow-none",
-                          isActive
-                            ? "border-[#2f6fff] ring-2 ring-[#2f6fff]/15 dark:border-blue-500 dark:ring-blue-500/20"
-                            : "border-[#e3ebf7] dark:border-slate-800"
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div
+                  {pickerPanel && (
+                    <div className="mt-4 rounded-[22px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] px-4 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+                      <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                        Choose {pickerPanel}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {(pickerPanel === "school"
+                          ? schools
+                          : pickerPanel === "year"
+                            ? years
+                            : subjects
+                        ).map((item) => (
+                          <Button
+                            key={item.id}
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              if (pickerPanel === "school") setSelectedSchoolSlug(item.slug);
+                              if (pickerPanel === "year") setSelectedYearSlug(item.slug);
+                              if (pickerPanel === "subject") setSelectedSubjectSlug(item.slug);
+                              setPickerPanel(null);
+                            }}
                             className={cn(
-                              "flex h-12 w-12 items-center justify-center rounded-[18px]",
-                              visual.iconClassName
+                              "h-10 rounded-full px-4",
+                              item.slug ===
+                                (pickerPanel === "school"
+                                  ? selectedSchoolSlug
+                                  : pickerPanel === "year"
+                                    ? selectedYearSlug
+                                    : selectedSubjectSlug)
+                                ? "border-[#2f6fff] bg-[#2f6fff] text-white"
+                                : "border-[#d9e1ef] bg-white text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                             )}
                           >
-                            <Icon className="h-6 w-6" />
-                          </div>
-                          {isActive ? (
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2f6fff] text-white">
-                              <Check className="h-3.5 w-3.5" />
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <h3 className="mt-4 text-[1.1rem] font-semibold leading-tight text-slate-950 dark:text-slate-50">
-                          {subject.title}
-                        </h3>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500 dark:text-slate-300">
-                          {getSubjectSummary(subject)}
-                        </p>
-
-                        <span className="mt-4 inline-flex rounded-full bg-[#ff7a1a] px-2.5 py-1 text-xs font-semibold text-white shadow-[0_12px_24px_-16px_rgba(249,115,22,0.9)]">
-                          {materialCount} materials
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {!hasSubjects && (
-                  <div className="mt-5 rounded-[24px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
-                    No subjects configured for this year yet.
-                  </div>
-                )}
-
-                {hasFilteredSubjectOverflow && (
-                  <div className="mt-5 flex justify-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowAllSubjects((current) => !current)}
-                      className="h-11 rounded-full border-[#d9e1ef] bg-white px-6 text-[#2f6fff] shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200"
-                    >
-                      {showAllSubjects ? "Show fewer subjects" : "View all subjects"}
-                      <ChevronDown
-                        className={cn("ml-2 h-4 w-4 transition-transform", showAllSubjects && "rotate-180")}
-                      />
-                    </Button>
-                  </div>
-                )}
-              </section>
-
-              {selectedSchool && selectedYear && selectedSubject && (
-                <section className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:p-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
-                      <h2 className="text-[1.75rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                        {selectedSchool.title} · {selectedYear.title} · {selectedSubject.title} Chapters
-                      </h2>
-                      <p className="text-[15px] text-slate-500 dark:text-slate-300">
-                        Lesson plans and ordering are fully managed from Curriculum Portal.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex rounded-full bg-[#ff7a1a] px-3 py-1 text-xs font-semibold text-white">
-                        {selectedSubject.chapterCount} chapters
-                      </span>
-                      <span className="inline-flex rounded-full bg-[#ff7a1a] px-3 py-1 text-xs font-semibold text-white">
-                        {selectedSubject.lessonCount} lessons
-                      </span>
-                    </div>
-                  </div>
-
-                  {selectedSubject.chapters.length > 0 ? (
-                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {selectedSubject.chapters.map((chapter, index) => (
-                        <article
-                          key={chapter.id}
-                          className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_24px_52px_-46px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                            Chapter {index + 1}
-                          </p>
-                          <h3 className="mt-4 text-[1.1rem] font-semibold leading-tight text-slate-950 dark:text-slate-50">
-                            {chapter.title}
-                          </h3>
-                          <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
-                            {chapter.weekRange || "Week range not set"} · {chapter.lessonCount} lessons
-                          </p>
-
-                          <Button
-                            asChild
-                            className="mt-5 h-11 w-full rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
-                          >
-                            <Link
-                              href={`/${role}/materials/curriculum/${selectedSchool.slug}/${selectedYear.slug}/${selectedSubject.slug}/${chapter.slug}`}
-                            >
-                              Open Chapter
-                            </Link>
+                            {item.title}
                           </Button>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-5 rounded-[24px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
-                      No chapters yet for this subject.
+                        ))}
+                        {pickerPanel === "year" && !hasYears && (
+                          <p className="text-sm text-slate-500 dark:text-slate-300">No years configured for this school yet.</p>
+                        )}
+                        {pickerPanel === "subject" && !hasSubjects && (
+                          <p className="text-sm text-slate-500 dark:text-slate-300">No subjects configured for this year yet.</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </section>
-              )}
 
-              <section className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:p-6">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="space-y-1">
-                    <h2 className="text-[1.75rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                      {selectedSubject ? `${selectedSubject.title} Materials` : "Subject Materials"}
-                    </h2>
-                    <p className="text-[15px] text-slate-500 dark:text-slate-300">
-                      Materials filtered by the currently selected curriculum subject and year.
-                    </p>
-                  </div>
+                <section className="grid gap-4 xl:grid-cols-[390px_minmax(0,1fr)]">
+                  <div className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_24px_60px_-52px_rgba(15,23,42,0.3)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">Chapters</h2>
+                      <div className="flex gap-2">
+                        <span className="rounded-full border border-[#ffe1cf] bg-[#fff6ef] px-3 py-1 text-xs font-semibold text-[#f97316]">
+                          {selectedSubject?.chapterCount ?? 0} chapters
+                        </span>
+                        <span className="rounded-full border border-[#ffe1cf] bg-[#fff6ef] px-3 py-1 text-xs font-semibold text-[#f97316]">
+                          {selectedSubject?.lessonCount ?? 0} lessons
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {materialFilterOptions.map((option) => {
-                      const isActive = materialFilter === option.key;
+                    <div className="relative mt-4">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        value={chapterSearchQuery}
+                        onChange={(event) => setChapterSearchQuery(event.target.value)}
+                        placeholder="Search chapters..."
+                        className="h-11 rounded-full border-[#d9e1ef] bg-white pl-10 shadow-none dark:border-slate-700 dark:bg-slate-950"
+                      />
+                    </div>
 
-                      return (
-                        <Button
-                          key={option.key}
-                          type="button"
-                          variant="outline"
-                          onClick={() => setMaterialFilter(option.key)}
-                          className={cn(
-                            "h-10 rounded-full border px-4 text-sm shadow-none",
-                            isActive
-                              ? "border-[#2f6fff] bg-[#2f6fff] text-white hover:bg-[#2f6fff]"
-                              : "border-[#d9e1ef] bg-white text-slate-600 hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                          )}
-                        >
-                          {option.label}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
+                    <div className="mt-4 max-h-[470px] space-y-2 overflow-y-auto pr-1">
+                      {filteredChapters.length > 0 ? (
+                        filteredChapters.map((chapter, index) => {
+                          const active = chapter.slug === selectedChapterSlug;
 
-                <div className="mt-5">
-                  <div className="relative max-w-[34rem]">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      value={materialSearchQuery}
-                      onChange={(event) => setMaterialSearchQuery(event.target.value)}
-                      placeholder="Search materials by title, keyword, or topic..."
-                      className="h-11 rounded-full border-[#d9e1ef] bg-white pl-10 shadow-none focus-visible:ring-[#bcd2ff] dark:border-slate-700 dark:bg-slate-900"
-                    />
-                  </div>
-                </div>
-
-                {materialRows.length > 0 ? (
-                  <div className="mt-5 overflow-hidden rounded-[24px] border border-[#e4ebf7] bg-white dark:border-slate-800 dark:bg-slate-950/80">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-left">
-                        <thead className="border-b border-[#e8eef8] bg-[#fbfcff] dark:border-slate-800 dark:bg-slate-900/70">
-                          <tr className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                            <th className="px-5 py-4">Material</th>
-                            <th className="px-4 py-4">Type</th>
-                            <th className="px-4 py-4">Related Chapter</th>
-                            <th className="px-4 py-4">Updated</th>
-                            <th className="px-4 py-4">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {materialRows.map(({ material, kind, relatedChapter }) => (
-                            <tr
-                              key={material.id}
-                              className="border-b border-[#eef2f8] last:border-b-0 dark:border-slate-800"
+                          return (
+                            <button
+                              key={chapter.id}
+                              type="button"
+                              onClick={() => setSelectedChapterSlug(chapter.slug)}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-[18px] border px-4 py-3 text-left transition-colors",
+                                active
+                                  ? "border-[#2f6fff] bg-[#f4f8ff]"
+                                  : "border-[#e7edf7] bg-white hover:border-[#c6d4f3] hover:bg-[#fbfdff] dark:border-slate-800 dark:bg-slate-950"
+                              )}
                             >
-                              <td className="px-5 py-4">
-                                <div className="flex items-start gap-3">
-                                  <div
-                                    className={cn(
-                                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px]",
-                                      kind === "lesson-plan" && "bg-[#eef4ff] text-[#2f6fff]",
-                                      kind === "worksheet" && "bg-[#ecfbf3] text-[#159a61]",
-                                      kind === "quiz" && "bg-[#fff1e7] text-[#f97316]",
-                                      kind === "slides" && "bg-[#f5efff] text-[#8b5cf6]"
-                                    )}
-                                  >
-                                    <FileText className="h-5 w-5" />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-[15px] font-semibold text-slate-950 dark:text-slate-50">
-                                      {material.title}
-                                    </p>
-                                    <p className="mt-1 line-clamp-2 text-sm text-slate-500 dark:text-slate-300">
-                                      {material.description}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4">
-                                <span
+                              <span className="flex min-w-0 items-center gap-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f5f8fd] text-sm font-bold text-slate-600">
+                                  {index + 1}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-bold text-slate-950 dark:text-slate-50">{chapter.title}</span>
+                                  <span className="mt-1 block text-xs text-slate-500 dark:text-slate-300">
+                                    {chapter.weekRange || "Weeks not set"} · {chapter.lessonCount} lessons
+                                  </span>
+                                </span>
+                              </span>
+                              <ChevronRight className="h-4 w-4 shrink-0 text-[#2f6fff]" />
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-[18px] border border-dashed border-[#d9e4f7] p-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-300">
+                          No chapters found.
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setChapterSearchQuery("")}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 text-sm font-semibold text-[#2f6fff]"
+                    >
+                      View all chapters ({selectedSubject?.chapterCount ?? 0})
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="rounded-[28px] border border-white/70 bg-white/90 p-5 shadow-[0_24px_60px_-52px_rgba(15,23,42,0.3)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82">
+                    {selectedChapter ? (
+                      <>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <span className="inline-flex rounded-full bg-[#eef4ff] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#2f6fff]">
+                              Chapter {(selectedSubject?.chapters.findIndex((chapter) => chapter.id === selectedChapter.id) ?? -1) + 1}
+                            </span>
+                            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
+                              {selectedChapter.title}
+                            </h2>
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-300">
+                              <span>{selectedChapter.weekRange || "Weeks not set"}</span>
+                              <span>·</span>
+                              <span>{selectedChapter.lessonCount} lessons</span>
+                              <span className="hidden lg:inline">|</span>
+                              <span className="max-w-xl">
+                                {selectedSubject ? getSubjectSummary(selectedSubject) : ""}
+                              </span>
+                            </div>
+                          </div>
+                          {chapterHref ? (
+                            <Button
+                              asChild
+                              className="h-12 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
+                            >
+                              <Link href={chapterHref}>
+                                <PlayCircle className="mr-2 h-4 w-4" />
+                                Start with this chapter
+                              </Link>
+                            </Button>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex flex-wrap gap-2">
+                            {materialFilterOptions.map((option) => {
+                              const active = materialFilter === option.key;
+
+                              return (
+                                <Button
+                                  key={option.key}
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setMaterialFilter(option.key)}
                                   className={cn(
-                                    "inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold",
-                                    materialKindChipClassNames[kind]
+                                    "h-10 rounded-full px-4 text-sm shadow-none",
+                                    active
+                                      ? "border-[#2f6fff] bg-[#2f6fff] text-white hover:bg-[#2f6fff]"
+                                      : "border-[#d9e1ef] bg-white text-slate-600 hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                                   )}
                                 >
-                                  {materialKindLabels[kind]}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
-                                {relatedChapter ? `Chapter ${(selectedSubject?.chapters.indexOf(relatedChapter) ?? -1) + 1} · ${relatedChapter.title}` : "Not mapped"}
-                              </td>
-                              <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
-                                {formatMaterialDate(material.updatedAt)}
-                              </td>
-                              <td className="px-4 py-4">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    asChild
-                                    className="h-9 rounded-full bg-[#2f6fff] px-4 text-sm text-white shadow-[0_12px_24px_-14px_rgba(37,99,235,0.65)] hover:bg-[#1d4ed8]"
-                                  >
-                                    <Link href={`/${role}/materials/${material.id}`}>Open Material</Link>
-                                  </Button>
-                                  <button
-                                    type="button"
-                                    className="flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-slate-500 transition-colors hover:bg-[#f3f7ff] hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                                    aria-label={`More actions for ${material.title}`}
-                                  >
-                                    <EllipsisVertical className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                  {option.label}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <div className="relative w-full lg:max-w-[21rem]">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <Input
+                              value={materialSearchQuery}
+                              onChange={(event) => setMaterialSearchQuery(event.target.value)}
+                              placeholder="Search materials in this chapter..."
+                              className="h-11 rounded-full border-[#d9e1ef] bg-white pl-10 shadow-none dark:border-slate-700 dark:bg-slate-950"
+                            />
+                          </div>
+                        </div>
 
-                    <div className="border-t border-[#e8eef8] px-5 py-4 dark:border-slate-800">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setMaterialSearchQuery("");
-                          setMaterialFilter("all");
-                        }}
-                        className="h-10 rounded-full border-[#d9e1ef] bg-white px-4 text-[#2f6fff] shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200"
-                      >
-                        View all materials for {selectedSubject?.title ?? "this subject"}
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
+                        {selectedChapterMaterialRows.length > 0 ? (
+                          <div className="mt-4 overflow-hidden rounded-[22px] border border-[#e4ebf7] dark:border-slate-800">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full text-left">
+                                <thead className="border-b border-[#e8eef8] bg-[#fbfcff] dark:border-slate-800 dark:bg-slate-900/70">
+                                  <tr className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                    <th className="px-5 py-4">Material</th>
+                                    <th className="px-4 py-4">Type</th>
+                                    <th className="px-4 py-4">Updated</th>
+                                    <th className="px-4 py-4">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {selectedChapterMaterialRows.map(({ material, kind }) => (
+                                    <tr key={material.id} className="border-b border-[#eef2f8] last:border-b-0 dark:border-slate-800">
+                                      <td className="px-5 py-4">
+                                        <div className="flex items-start gap-3">
+                                          <span
+                                            className={cn(
+                                              "flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px]",
+                                              kind === "lesson-plan" && "bg-[#eef4ff] text-[#2f6fff]",
+                                              kind === "worksheet" && "bg-[#ecfbf3] text-[#159a61]",
+                                              kind === "quiz" && "bg-[#fff1e7] text-[#f97316]",
+                                              kind === "slides" && "bg-[#f5efff] text-[#8b5cf6]"
+                                            )}
+                                          >
+                                            <FileText className="h-5 w-5" />
+                                          </span>
+                                          <span>
+                                            <span className="block text-sm font-bold text-slate-950 dark:text-slate-50">
+                                              {material.title}
+                                            </span>
+                                            <span className="mt-1 block text-xs text-slate-500 dark:text-slate-300">
+                                              {material.description}
+                                            </span>
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4">
+                                        <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold", materialKindChipClassNames[kind])}>
+                                          {materialKindLabels[kind]}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-4 text-sm text-slate-500 dark:text-slate-300">
+                                        {formatMaterialDate(material.updatedAt)}
+                                      </td>
+                                      <td className="px-4 py-4">
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            asChild
+                                            variant="outline"
+                                            className="h-9 rounded-full border-[#d9e1ef] bg-white px-4 text-sm font-semibold text-[#2f6fff] shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] dark:border-slate-700 dark:bg-slate-950"
+                                          >
+                                            <Link href={`/${role}/materials/${material.id}`}>Open</Link>
+                                          </Button>
+                                          <button
+                                            type="button"
+                                            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-[#f3f7ff] hover:text-slate-700"
+                                            aria-label={`More actions for ${material.title}`}
+                                          >
+                                            <EllipsisVertical className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div className="flex flex-col gap-3 border-t border-[#e8eef8] px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+                              <p className="text-slate-500 dark:text-slate-300">
+                                Showing {selectedChapterMaterialRows.length} of {selectedChapterMaterialRows.length} materials
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMaterialFilter("all");
+                                  setMaterialSearchQuery("");
+                                }}
+                                className="inline-flex items-center gap-2 font-semibold text-[#2f6fff]"
+                              >
+                                View all materials in this chapter
+                                <ArrowRight className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 rounded-[22px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-8 text-center dark:border-slate-700 dark:bg-slate-900/60">
+                            <p className="font-medium text-slate-900 dark:text-slate-50">No materials found in this chapter</p>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
+                              Try another chapter, filter, or search keyword.
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex min-h-[420px] items-center justify-center rounded-[22px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+                        Select a chapter to view its materials.
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="mt-5 rounded-[24px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-8 text-center dark:border-slate-700 dark:bg-slate-900/60">
-                    <p className="font-medium text-slate-900 dark:text-slate-50">
-                      No materials found
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
-                      Try another subject, filter, or search keyword.
-                    </p>
-                  </div>
-                )}
-              </section>
-            </>
-          )}
-        </div>
-      </main>
+                </section>
+
+                <section className="flex flex-col gap-3 rounded-[24px] border border-[#dce7ff] bg-[#f8fbff] px-5 py-4 text-sm text-[#2451a6] shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900/82 dark:text-blue-200">
+                  <span className="inline-flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#2f6fff]">
+                      <Lightbulb className="h-4 w-4" />
+                    </span>
+                    <span>
+                      <strong className="mr-2">Tip:</strong>
+                      Explore other chapters in the list to find more materials aligned to your curriculum.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setChapterSearchQuery("")}
+                    className="inline-flex items-center gap-2 font-semibold text-[#2f6fff]"
+                  >
+                    Browse all {selectedSubject?.chapterCount ?? 0} chapters
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </section>
+              </>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

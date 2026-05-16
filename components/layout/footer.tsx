@@ -6,8 +6,11 @@ import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
 
 export function Footer() {
     const pathname = usePathname()
+    const isPortalRoute = ["/student", "/teacher", "/parent", "/principal", "/admin"].some((prefix) =>
+        pathname.startsWith(prefix)
+    )
 
-    if (isCurriculumLessonFocusRoute(pathname)) {
+    if (isCurriculumLessonFocusRoute(pathname) || isPortalRoute) {
         return null
     }
 

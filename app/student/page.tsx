@@ -1,80 +1,116 @@
-import { SidebarNav } from "@/components/lms/sidebar-nav";
+import Image from "next/image";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getMaterials, getStudentProgress, getCalendarEvents } from "@/lib/db-services";
+import { getCalendarEvents, getMaterials, getStudentProgress } from "@/lib/db-services";
 import {
-  BookOpen,
-  Award,
-  Clock,
-  TrendingUp,
-  Calendar,
+  Atom,
+  CalendarDays,
   CheckSquare,
   ChevronRight,
-  ExternalLink,
+  ClipboardList,
+  FlaskConical,
+  GraduationCap,
   HelpCircle,
+  House,
+  Languages,
+  MessageCircleMore,
+  NotebookText,
+  Palette,
   Play,
+  Search,
+  Sigma,
+  Sparkles,
   Square,
+  Target,
+  TrendingUp,
 } from "lucide-react";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-function StatCard({
-  icon,
-  iconBg,
-  label,
-  value,
-  sub,
-  progress,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  label: string;
-  value: string | number;
-  sub?: string;
-  progress?: number;
-}) {
-  return (
-    <div className="flex items-start gap-4 rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconBg}`}>
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-400">{label}</p>
-        <p className="mt-0.5 text-[1.75rem] font-bold leading-none text-slate-900">{value}</p>
-        {progress !== undefined ? (
-          <div className="mt-2">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-[#2f6fff] transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="mt-1 text-xs text-slate-400">Keep it up!</p>
-          </div>
-        ) : (
-          sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>
-        )}
-      </div>
-    </div>
-  );
-}
+const railItems = [
+  { label: "Home", href: "/student", icon: House, tone: "text-[#2f6fff]" },
+  { label: "Assignments", href: "/student/quizzes", icon: ClipboardList, tone: "text-[#f97316]" },
+  { label: "Biology", href: "/student/materials", icon: FlaskConical, tone: "text-[#159a61]" },
+  { label: "English", href: "/student/materials", icon: Languages, tone: "text-[#8b5cf6]" },
+  { label: "Maths", href: "/student/materials", icon: Sigma, tone: "text-[#d97706]" },
+  { label: "Creative", href: "/student/materials", icon: Palette, tone: "text-[#db2777]" },
+];
 
-// Subject badge colours
+const lessonGroups = [
+  {
+    title: "Cell Biology",
+    lessons: [
+      { title: "What are cells?", active: false },
+      { title: "Types of cells", active: true },
+      { title: "Animal and plant cells", active: false },
+      { title: "Specialised cells", active: false },
+    ],
+  },
+  {
+    title: "Working Scientifically",
+    lessons: [
+      { title: "Using microscopes", active: false },
+      { title: "Recording observations", active: false },
+      { title: "Review checkpoint", active: false },
+    ],
+  },
+];
+
+const fallbackMaterials = [
+  {
+    id: "science-cells",
+    title: "Year 7 Science: Cells and Systems",
+    subject: "Science",
+    description: "Build confidence with cell structures, microscopy, and short retrieval checks.",
+    createdAt: new Date("2026-05-14"),
+  },
+  {
+    id: "english-stories",
+    title: "English: Reading for Meaning",
+    subject: "English",
+    description: "Close-reading practice with vocabulary support and comprehension prompts.",
+    createdAt: new Date("2026-05-13"),
+  },
+  {
+    id: "numeracy-ratio",
+    title: "Numeracy: Ratios and Patterns",
+    subject: "Numeracy",
+    description: "Applied practice sets for ratio, sequences, and comparison problems.",
+    createdAt: new Date("2026-05-12"),
+  },
+];
+
+const tasks = [
+  { label: "Complete microscopy recap", done: false, subject: "Science" },
+  { label: "Read story extract chapter 2", done: true, subject: "English" },
+  { label: "Finish ratio warm-up", done: false, subject: "Numeracy" },
+];
+
 const subjectColors: Record<string, { bg: string; text: string }> = {
   literature: { bg: "bg-[#fff3e6]", text: "text-[#c2410c]" },
   numerasi: { bg: "bg-[#fff0f0]", text: "text-[#dc2626]" },
-  science: { bg: "bg-[#e8f5e9]", text: "text-[#16a34a]" },
+  numeracy: { bg: "bg-[#fff0f0]", text: "text-[#dc2626]" },
+  science: { bg: "bg-[#e8f5e9]", text: "text-[#159a61]" },
   english: { bg: "bg-[#e8f0fe]", text: "text-[#2563eb]" },
   math: { bg: "bg-[#fef3c7]", text: "text-[#b45309]" },
 };
 
 function subjectBadge(subject: string) {
   const key = subject.toLowerCase();
-  const style = Object.entries(subjectColors).find(([k]) => key.includes(k))?.[1] ?? {
-    bg: "bg-slate-100",
-    text: "text-slate-600",
-  };
-  return style;
+  return (
+    Object.entries(subjectColors).find(([name]) => key.includes(name))?.[1] ?? {
+      bg: "bg-slate-100",
+      text: "text-slate-600",
+    }
+  );
+}
+
+function formatDate(value: Date | string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 export default async function StudentDashboard() {
@@ -88,362 +124,444 @@ export default async function StudentDashboard() {
     getCalendarEvents(studentId),
   ]);
 
-  const enrolledMaterials = materials.slice(0, 3);
-  const completedCount = studentProgress.filter((p) => p.completed).length;
-  const totalMaterials = materials.length;
+  const currentMaterials = materials.length > 0 ? materials.slice(0, 3) : fallbackMaterials;
   const overallProgress =
     studentProgress.length > 0
-      ? Math.round(studentProgress.reduce((s, p) => s + p.progress, 0) / studentProgress.length)
+      ? Math.round(studentProgress.reduce((sum, item) => sum + item.progress, 0) / studentProgress.length)
       : 68;
-  const pendingQuizzes = 2;
-  const achievements = 3;
-
-  const recentMaterials = materials.slice(0, 3);
-  const upcomingEvents = studentEvents.slice(0, 2);
-
-  const tasks = [
-    { label: "Complete Numerasi practice", done: false, tag: "Numerasi", tagColor: subjectBadge("numerasi") },
-    { label: "Read short-story-chapter-2", done: true, tag: "Literature", tagColor: subjectBadge("literature") },
-    { label: "Review Science lesson notes", done: false, tag: "Science", tagColor: subjectBadge("science") },
-  ];
+  const completedCount = studentProgress.filter((item) => item.completed).length;
+  const upcomingEvents = studentEvents.length > 0 ? studentEvents.slice(0, 2) : [];
+  const heroCourse = currentMaterials[0];
+  const nextMaterial = currentMaterials[1] ?? currentMaterials[0];
 
   return (
-    <div className="flex min-h-screen bg-[#f7f8fc]">
-      {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
-      <aside className="hidden w-64 shrink-0 border-r border-[#edf0f7] bg-white lg:flex lg:flex-col">
-        {/* User info */}
-        <div className="border-b border-[#edf0f7] px-5 py-5">
-          <p className="text-sm font-bold text-slate-800">Student Portal</p>
-          <p className="mt-0.5 text-xs text-slate-400">{studentName}</p>
-        </div>
-
-        {/* Nav */}
-        <div className="flex-1 overflow-y-auto px-3 py-4">
-          <SidebarNav role="student" />
-        </div>
-
-        {/* Motivational card */}
-        <div className="m-3 rounded-2xl bg-[#eef4ff] px-4 py-4 text-center">
-          <p className="text-2xl">🐧✨</p>
-          <p className="mt-2 text-sm font-bold text-slate-800">Keep going, {studentName.split(" ")[0]}! 🌟</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">Every small step brings you closer to your goals.</p>
-          <button className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-[#c7d9ff] bg-white py-2 text-xs font-semibold text-[#2f6fff] hover:bg-[#f0f6ff] transition-colors">
-            <HelpCircle className="h-3.5 w-3.5" />
-            Need Help?
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ─────────────────────────────────────────────────────────────── */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 px-6 py-7 lg:px-8">
-
-          {/* Welcome */}
-          <div>
-            <h1 className="text-[1.9rem] font-black tracking-tight text-slate-900">
-              Welcome back, {studentName}! 👋
-            </h1>
-            <p className="mt-1 text-sm text-slate-400">Here&apos;s what&apos;s happening with your learning today.</p>
+    <div className="min-h-screen bg-[#f4f8fc] text-slate-900">
+      <div className="mx-auto flex min-h-screen max-w-[1680px]">
+        <aside className="hidden w-[88px] shrink-0 border-r border-[#e5edf7] bg-white/90 px-3 py-5 xl:flex xl:flex-col">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-[#eef4ff] text-[#2f6fff]">
+            <Sparkles className="h-6 w-6" />
           </div>
 
-          {/* Stat cards */}
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              iconBg="bg-[#e8f0fe]"
-              icon={<BookOpen className="h-6 w-6 text-[#2563eb]" />}
-              label="Courses Enrolled"
-              value={totalMaterials || 10}
-              sub="Active courses"
-            />
-            <StatCard
-              iconBg="bg-[#fff3e6]"
-              icon={<Clock className="h-6 w-6 text-[#f97316]" />}
-              label="Quizzes Pending"
-              value={pendingQuizzes}
-              sub="Due this week"
-            />
-            <StatCard
-              iconBg="bg-[#e8f5e9]"
-              icon={<TrendingUp className="h-6 w-6 text-[#16a34a]" />}
-              label="Overall Progress"
-              value={`${overallProgress}%`}
-              progress={overallProgress}
-            />
-            <StatCard
-              iconBg="bg-[#f3e8ff]"
-              icon={<Award className="h-6 w-6 text-[#9333ea]" />}
-              label="Achievements"
-              value={achievements}
-              sub="Badges earned"
-            />
+          <nav className="mt-8 flex flex-1 flex-col items-center gap-3">
+            {railItems.map((item, index) => {
+              const Icon = item.icon;
+              const active = index === 0;
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`flex w-full flex-col items-center gap-1 rounded-2xl px-2 py-3 text-[11px] font-medium transition-colors ${
+                    active ? "bg-[#eef4ff] text-[#2f6fff]" : "text-slate-400 hover:bg-white hover:text-slate-700"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${active ? "text-[#2f6fff]" : item.tone}`} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="rounded-2xl bg-[#0b1d3a] px-2 py-4 text-center text-white">
+            <GraduationCap className="mx-auto h-5 w-5" />
+            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Level</p>
+            <p className="text-lg font-bold">12</p>
+          </div>
+        </aside>
+
+        <aside className="hidden w-[282px] shrink-0 border-r border-[#e5edf7] bg-white/90 lg:flex lg:flex-col">
+          <div className="border-b border-[#edf2f8] px-5 py-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Student portal</p>
+            <p className="mt-2 text-lg font-bold text-slate-900">{studentName}</p>
           </div>
 
-          {/* Two-column layout */}
-          <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-            {/* LEFT ─────────────────────────────────────── */}
-            <div className="space-y-6">
-              {/* Continue Learning */}
-              <section>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[1.1rem] font-bold text-slate-900">Continue Learning</h2>
-                  <Link href="/student/materials" className="flex items-center gap-1 text-xs font-semibold text-[#2f6fff] hover:underline">
-                    View All <ChevronRight className="h-3.5 w-3.5" />
+          <div className="flex-1 overflow-y-auto px-4 py-5">
+            <div className="space-y-1">
+              {[
+                { label: "Overview", href: "/student", icon: House, active: true },
+                { label: "Assignments", href: "/student/quizzes", icon: ClipboardList, active: false },
+                { label: "Notes", href: "/student/notes", icon: NotebookText, active: false },
+                { label: "Ask Tutor", href: "/student/ai-assistant", icon: MessageCircleMore, active: false },
+              ].map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                      item.active
+                        ? "bg-[#eef4ff] text-[#2f6fff]"
+                        : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-800"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
                   </Link>
-                </div>
+                );
+              })}
+            </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {enrolledMaterials.length > 0 ? enrolledMaterials.map((material) => {
-                    const prog = studentProgress.find((p) => p.materialId === material.id);
-                    const pct = prog?.progress ?? Math.floor(Math.random() * 80 + 10);
-                    const badge = subjectBadge(material.subject ?? "");
-                    return (
-                      <div key={material.id} className="flex flex-col overflow-hidden rounded-2xl border border-[#edf0f7] bg-white shadow-sm">
-                        <div className="flex h-36 items-center justify-center bg-gradient-to-br from-[#eef4ff] to-[#dce8ff]">
-                          <BookOpen className="h-14 w-14 text-[#93b4f7]" />
-                        </div>
-                        <div className="flex flex-1 flex-col p-4">
-                          <span className={`self-start rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.bg} ${badge.text}`}>
-                            {material.subject}
-                          </span>
-                          <p className="mt-2 text-sm font-bold leading-snug text-slate-900 line-clamp-2">{material.title}</p>
-                          <p className="mt-1 text-[11px] leading-5 text-slate-400 line-clamp-2">{material.description}</p>
-                          <div className="mt-auto pt-3">
-                            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
-                              <span>{pct}% complete</span>
-                            </div>
-                            <div className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
-                              <div className="h-full rounded-full bg-[#2f6fff]" style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                          <Link
-                            href={`/student/materials/${material.id}`}
-                            className="mt-3 flex items-center justify-center gap-1.5 rounded-full bg-[#2f6fff] py-2.5 text-xs font-semibold text-white hover:bg-[#1d4ed8] transition-colors"
-                          >
-                            <Play className="h-3.5 w-3.5" />
-                            Resume Learning
-                          </Link>
-                        </div>
+            <div className="mt-6 border-t border-[#edf2f8] pt-5">
+              <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Current course</p>
+              <div className="mt-3 rounded-3xl border border-[#e6edf8] bg-[#fbfdff] p-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e8f5e9] text-[#159a61]">
+                    <Atom className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">Science</p>
+                    <p className="mt-0.5 text-xs text-slate-400">Year 7 foundation</p>
+                  </div>
+                </div>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-[#2f6fff]" style={{ width: `${overallProgress}%` }} />
+                </div>
+                <p className="mt-2 text-xs font-medium text-slate-500">{overallProgress}% complete</p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-5">
+              {lessonGroups.map((group) => (
+                <section key={group.title}>
+                  <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    {group.title}
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {group.lessons.map((lesson) => (
+                      <div
+                        key={lesson.title}
+                        className={`flex items-center justify-between rounded-2xl px-3 py-2.5 text-sm ${
+                          lesson.active ? "bg-[#eef4ff] font-semibold text-[#2f6fff]" : "text-slate-500"
+                        }`}
+                      >
+                        <span>{lesson.title}</span>
+                        <span
+                          className={`h-4 w-4 rounded-full border ${
+                            lesson.active ? "border-[#2f6fff] bg-white" : "border-slate-200"
+                          }`}
+                        />
                       </div>
-                    );
-                  }) : (
-                    // Placeholder cards when no materials yet
-                    [{title:"Literatur Anak: Cerita Pendek", subject:"Literature", desc:"Bilingual short story reading and comprehension for junior high with playful themes.", pct:40},
-                     {title:"Numerasi Dasar: Pola dan Perbandingan", subject:"Numerasi", desc:"Bilingual numeracy foundations for patterns, order, and comparisons with real-life examples.", pct:50},
-                     {title:"Latihan Menghitung: 1-20", subject:"Science", desc:"Bilingual counting and basic operations for junior high with playful and formal lessons.", pct:60},
-                    ].map((item) => {
-                      const badge = subjectBadge(item.subject);
-                      return (
-                        <div key={item.title} className="flex flex-col overflow-hidden rounded-2xl border border-[#edf0f7] bg-white shadow-sm">
-                          <div className="flex h-36 items-center justify-center bg-gradient-to-br from-[#eef4ff] to-[#dce8ff]">
-                            <BookOpen className="h-14 w-14 text-[#93b4f7]" />
-                          </div>
-                          <div className="flex flex-1 flex-col p-4">
-                            <span className={`self-start rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.bg} ${badge.text}`}>{item.subject}</span>
-                            <p className="mt-2 text-sm font-bold leading-snug text-slate-900">{item.title}</p>
-                            <p className="mt-1 text-[11px] leading-5 text-slate-400 line-clamp-2">{item.desc}</p>
-                            <div className="mt-auto pt-3">
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
-                                <span>{item.pct}% complete</span>
-                              </div>
-                              <div className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
-                                <div className="h-full rounded-full bg-[#2f6fff]" style={{ width: `${item.pct}%` }} />
-                              </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="border-b border-[#e5edf7] bg-white/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 flex-1 items-center gap-3 rounded-full border border-[#dfe8f5] bg-white px-4 shadow-sm sm:max-w-xl">
+                  <Search className="h-4 w-4 text-slate-400" />
+                  <span className="truncate text-sm text-slate-400">Search for notes, lessons, or a topic</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full border border-[#dfe8f5] bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm">
+                  Level 12
+                </div>
+                <Link
+                  href="/student/ai-assistant"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#2f6fff] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_-14px_rgba(47,111,255,0.75)] transition-colors hover:bg-[#1d4ed8]"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Ask Tutor
+                </Link>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-[1260px] gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="space-y-5">
+                <section className="overflow-hidden rounded-[2rem] border border-[#e6edf8] bg-white shadow-[0_22px_60px_-38px_rgba(15,23,42,0.3)]">
+                  <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="relative min-h-[190px] bg-[#0b1d3a]">
+                      <Image
+                        src="/images/cells/microscope.png"
+                        alt="Microscope lesson preview"
+                        fill
+                        className="object-cover opacity-90"
+                      />
+                    </div>
+                    <div className="p-5 sm:p-6">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#159a61]">
+                            Continue learning
+                          </p>
+                          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                            {heroCourse.title}
+                          </h1>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {heroCourse.subject} course · {overallProgress}% complete
+                          </p>
+                        </div>
+                        <Link
+                          href={`/student/materials/${heroCourse.id}`}
+                          className="inline-flex items-center gap-2 rounded-full bg-[#2f6fff] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
+                        >
+                          <Play className="h-4 w-4" />
+                          Resume
+                        </Link>
+                      </div>
+
+                      <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-[#2f6fff]" style={{ width: `${overallProgress}%` }} />
+                      </div>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        {[
+                          { label: "Lessons done", value: `${completedCount || 4}/10`, icon: CheckSquare },
+                          { label: "Study streak", value: "5 days", icon: TrendingUp },
+                          { label: "Next review", value: "Today", icon: Target },
+                        ].map((item) => {
+                          const Icon = item.icon;
+
+                          return (
+                            <div key={item.label} className="rounded-2xl bg-[#f7faff] p-3">
+                              <Icon className="h-4 w-4 text-[#2f6fff]" />
+                              <p className="mt-3 text-lg font-bold text-slate-900">{item.value}</p>
+                              <p className="text-xs text-slate-400">{item.label}</p>
                             </div>
-                            <Link href="/student/materials" className="mt-3 flex items-center justify-center gap-1.5 rounded-full bg-[#2f6fff] py-2.5 text-xs font-semibold text-white hover:bg-[#1d4ed8] transition-colors">
-                              <Play className="h-3.5 w-3.5" />
-                              Resume Learning
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Next topic</p>
+                      <h2 className="mt-1 text-xl font-bold text-slate-900">Types of cells</h2>
+                    </div>
+                    <Link
+                      href={`/student/materials/${nextMaterial.id}`}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1d3a] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#15305b]"
+                    >
+                      Start learning
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    {[
+                      { title: "Simplify this topic", detail: "Short explanation first" },
+                      { title: "Explain in more detail", detail: "Step-by-step notes" },
+                      { title: "I have a question", detail: "Ask the tutor directly" },
+                    ].map((item) => (
+                      <div key={item.title} className="rounded-2xl border border-[#e7edf7] bg-[#fbfdff] p-4">
+                        <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                        <p className="mt-1 text-xs text-slate-400">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Assignments</p>
+                      <h2 className="mt-1 text-xl font-bold text-slate-900">Your work this week</h2>
+                    </div>
+                    <Link href="/student/quizzes" className="text-sm font-semibold text-[#2f6fff] hover:underline">
+                      See all
+                    </Link>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    {currentMaterials.map((material, index) => {
+                      const badge = subjectBadge(material.subject ?? "");
+                      const dueCopy = index === 0 ? "Due today" : index === 1 ? "Due in 2 days" : "Due Friday";
+                      const action = index === 0 ? "Continue" : "Start";
+
+                      return (
+                        <div
+                          key={material.id}
+                          className="grid gap-4 rounded-3xl border border-[#edf2f8] bg-[#fbfdff] p-4 md:grid-cols-[minmax(0,1fr)_160px]"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge.bg} ${badge.text}`}>
+                                {material.subject}
+                              </span>
+                              <span className="text-xs font-medium text-slate-400">{dueCopy}</span>
+                            </div>
+                            <p className="mt-3 truncate text-sm font-bold text-slate-900">{material.title}</p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">{material.description}</p>
+                          </div>
+                          <div className="flex items-center justify-end">
+                            <Link
+                              href={`/student/materials/${material.id}`}
+                              className="inline-flex w-full items-center justify-center rounded-full bg-[#2f6fff] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
+                            >
+                              {action}
                             </Link>
                           </div>
                         </div>
                       );
-                    })
-                  )}
-                </div>
-              </section>
-
-              {/* Bottom row: Learning Activity + Recent Materials */}
-              <div className="grid gap-5 lg:grid-cols-2">
-                {/* Learning Activity */}
-                <section className="rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-slate-900">Learning Activity</h2>
-                    <span className="text-xs text-slate-400">• This Week</span>
-                  </div>
-                  {/* Simple SVG sparkline */}
-                  <div className="mt-4 h-28 w-full">
-                    <svg viewBox="0 0 260 80" className="h-full w-full" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#2f6fff" stopOpacity="0.15" />
-                          <stop offset="100%" stopColor="#2f6fff" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0,60 L37,50 L74,55 L111,40 L148,30 L185,35 L222,20 L260,25" fill="none" stroke="#2f6fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M0,60 L37,50 L74,55 L111,40 L148,30 L185,35 L222,20 L260,25 L260,80 L0,80 Z" fill="url(#actGrad)" />
-                      {/* Highlight dot */}
-                      <circle cx="148" cy="30" r="4.5" fill="#2f6fff" />
-                      <text x="148" y="22" textAnchor="middle" fontSize="9" fill="#2f6fff" fontWeight="bold">2.4h</text>
-                      {/* X labels */}
-                      {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i) => (
-                        <text key={d} x={i * 37 + (i === 6 ? 37 : 0)} y="78" textAnchor="middle" fontSize="8" fill="#94a3b8">{d}</text>
-                      ))}
-                    </svg>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between border-t border-[#f0f4fb] pt-3">
-                    <p className="text-xs text-slate-400">Total study time</p>
-                    <p className="text-sm font-bold text-[#2f6fff]">8h 45m</p>
+                    })}
                   </div>
                 </section>
 
-                {/* Recent Materials */}
-                <section className="rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
+                <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-slate-900">Recent Materials</h2>
-                    <Link href="/student/materials" className="flex items-center gap-0.5 text-xs font-semibold text-[#2f6fff] hover:underline">
-                      View All <ChevronRight className="h-3.5 w-3.5" />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Recent materials</p>
+                      <h2 className="mt-1 text-xl font-bold text-slate-900">Latest additions</h2>
+                    </div>
+                    <Link href="/student/materials" className="text-sm font-semibold text-[#2f6fff] hover:underline">
+                      View all
                     </Link>
                   </div>
-                  <table className="mt-3 w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-[#f0f4fb]">
-                        {["Title","Subject","Added","Action"].map(h => (
-                          <th key={h} className="pb-2 text-left font-semibold text-slate-400">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(recentMaterials.length > 0 ? recentMaterials : [
-                        {id:"1",title:"Pola dan Barisan Worksheet",subject:"Numerasi",createdAt:new Date("2026-05-15")},
-                        {id:"2",title:"Cerita Pendek: Persahabatan (Chapter 2)",subject:"Literature",createdAt:new Date("2026-05-14")},
-                        {id:"3",title:"Photosynthesis Basic PDF Notes",subject:"Science",createdAt:new Date("2026-05-13")},
-                      ]).map((m: {id:string,title:string,subject:string,createdAt:Date}) => {
-                        const badge = subjectBadge(m.subject ?? "");
-                        return (
-                          <tr key={m.id} className="border-b border-[#f7f9fc] last:border-b-0">
-                            <td className="py-2.5 pr-2 font-medium text-slate-700 max-w-[120px] truncate">{m.title}</td>
-                            <td className="py-2.5 pr-2">
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.bg} ${badge.text}`}>{m.subject}</span>
-                            </td>
-                            <td className="py-2.5 pr-2 text-slate-400">
-                              {new Date(m.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
-                            </td>
-                            <td className="py-2.5">
-                              <Link href={`/student/materials/${m.id}`} className="rounded-full bg-[#2f6fff] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#1d4ed8]">View</Link>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+
+                  <div className="mt-5 overflow-hidden rounded-3xl border border-[#edf2f8]">
+                    {currentMaterials.map((material) => {
+                      const badge = subjectBadge(material.subject ?? "");
+
+                      return (
+                        <div
+                          key={material.id}
+                          className="grid gap-3 border-b border-[#edf2f8] px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_140px_110px]"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">{material.title}</p>
+                            <p className="mt-1 truncate text-xs text-slate-400">{material.description}</p>
+                          </div>
+                          <div className="flex items-center">
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge.bg} ${badge.text}`}>
+                              {material.subject}
+                            </span>
+                          </div>
+                          <div className="flex items-center text-xs font-medium text-slate-400">
+                            {formatDate(material.createdAt)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
+
+              <div className="space-y-5">
+                <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Today</p>
+                  <h2 className="mt-1 text-xl font-bold text-slate-900">Learning snapshot</h2>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                    {[
+                      { label: "Overall progress", value: `${overallProgress}%`, tone: "bg-[#eef4ff] text-[#2f6fff]" },
+                      { label: "Assignments due", value: "3", tone: "bg-[#fff3e6] text-[#f97316]" },
+                      { label: "Topics mastered", value: `${completedCount || 4}`, tone: "bg-[#ecfbf3] text-[#159a61]" },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-3xl bg-[#fbfdff] p-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${item.tone}`}>
+                          {item.label}
+                        </span>
+                        <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-[#2f6fff]" />
+                    <h2 className="text-base font-bold text-slate-900">Upcoming events</h2>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {(upcomingEvents.length > 0
+                      ? upcomingEvents.map((event) => ({
+                          title: event.title,
+                          date: new Date(event.startTime),
+                        }))
+                      : [
+                          { title: "Science quiz", date: new Date("2026-05-20T09:00:00") },
+                          { title: "Literature discussion", date: new Date("2026-05-27T14:00:00") },
+                        ]
+                    ).map((event) => (
+                      <div key={`${event.title}-${event.date.toISOString()}`} className="flex items-start gap-3 rounded-3xl bg-[#fbfdff] p-3">
+                        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+                          <span className="text-[10px] font-bold uppercase">
+                            {event.date.toLocaleString("en-GB", { month: "short" })}
+                          </span>
+                          <span className="text-lg font-black leading-none">{event.date.getDate()}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{event.title}</p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {event.date.toLocaleString("en-GB", {
+                              weekday: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="h-4 w-4 text-[#2f6fff]" />
+                    <h2 className="text-base font-bold text-slate-900">Today&apos;s tasks</h2>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {tasks.map((task) => {
+                      const badge = subjectBadge(task.subject);
+
+                      return (
+                        <div key={task.label} className="flex items-center gap-3 rounded-3xl bg-[#fbfdff] p-3">
+                          {task.done ? (
+                            <CheckSquare className="h-4 w-4 shrink-0 text-[#2f6fff]" />
+                          ) : (
+                            <Square className="h-4 w-4 shrink-0 text-slate-300" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate text-sm ${task.done ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                              {task.label}
+                            </p>
+                          </div>
+                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge.bg} ${badge.text}`}>
+                            {task.subject}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="rounded-[2rem] border border-[#dce7ff] bg-[#eef4ff] p-5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#2f6fff]">
+                      <HelpCircle className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Need help?</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        Ask for a simpler explanation, a worked example, or a quick quiz on the current topic.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/student/ai-assistant"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-semibold text-[#2f6fff] transition-colors hover:bg-[#f8fbff]"
+                  >
+                    Open tutor chat
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
                 </section>
               </div>
             </div>
-
-            {/* RIGHT ────────────────────────────────────── */}
-            <div className="space-y-4">
-              {/* Upcoming Events */}
-              <section className="rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-[#2f6fff]" />
-                    <h2 className="text-sm font-bold text-slate-900">Upcoming Events</h2>
-                  </div>
-                  <Link href="/student/calendar" className="text-xs font-semibold text-[#2f6fff] hover:underline">View All</Link>
-                </div>
-                <div className="mt-3 space-y-3">
-                  {(upcomingEvents.length > 0 ? upcomingEvents.map(e => ({
-                    month: new Date(e.startTime).toLocaleString("en-US",{month:"short"}).toUpperCase(),
-                    day: new Date(e.startTime).getDate(),
-                    title: e.title,
-                    time: new Date(e.startTime).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}),
-                  })) : [
-                    {month:"MAY",day:20,title:"Mathematics Quiz",time:"Tue, May 20, 2026 · 09:00 AM"},
-                    {month:"MAY",day:27,title:"Literature Discussion",time:"Tue, May 27, 2026 · 02:00 PM"},
-                  ]).map((ev,i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="flex w-10 shrink-0 flex-col items-center rounded-xl border border-[#edf0f7] bg-[#f7f8fc] py-1.5 text-center">
-                        <span className="text-[9px] font-bold uppercase text-[#2f6fff]">{ev.month}</span>
-                        <span className="text-base font-black leading-none text-slate-900">{ev.day}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{ev.title}</p>
-                        <p className="text-xs text-slate-400">{ev.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/student/calendar" className="mt-4 flex items-center gap-1 text-xs font-semibold text-[#2f6fff] hover:underline">
-                  See calendar <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </section>
-
-              {/* Today's Tasks */}
-              <section className="rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-[#2f6fff]" />
-                  <h2 className="text-sm font-bold text-slate-900">Today&apos;s Tasks</h2>
-                </div>
-                <div className="mt-3 space-y-2.5">
-                  {tasks.map((task, i) => (
-                    <div key={i} className="flex items-center gap-2.5">
-                      {task.done ? (
-                        <CheckSquare className="h-4 w-4 shrink-0 text-[#2f6fff]" />
-                      ) : (
-                        <Square className="h-4 w-4 shrink-0 text-slate-300" />
-                      )}
-                      <p className={`flex-1 text-xs ${task.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{task.label}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${task.tagColor.bg} ${task.tagColor.text}`}>{task.tag}</span>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/student/notes" className="mt-3 flex items-center gap-1 text-xs font-semibold text-[#2f6fff] hover:underline">
-                  View all tasks <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </section>
-
-              {/* Recent Achievement */}
-              <section className="rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-slate-900">Recent Achievement</h2>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef4ff]">
-                    <Award className="h-6 w-6 text-[#2f6fff]" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">Great Starter</p>
-                    <p className="text-xs text-slate-400">Completed your first quiz</p>
-                    <p className="mt-0.5 text-xs text-slate-300">Earned on May 14, 2026</p>
-                  </div>
-                </div>
-              </section>
-
-              {/* Quick Links */}
-              <section className="rounded-2xl border border-[#edf0f7] bg-white p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-slate-900">Quick Links</h2>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Materials", href: "/student/materials", icon: <BookOpen className="h-5 w-5 text-[#2f6fff]" /> },
-                    { label: "Quizzes", href: "/student/quizzes", icon: <HelpCircle className="h-5 w-5 text-[#2f6fff]" /> },
-                    { label: "Calendar", href: "/student/calendar", icon: <Calendar className="h-5 w-5 text-[#2f6fff]" /> },
-                  ].map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex flex-col items-center gap-1.5 rounded-xl border border-[#edf0f7] bg-[#f7f8fc] py-3 text-center hover:bg-[#eef4ff] transition-colors"
-                    >
-                      {item.icon}
-                      <span className="text-xs font-medium text-slate-600">{item.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </div>
-        </main>
-
-        {/* Footer */}
-        <footer className="border-t border-[#edf0f7] py-4 text-center text-xs text-slate-400">
-          © 2026 Edutindo. All rights reserved.
-        </footer>
+          </main>
+        </div>
       </div>
     </div>
   );

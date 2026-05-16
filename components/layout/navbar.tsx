@@ -63,7 +63,7 @@ export function Navbar() {
         }
     }, [pathname])
 
-    if (isFocusedScienceRoute) {
+    if (isFocusedScienceRoute || isPortalRoute) {
         return null
     }
 
