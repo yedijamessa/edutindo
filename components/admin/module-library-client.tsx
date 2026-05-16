@@ -4,13 +4,25 @@ import { useEffect, useMemo, useState, useTransition, type ReactNode } from "rea
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
+  BarChart3,
   BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  CircleHelp,
+  Clock3,
   ExternalLink,
-  PencilLine,
+  Grid2X2,
+  List,
+  ListFilter,
   Plus,
   Search,
+  Settings,
   Trash2,
   Unlink,
+  Users,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -72,6 +84,14 @@ function ModuleLabel({ module }: { module: ModuleListEntry }) {
       </p>
     </div>
   );
+}
+
+function getModuleSubject(module: ModuleListEntry) {
+  return module.assignments[0]?.subjectTitle || "General";
+}
+
+function getModuleTopic(module: ModuleListEntry) {
+  return module.assignments[0]?.chapterTitle || "General";
 }
 
 function DialogShell({
@@ -385,7 +405,12 @@ export function ModuleLibraryClient({
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "assigned" | "unassigned">("all");
-  const [showEmptyLessons, setShowEmptyLessons] = useState(true);
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"updated-desc" | "updated-asc" | "title-asc">("updated-desc");
+  const [showAllModules, setShowAllModules] = useState(false);
+  const [inboxSearch, setInboxSearch] = useState("");
+  const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
+  const [selectedTargetModuleId, setSelectedTargetModuleId] = useState(modules[0]?.moduleId ?? "");
   const [selectedLesson, setSelectedLesson] = useState<LessonStub | null>(null);
   const [selectedModule, setSelectedModule] = useState<ModuleListEntry | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -401,6 +426,16 @@ export function ModuleLibraryClient({
     }
   }, [handledInitialLesson, initialLessonId, lessons]);
 
+  useEffect(() => {
+    if (selectedTargetModuleId && modules.some((module) => module.moduleId === selectedTargetModuleId)) return;
+    setSelectedTargetModuleId(modules[0]?.moduleId ?? "");
+  }, [modules, selectedTargetModuleId]);
+
+  useEffect(() => {
+    const availableLessonIds = new Set(lessonsWithoutModule.map((lesson) => lesson.lessonId));
+    setSelectedLessonIds((current) => current.filter((lessonId) => availableLessonIds.has(lessonId)));
+  }, [lessonsWithoutModule]);
+
   const moduleByLessonId = useMemo(() => {
     const map = new Map<string, ModuleListEntry>();
     for (const module of modules) {
@@ -411,12 +446,32 @@ export function ModuleLibraryClient({
     return map;
   }, [modules]);
 
+  const subjectOptions = useMemo(() => {
+    const subjects = new Set<string>();
+
+    for (const lesson of lessons) {
+      if (lesson.subjectTitle) subjects.add(lesson.subjectTitle);
+    }
+
+    for (const module of modules) {
+      for (const assignment of module.assignments) {
+        if (assignment.subjectTitle) subjects.add(assignment.subjectTitle);
+      }
+    }
+
+    return Array.from(subjects).sort((left, right) => left.localeCompare(right));
+  }, [lessons, modules]);
+
   const filteredModules = useMemo(() => {
     const query = search.toLowerCase().trim();
 
-    return modules.filter((module) => {
+    return modules
+      .filter((module) => {
       if (statusFilter === "assigned" && module.assignments.length === 0) return false;
       if (statusFilter === "unassigned" && module.assignments.length > 0) return false;
+      if (subjectFilter !== "all" && !module.assignments.some((assignment) => assignment.subjectTitle === subjectFilter)) {
+        return false;
+      }
 
       if (!query) return true;
       if (module.moduleTitle.toLowerCase().includes(query)) return true;
@@ -432,8 +487,48 @@ export function ModuleLibraryClient({
           .toLowerCase()
           .includes(query)
       );
-    });
-  }, [modules, search, statusFilter]);
+      })
+      .sort((left, right) => {
+        if (sortOrder === "title-asc") return left.moduleTitle.localeCompare(right.moduleTitle);
+        const leftTime = new Date(left.updatedAt).getTime();
+        const rightTime = new Date(right.updatedAt).getTime();
+        return sortOrder === "updated-asc" ? leftTime - rightTime : rightTime - leftTime;
+      });
+  }, [modules, search, sortOrder, statusFilter, subjectFilter]);
+
+  const visibleModules = showAllModules ? filteredModules : filteredModules.slice(0, 6);
+
+  const filteredInboxLessons = useMemo(() => {
+    const query = inboxSearch.toLowerCase().trim();
+    if (!query) return lessonsWithoutModule;
+
+    return lessonsWithoutModule.filter((lesson) =>
+      [
+        lesson.lessonTitle,
+        lesson.subjectTitle,
+        lesson.chapterTitle,
+        lesson.lessonCode,
+        lesson.week,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [inboxSearch, lessonsWithoutModule]);
+
+  const assignedLessonCount = moduleByLessonId.size;
+  const latestUpdatedAt = modules.reduce<string | null>((latest, module) => {
+    if (!latest) return module.updatedAt;
+    return new Date(module.updatedAt).getTime() > new Date(latest).getTime() ? module.updatedAt : latest;
+  }, null);
+
+  function toggleInboxLesson(lessonId: string) {
+    setSelectedLessonIds((current) =>
+      current.includes(lessonId)
+        ? current.filter((currentLessonId) => currentLessonId !== lessonId)
+        : [...current, lessonId]
+    );
+  }
 
   async function assignModule(moduleId: string, lessonId: string) {
     setBusyKey(`${moduleId}:${lessonId}`);
@@ -513,259 +608,543 @@ export function ModuleLibraryClient({
     }
   }
 
+  async function assignSelectedLessons() {
+    if (!selectedTargetModuleId || selectedLessonIds.length === 0) return;
+
+    setBusyKey("bulk-assign");
+    setActionError("");
+
+    try {
+      for (const lessonId of selectedLessonIds) {
+        const response = await fetch("/api/admin/module-assignments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ moduleId: selectedTargetModuleId, lessonId }),
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Failed to assign module.");
+        }
+      }
+
+      setSelectedLessonIds([]);
+      startTransition(() => router.refresh());
+    } catch (error) {
+      console.error(error);
+      setActionError(error instanceof Error ? error.message : "Failed to assign module.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_50%,#f9fbff_100%)]">
-      <main className="mx-auto max-w-[1280px] px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[2rem] font-black tracking-tight text-slate-950">Module Library</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Create free reusable modules here, then assign them to lessons whenever you need.
-            </p>
-          </div>
+    <div className="min-h-screen bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8ff_100%)] text-slate-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1720px]">
+        <aside className="hidden w-[88px] shrink-0 flex-col items-center border-r border-[#e6edf8] bg-white/90 py-5 lg:flex">
           <Link
-            href="/admin/module-editor"
-            className="flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff,#1d4ed8)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.8)] transition-all hover:brightness-105"
+            href="/admin/curriculum"
+            className="flex h-14 w-14 items-center justify-center rounded-[20px] border border-[#e6edf8] bg-white text-[#2f6fff] shadow-sm"
           >
-            <Plus className="h-4 w-4" />
-            New Module
+            <BookOpen className="h-6 w-6" />
           </Link>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-[14px] border border-[#dce6ff] bg-white px-3 py-2 shadow-sm">
-            <Search className="h-4 w-4 shrink-0 text-slate-400" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search modules..."
-              className="w-56 bg-transparent text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none"
-            />
+          <nav className="mt-5 flex flex-col gap-3">
+            <Link
+              href="/admin/curriculum"
+              className="flex h-14 w-14 items-center justify-center rounded-[18px] text-slate-500 transition-colors hover:bg-[#eef4ff] hover:text-[#2f6fff]"
+            >
+              <BookOpen className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/admin/modules"
+              className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#2f6fff] text-white shadow-[0_18px_32px_-18px_rgba(47,111,255,0.8)]"
+            >
+              <Grid2X2 className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/admin/materials"
+              className="flex h-14 w-14 items-center justify-center rounded-[18px] text-slate-500 transition-colors hover:bg-[#eef4ff] hover:text-[#2f6fff]"
+            >
+              <List className="h-5 w-5" />
+            </Link>
+            <span className="flex h-14 w-14 items-center justify-center rounded-[18px] text-slate-500">
+              <Users className="h-5 w-5" />
+            </span>
+            <span className="flex h-14 w-14 items-center justify-center rounded-[18px] text-slate-500">
+              <BarChart3 className="h-5 w-5" />
+            </span>
+            <span className="flex h-14 w-14 items-center justify-center rounded-[18px] text-slate-500">
+              <Settings className="h-5 w-5" />
+            </span>
+          </nav>
+          <div className="mt-auto flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+            N
           </div>
+        </aside>
 
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as "all" | "assigned" | "unassigned")}
-            className="rounded-[14px] border border-[#dce6ff] bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none"
-          >
-            <option value="all">All Modules</option>
-            <option value="assigned">Assigned</option>
-            <option value="unassigned">Unassigned</option>
-          </select>
+        <main className="min-w-0 flex-1 px-4 pb-10 pt-5 sm:px-6 xl:px-10">
+          <header className="flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-[#5c78ac]">
+                <span>Curriculum Portal</span>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-semibold text-slate-700">Module Library</span>
+              </div>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#eef4ff] text-[#2f6fff]">
+                  <BookOpen className="h-7 w-7" />
+                </div>
+                <div>
+                  <h1 className="text-[2rem] font-black tracking-tight text-slate-950 sm:text-[2.35rem]">Module Library</h1>
+                  <p className="text-sm text-[#53688f]">
+                    Create reusable modules and attach them to lessons across subjects.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          {(search || statusFilter !== "all") && (
+            <Link
+              href="/admin/module-editor"
+              className="mt-7 inline-flex items-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#2f6fff,#1d4ed8)] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_32px_-18px_rgba(37,99,235,0.9)] transition-all hover:brightness-105"
+            >
+              <Plus className="h-4 w-4" />
+              New Module
+            </Link>
+          </header>
+
+          <section className="mt-7 rounded-[18px] border border-[#cfe0ff] bg-[linear-gradient(135deg,#f7fbff_0%,#eef5ff_100%)] p-5 shadow-sm">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="grid gap-5 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-[#2f6fff] shadow-sm">
+                    <BookOpen className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-[#2f6fff] text-white">1</Badge>
+                      <p className="font-semibold">Create Module</p>
+                    </div>
+                    <p className="mt-2 max-w-[190px] text-sm text-[#53688f]">
+                      Group related lessons into reusable modules.
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="hidden h-5 w-5 text-[#98afd8] md:block" />
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-[#2f6fff] shadow-sm">
+                    <CheckCircle2 className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-[#2f6fff] text-white">2</Badge>
+                      <p className="font-semibold">Assign Lessons</p>
+                    </div>
+                    <p className="mt-2 max-w-[190px] text-sm text-[#53688f]">
+                      Attach lessons to your modules so they&apos;re easy to reuse.
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="hidden h-5 w-5 text-[#98afd8] md:block" />
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-[#2f6fff] shadow-sm">
+                    <BookOpen className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-[#2f6fff] text-white">3</Badge>
+                      <p className="font-semibold">Reuse Anywhere</p>
+                    </div>
+                    <p className="mt-2 max-w-[190px] text-sm text-[#53688f]">
+                      Use modules across subjects, chapters, and weeks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => document.getElementById("assignment-inbox")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="flex items-center gap-4 rounded-[16px] border border-[#ffe0ba] bg-[#fff9f0] p-4 text-left transition-colors hover:bg-[#fff4e4]"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#fff0dc] text-[#f97316]">
+                  <CircleAlert className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-bold text-[#ea580c]">{lessonsWithoutModule.length} lessons</p>
+                  <p className="font-semibold text-[#ea580c]">need assignment</p>
+                  <p className="mt-1 text-sm text-[#8b5a28]">Help organize your content by assigning lessons to modules.</p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[#b8702f]" />
+              </button>
+            </div>
+          </section>
+
+          <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="flex items-center justify-between rounded-[18px] border border-[#e4ecfb] bg-[#f7faff] px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eaf2ff] text-[#2f6fff]">
+                  <Grid2X2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#53688f]">Reusable Modules</p>
+                  <p className="text-2xl font-bold text-[#2f6fff]">{modules.length}</p>
+                  <p className="text-sm text-[#53688f]">Active modules</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-slate-800" />
+            </div>
+            <div className="flex items-center justify-between rounded-[18px] border border-[#dff5ea] bg-[#f6fcf9] px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e8fbf1] text-[#159a61]">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#53688f]">Assigned Lessons</p>
+                  <p className="text-2xl font-bold text-[#159a61]">{assignedLessonCount}</p>
+                  <p className="text-sm text-[#53688f]">Linked to modules</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-slate-800" />
+            </div>
+            <div className="flex items-center justify-between rounded-[18px] border border-[#ffe7ca] bg-[#fff9f2] px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#fff0dc] text-[#f97316]">
+                  <CircleAlert className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#53688f]">Unassigned Lessons</p>
+                  <p className="text-2xl font-bold text-[#ea580c]">{lessonsWithoutModule.length}</p>
+                  <p className="text-sm text-[#53688f]">Need assignment</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-slate-800" />
+            </div>
+            <div className="flex items-center justify-between rounded-[18px] border border-[#eee5ff] bg-[#faf7ff] px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f3ecff] text-[#7c3aed]">
+                  <Clock3 className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#53688f]">Recently Updated</p>
+                  <p className="text-lg font-bold text-slate-900">{latestUpdatedAt ? formatDate(latestUpdatedAt) : "No updates"}</p>
+                  <p className="text-sm text-[#53688f]">Last update</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-slate-800" />
+            </div>
+          </section>
+
+          <section className="mt-5 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e4ecfb] bg-white p-2 shadow-sm">
+            <label className="flex min-w-[250px] flex-1 items-center gap-2 rounded-[14px] border border-[#e4ecfb] px-4 py-3">
+              <Search className="h-4 w-4 shrink-0 text-slate-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search modules..."
+                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+              />
+            </label>
+            <label className="relative min-w-[170px]">
+              <select
+                value={subjectFilter}
+                onChange={(event) => setSubjectFilter(event.target.value)}
+                className="w-full appearance-none rounded-[14px] border border-[#e4ecfb] bg-white px-4 py-3 pr-10 text-sm text-slate-700 focus:outline-none"
+              >
+                <option value="all">All Subjects</option>
+                {subjectOptions.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </label>
+            <label className="relative min-w-[160px]">
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as "all" | "assigned" | "unassigned")}
+                className="w-full appearance-none rounded-[14px] border border-[#e4ecfb] bg-white px-4 py-3 pr-10 text-sm text-slate-700 focus:outline-none"
+              >
+                <option value="all">All Status</option>
+                <option value="assigned">Assigned</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </label>
+            <label className="relative min-w-[220px]">
+              <select
+                value={sortOrder}
+                onChange={(event) => setSortOrder(event.target.value as "updated-desc" | "updated-asc" | "title-asc")}
+                className="w-full appearance-none rounded-[14px] border border-[#e4ecfb] bg-white px-4 py-3 pr-10 text-sm text-slate-700 focus:outline-none"
+              >
+                <option value="updated-desc">Last Updated (Newest)</option>
+                <option value="updated-asc">Last Updated (Oldest)</option>
+                <option value="title-asc">Title (A-Z)</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </label>
             <button
               type="button"
               onClick={() => {
                 setSearch("");
                 setStatusFilter("all");
+                setSubjectFilter("all");
+                setSortOrder("updated-desc");
+                setShowAllModules(false);
               }}
-              className="flex items-center gap-1.5 rounded-full border border-[#f0c0a0] bg-[#fff7f0] px-3 py-2 text-xs font-semibold text-[#c2410c] hover:bg-[#ffede0]"
+              className="px-4 py-3 text-sm font-semibold text-[#2f6fff] transition-colors hover:text-[#1d4ed8]"
             >
-              <X className="h-3.5 w-3.5" />
-              Clear filters
+              Reset
             </button>
-          )}
-        </div>
+          </section>
 
-        {actionError && (
-          <div className="mt-4 rounded-[18px] border border-[#fde8e8] bg-[#fff5f5] px-4 py-3 text-sm font-medium text-[#dc2626]">
-            {actionError}
-          </div>
-        )}
-
-        <div className="mt-6 overflow-hidden rounded-[24px] border border-white/70 bg-white/90 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.3)] backdrop-blur">
-          {filteredModules.length === 0 ? (
-            <div className="py-16 text-center text-sm text-slate-400">No modules match your filters.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-sm">
-                <thead>
-                  <tr className="border-b border-[#f0f4fb]">
-                    {["Module", "Assigned Lessons", "Pages", "Last Updated", "Actions"].map((heading) => (
-                      <th
-                        key={heading}
-                        className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"
-                      >
-                        {heading}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredModules.map((module) => {
-                    const previewAssignment = module.assignments[0] ?? null;
-                    const previewHref = previewAssignment
-                      && previewAssignment.schoolSlug
-                      && previewAssignment.yearSlug
-                      && previewAssignment.subjectSlug
-                      && previewAssignment.chapterSlug
-                      && previewAssignment.lessonSlug
-                      ? `/admin/materials/curriculum/${previewAssignment.schoolSlug}/${previewAssignment.yearSlug}/${previewAssignment.subjectSlug}/${previewAssignment.chapterSlug}/${previewAssignment.lessonSlug}`
-                      : null;
-
-                    return (
-                      <tr
-                        key={module.moduleId}
-                        className="border-b border-[#f7f9fc] transition-colors last:border-b-0 hover:bg-[#f8fbff]"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[#eef4ff] text-[#2f6fff]">
-                              <BookOpen className="h-4 w-4" />
-                            </div>
-                            <ModuleLabel module={module} />
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          {module.assignments.length === 0 ? (
-                            <Badge className="bg-[#fff4e8] text-[#c2410c]">Unassigned</Badge>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {module.assignments.slice(0, 2).map((assignment) => (
-                                <Badge
-                                  key={assignment.lessonId}
-                                  className="border border-[#dce6ff] bg-[#f0f6ff] text-[#2f6fff]"
-                                >
-                                  {assignment.lessonTitle}
-                                </Badge>
-                              ))}
-                              {module.assignments.length > 2 && (
-                                <Badge className="bg-slate-100 text-slate-600">
-                                  +{module.assignments.length - 2} more
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <Badge className="bg-[#ecfbf3] text-[#159a61]">
-                            {module.pageCount} {module.pageCount === 1 ? "page" : "pages"}
-                          </Badge>
-                        </td>
-                        <td className="px-5 py-4 text-slate-500">{formatDate(module.updatedAt)}</td>
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link
-                              href={`/admin/module-editor?moduleId=${encodeURIComponent(module.moduleId)}`}
-                              className="flex items-center gap-1.5 rounded-full border border-[#dce6ff] bg-white px-3 py-1.5 text-xs font-semibold text-[#2f6fff] transition-colors hover:bg-[#f0f6ff]"
-                            >
-                              <PencilLine className="h-3.5 w-3.5" />
-                              Edit
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActionError("");
-                                setSelectedModule(module);
-                              }}
-                              className="flex items-center gap-1.5 rounded-full border border-[#dce6ff] bg-white px-3 py-1.5 text-xs font-semibold text-[#2f6fff] transition-colors hover:bg-[#f0f6ff]"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                              Assign Lessons
-                            </button>
-                            {previewHref && (
-                              <Link
-                                href={previewHref}
-                                className="flex items-center gap-1.5 rounded-full border border-[#e5ecf8] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Preview
-                              </Link>
-                            )}
-                            <button
-                              type="button"
-                              disabled={busyKey === `delete:${module.moduleId}` || isPending}
-                              onClick={() => void deleteModule(module.moduleId)}
-                              className="flex items-center gap-1.5 rounded-full border border-[#fde8e8] bg-white px-3 py-1.5 text-xs font-semibold text-[#dc2626] transition-colors hover:bg-[#fff5f5] disabled:opacity-40"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {busyKey === `delete:${module.moduleId}` ? "Deleting..." : "Delete"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          {actionError && (
+            <div className="mt-4 rounded-[18px] border border-[#fde8e8] bg-[#fff5f5] px-4 py-3 text-sm font-medium text-[#dc2626]">
+              {actionError}
             </div>
           )}
-        </div>
 
-        <div className="mt-8">
-          <button
-            type="button"
-            onClick={() => setShowEmptyLessons((current) => !current)}
-            className="text-sm font-semibold text-slate-500 transition-colors hover:text-slate-800"
-          >
-            Lessons without a module ({lessonsWithoutModule.length})
-          </button>
+          <section className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,1fr)_470px]">
+            <div className="overflow-hidden rounded-[18px] border border-[#e4ecfb] bg-white shadow-sm">
+              <div className="flex items-center gap-3 border-b border-[#eef3fb] px-5 py-4">
+                <h2 className="text-xl font-bold">Reusable Modules</h2>
+                <Badge className="border border-[#e4ecfb] bg-white text-[#53688f]">{filteredModules.length} modules</Badge>
+              </div>
 
-          {showEmptyLessons && (
-            <div className="mt-3 overflow-hidden rounded-[24px] border border-[#e5ecf8] bg-white/80 shadow-sm">
-              {lessonsWithoutModule.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-400">
-                  Every lesson currently has a module assigned.
-                </div>
+              {filteredModules.length === 0 ? (
+                <div className="px-5 py-16 text-center text-sm text-slate-400">No modules match your filters.</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm">
-                    <thead>
-                      <tr className="border-b border-[#f0f4fb]">
-                        {["Lesson", "Subject", "Chapter", "Week", "Actions"].map((heading) => (
-                          <th
-                            key={heading}
-                            className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"
-                          >
-                            {heading}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lessonsWithoutModule.map((lesson) => (
-                        <tr
-                          key={lesson.lessonId}
-                          className="border-b border-[#f7f9fc] transition-colors last:border-b-0 hover:bg-[#f8fbff]"
-                        >
-                          <td className="px-5 py-3.5">
-                            <p className="font-medium text-slate-700">{lesson.lessonTitle}</p>
-                            {lesson.lessonCode && <p className="text-xs text-slate-400">{lesson.lessonCode}</p>}
-                          </td>
-                          <td className="px-5 py-3.5 text-slate-500">{lesson.subjectTitle || "—"}</td>
-                          <td className="px-5 py-3.5 text-slate-500">{lesson.chapterTitle || "—"}</td>
-                          <td className="px-5 py-3.5 text-slate-500">{lesson.week || "—"}</td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex flex-wrap items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActionError("");
-                                  setSelectedLesson(lesson);
-                                }}
-                                className="rounded-full border border-[#dce6ff] bg-white px-3 py-1.5 text-xs font-semibold text-[#2f6fff] transition-colors hover:bg-[#f0f6ff]"
-                              >
-                                Assign Existing
-                              </button>
-                              <Link
-                                href="/admin/module-editor"
-                                className="rounded-full bg-[#2f6fff] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
-                              >
-                                Create New Module
-                              </Link>
-                            </div>
-                          </td>
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px] text-sm">
+                      <thead>
+                        <tr className="border-b border-[#eef3fb]">
+                          {["Module", "Subject / Topic", "Pages", "Linked Lessons", "Last Updated", "Actions"].map((heading) => (
+                            <th
+                              key={heading}
+                              className="px-5 py-3 text-left text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#62789e]"
+                            >
+                              {heading}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {visibleModules.map((module) => (
+                          <tr
+                            key={module.moduleId}
+                            className="border-b border-[#eef3fb] transition-colors last:border-b-0 hover:bg-[#f8fbff]"
+                          >
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#eef4ff] text-[#2f6fff]">
+                                  <BookOpen className="h-4 w-4" />
+                                </div>
+                                <ModuleLabel module={module} />
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <p className="font-medium text-slate-700">{getModuleSubject(module)}</p>
+                              <p className="text-xs text-[#62789e]">{getModuleTopic(module)}</p>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <Badge className="bg-[#ecfbf3] text-[#159a61]">
+                                {module.pageCount} {module.pageCount === 1 ? "page" : "pages"}
+                              </Badge>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <Badge className="bg-[#ecfbf3] text-[#159a61]">
+                                {module.assignments.length} {module.assignments.length === 1 ? "lesson" : "lessons"}
+                              </Badge>
+                            </td>
+                            <td className="px-5 py-3.5 text-[#62789e]">{formatDate(module.updatedAt)}</td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  href={`/admin/module-editor?moduleId=${encodeURIComponent(module.moduleId)}`}
+                                  className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e4ecfb] px-3 py-2 text-xs font-semibold text-[#2f6fff] hover:bg-[#f7faff]"
+                                >
+                                  Open
+                                  <ExternalLink className="h-3 w-3" />
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionError("");
+                                    setSelectedModule(module);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e4ecfb] px-3 py-2 text-xs font-semibold text-[#2f6fff] hover:bg-[#f7faff]"
+                                >
+                                  <Users className="h-3.5 w-3.5" />
+                                  Assign Lessons
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busyKey === `delete:${module.moduleId}` || isPending}
+                                  onClick={() => void deleteModule(module.moduleId)}
+                                  className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#fde8e8] text-[#dc2626] transition-colors hover:bg-[#fff5f5] disabled:opacity-40"
+                                  aria-label={`Delete ${module.moduleTitle}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filteredModules.length > 6 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllModules((current) => !current)}
+                      className="flex w-full items-center justify-center gap-1.5 border-t border-[#eef3fb] px-5 py-3.5 text-sm font-semibold text-[#2f6fff] hover:bg-[#f8fbff]"
+                    >
+                      {showAllModules ? "Show fewer modules" : "View all modules"}
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", showAllModules && "rotate-180")} />
+                    </button>
+                  )}
+                </>
               )}
             </div>
-          )}
-        </div>
-      </main>
+
+            <div
+              id="assignment-inbox"
+              className="overflow-hidden rounded-[18px] border border-[#e4ecfb] bg-white shadow-sm"
+            >
+              <div className="border-b border-[#eef3fb] px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-bold">Assignment Inbox</h2>
+                  <Badge className="bg-[#fff4e8] text-[#ea580c]">{lessonsWithoutModule.length} unassigned lessons</Badge>
+                </div>
+                <p className="mt-1 max-w-[320px] text-sm text-[#53688f]">
+                  Choose a lesson and assign it to an existing module or create a new one.
+                </p>
+                <div className="mt-4 flex items-center gap-2">
+                  <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[12px] border border-[#e4ecfb] px-3 py-2.5">
+                    <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                    <input
+                      value={inboxSearch}
+                      onChange={(event) => setInboxSearch(event.target.value)}
+                      placeholder="Search lessons..."
+                      className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#e4ecfb] text-slate-700"
+                    aria-label="Filter lessons"
+                  >
+                    <ListFilter className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[430px] text-sm">
+                  <thead>
+                    <tr className="border-b border-[#eef3fb]">
+                      {["Lesson", "Subject", "Chapter", "Week"].map((heading) => (
+                        <th
+                          key={heading}
+                          className="px-4 py-3 text-left text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#62789e]"
+                        >
+                          {heading}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredInboxLessons.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-400">
+                          {lessonsWithoutModule.length === 0 ? "Every lesson has a module assigned." : "No lessons match your search."}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredInboxLessons.slice(0, 6).map((lesson) => {
+                        const isSelected = selectedLessonIds.includes(lesson.lessonId);
+
+                        return (
+                          <tr
+                            key={lesson.lessonId}
+                            className={cn("border-b border-[#eef3fb] last:border-b-0", isSelected && "bg-[#f7faff]")}
+                          >
+                            <td className="px-4 py-2.5">
+                              <label className="flex cursor-pointer items-start gap-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleInboxLesson(lesson.lessonId)}
+                                  className="mt-0.5 h-4 w-4 rounded border-[#b9cffd] accent-[#2f6fff]"
+                                />
+                                <span className="font-medium text-slate-800">{lesson.lessonTitle}</span>
+                              </label>
+                            </td>
+                            <td className="px-4 py-2.5 text-[#53688f]">{lesson.subjectTitle || "—"}</td>
+                            <td className="px-4 py-2.5 text-[#53688f]">{lesson.chapterTitle || "—"}</td>
+                            <td className="px-4 py-2.5 text-[#53688f]">{lesson.week || "—"}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-3 border-t border-[#eef3fb] px-5 py-4">
+                <div className="flex items-center justify-between rounded-[12px] border border-[#cfe0ff] bg-[#f7faff] px-3 py-2 text-sm font-medium text-[#2f6fff]">
+                  <span>{selectedLessonIds.length} lessons selected</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLessonIds([])}
+                    className="font-semibold"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                  <span className="shrink-0">Assigning to:</span>
+                  <span className="relative min-w-0 flex-1">
+                    <select
+                      value={selectedTargetModuleId}
+                      onChange={(event) => setSelectedTargetModuleId(event.target.value)}
+                      className="w-full appearance-none rounded-[12px] border border-[#e4ecfb] bg-white px-4 py-2.5 pr-9 font-medium text-slate-700 focus:outline-none"
+                    >
+                      {modules.map((module) => (
+                        <option key={module.moduleId} value={module.moduleId}>
+                          {module.moduleTitle}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  disabled={selectedLessonIds.length === 0 || !selectedTargetModuleId || Boolean(busyKey)}
+                  onClick={() => void assignSelectedLessons()}
+                  className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(135deg,#2f6fff,#1d4ed8)] px-4 py-3 text-sm font-semibold text-white transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Users className="h-4 w-4" />
+                  {busyKey === "bulk-assign" ? "Assigning..." : "Assign to Selected Module"}
+                </button>
+                <Link
+                  href="/admin/module-editor"
+                  className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-[#2f6fff] px-4 py-3 text-sm font-semibold text-[#2f6fff] hover:bg-[#f7faff]"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Module from Lesson
+                </Link>
+                <p className="flex items-center gap-2 text-xs text-[#62789e]">
+                  <CircleHelp className="h-3.5 w-3.5" />
+                  Tip: Select multiple lessons to assign in bulk.
+                </p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
 
       {selectedLesson && (
         <LessonAssignmentDialog
