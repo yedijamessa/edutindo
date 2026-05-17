@@ -9,7 +9,7 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 
-const HOMEPAGE_PHOTO_SOURCES = [
+const HOMEPAGE_ARCHIVE_PHOTO_SOURCES = [
   "/homepage-photos-archive/01.jpg",
   "/homepage-photos-archive/02.jpg",
   "/homepage-photos-archive/10.jpg",
@@ -31,6 +31,58 @@ const HOMEPAGE_PHOTO_SOURCES = [
   "/homepage-photos-archive/26.png",
   "/homepage-photos-archive/27.png",
   "/homepage-photos-archive/28.png",
+];
+
+const SMP_BETUN_PHOTO_SOURCES = [
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.46.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (1).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (2).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (3).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (4).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (5).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (6).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (7).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (8).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (9).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (10).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (13).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47 (14).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.48.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.48 (1).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.48 (2).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.48 (3).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (1).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (2).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (3).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (4).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (5).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (6).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.56 (7).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (1).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (2).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (3).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (4).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (5).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (6).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (7).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (8).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (9).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.57 (10).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.58.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.58 (1).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.58 (2).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.56.00.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.56.00 (1).jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.56.01.jpeg",
+  "/smp_betun/WhatsApp Image 2025-12-03 at 21.56.01 (1).jpeg",
+];
+
+const HOMEPAGE_PHOTO_SOURCES = [
+  ...HOMEPAGE_ARCHIVE_PHOTO_SOURCES,
+  ...SMP_BETUN_PHOTO_SOURCES,
 ];
 
 const HOMEPAGE_CAROUSEL_SLIDES = HOMEPAGE_PHOTO_SOURCES.map((src, index) => ({
