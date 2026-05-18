@@ -9,30 +9,6 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 
-const HOMEPAGE_ARCHIVE_PHOTO_SOURCES = [
-  "/homepage-photos-archive/01.jpg",
-  "/homepage-photos-archive/02.jpg",
-  "/homepage-photos-archive/10.jpg",
-  "/homepage-photos-archive/11.jpg",
-  "/homepage-photos-archive/12.jpg",
-  "/homepage-photos-archive/13.jpg",
-  "/homepage-photos-archive/14.jpg",
-  "/homepage-photos-archive/15.jpg",
-  "/homepage-photos-archive/16.jpg",
-  "/homepage-photos-archive/17.jpg",
-  "/homepage-photos-archive/18.jpg",
-  "/homepage-photos-archive/19.jpg",
-  "/homepage-photos-archive/20.jpg",
-  "/homepage-photos-archive/21.jpg",
-  "/homepage-photos-archive/22.jpg",
-  "/homepage-photos-archive/23.jpg",
-  "/homepage-photos-archive/24.jpg",
-  "/homepage-photos-archive/25.png",
-  "/homepage-photos-archive/26.png",
-  "/homepage-photos-archive/27.png",
-  "/homepage-photos-archive/28.png",
-];
-
 const SMP_BETUN_PHOTO_SOURCES = [
   "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.46.jpeg",
   "/smp_betun/WhatsApp Image 2025-12-03 at 21.55.47.jpeg",
@@ -80,12 +56,7 @@ const SMP_BETUN_PHOTO_SOURCES = [
   "/smp_betun/WhatsApp Image 2025-12-03 at 21.56.01 (1).jpeg",
 ];
 
-const HOMEPAGE_PHOTO_SOURCES = [
-  ...HOMEPAGE_ARCHIVE_PHOTO_SOURCES,
-  ...SMP_BETUN_PHOTO_SOURCES,
-];
-
-const HOMEPAGE_CAROUSEL_SLIDES = HOMEPAGE_PHOTO_SOURCES.map((src, index) => ({
+const HOMEPAGE_CAROUSEL_SLIDES = SMP_BETUN_PHOTO_SOURCES.map((src, index) => ({
   src,
   alt: `Edutindo learning and community photo ${index + 1}`,
 }));
