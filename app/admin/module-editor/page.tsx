@@ -21,7 +21,7 @@ export default async function AdminModuleEditorPage({ searchParams }: ModuleEdit
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#fdf8ee_0%,#f6f9ff_18%,#f3f7ff_100%)]">
-      <main className="mx-auto max-w-[104rem] px-4 py-5 lg:px-6 lg:py-6">
+      <main className="portal-page-width px-4 py-5 lg:px-6 lg:py-6">
         <ModuleEditor
           initialModuleId={initialDocument?.id ?? null}
           initialDocument={initialDocument}

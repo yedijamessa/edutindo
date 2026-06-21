@@ -72,7 +72,7 @@ export default function ChatClient({ initialConversations, currentUserId, curren
     const otherParticipantName = otherParticipant ? selectedConv?.participantNames[otherParticipant] : '';
 
     return (
-        <div className="max-w-7xl mx-auto h-[calc(100vh-8rem)]">
+        <div className="portal-page-width h-[calc(100vh-8rem)]">
             <div className="flex items-center gap-3 mb-6">
                 <MessageCircle className="w-8 h-8 text-primary" />
                 <div>

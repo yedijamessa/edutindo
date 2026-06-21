@@ -11,7 +11,7 @@ export default async function AdminPage() {
 
   return (
     <div className="bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_48%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#020617_100%)]">
-      <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-4 pb-12 pt-4 sm:px-6 lg:px-8 lg:pb-16">
+      <main className="portal-page-width flex w-full flex-col gap-6 px-4 pb-12 pt-4 sm:px-6 lg:px-8 lg:pb-16">
         <div className="space-y-6 lg:space-y-7">
           <Button
             asChild

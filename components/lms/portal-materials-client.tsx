@@ -612,7 +612,7 @@ function AdminMaterialsExperience({
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f4f8ff_48%,#fbfdff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
-      <div className="mx-auto flex min-h-screen max-w-[1680px]">
+      <div className="portal-page-width flex min-h-screen">
         <aside className="hidden w-[240px] shrink-0 border-r border-[#e1eaf6] bg-white/88 px-5 py-6 backdrop-blur xl:flex xl:flex-col dark:border-slate-800 dark:bg-slate-900/88">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
@@ -1255,7 +1255,7 @@ function StudentMaterialsExperience({
 
   return (
     <div className="bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_40%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
-      <div className="mx-auto flex w-full max-w-[1440px] gap-6 px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-24">
+      <div className="portal-page-width flex gap-6 px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-24">
         <aside className="sticky top-[5.25rem] hidden max-h-[calc(100vh-6.5rem)] w-[240px] shrink-0 flex-col gap-8 self-start overflow-y-auto rounded-[30px] border border-white/70 bg-white/88 p-5 shadow-[0_30px_80px_-58px_rgba(15,23,42,0.36)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/82 lg:flex">
           <div className="space-y-6">
             <div className="px-2">
@@ -1815,7 +1815,7 @@ function LegacyPortalMaterialsExperience({
         </aside>
 
         <main className="flex-1 p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl space-y-8">
+          <div className="portal-page-width space-y-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Learning Materials</h1>
               <p className="mt-2 text-muted-foreground">

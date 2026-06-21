@@ -112,7 +112,7 @@ export default function TutoringClient({ initialOffers, initialRequests, student
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="portal-page-width space-y-6">
             <div className="flex items-center gap-3">
                 <Users className="w-8 h-8 text-primary" />
                 <div>

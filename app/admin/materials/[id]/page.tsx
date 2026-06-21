@@ -19,7 +19,7 @@ export default async function AdminMaterialDetailPage({ params }: { params: Prom
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <main className="p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="portal-page-width space-y-6">
           <div className="flex items-center gap-4">
             <Link href="/admin/materials">
               <Button variant="outline" size="icon">

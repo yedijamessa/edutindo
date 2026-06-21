@@ -136,7 +136,7 @@ export default async function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-[#f4f8fc] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-[1680px]">
+      <div className="portal-page-width flex min-h-screen">
         <aside className="hidden w-[88px] shrink-0 border-r border-[#e5edf7] bg-white/90 px-3 py-5 xl:flex xl:flex-col">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-[#eef4ff] text-[#2f6fff]">
             <Sparkles className="h-6 w-6" />
@@ -275,7 +275,7 @@ export default async function StudentDashboard() {
           </header>
 
           <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
-            <div className="mx-auto grid max-w-[1260px] gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="portal-page-width grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
               <div className="space-y-5">
                 <section className="overflow-hidden rounded-[2rem] border border-[#e6edf8] bg-white shadow-[0_22px_60px_-38px_rgba(15,23,42,0.3)]">
                   <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">

@@ -4,6 +4,16 @@ import { type QueryResult, type QueryResultRow, sql as pooledSql } from "@vercel
 
 type SqlValue = string | number | boolean | Date | Buffer | Uint8Array | null | undefined;
 
+export const POSTGRES_CONNECTION_ENV_VAR = "POSTGRES_URL";
+
+export function isPostgresConfigured() {
+  return Boolean(process.env.POSTGRES_URL?.trim());
+}
+
+export function getPostgresSetupMessage() {
+  return `Postgres is not configured. Set ${POSTGRES_CONNECTION_ENV_VAR} in .env.local and restart the dev server.`;
+}
+
 function buildParameterizedQuery(strings: TemplateStringsArray, values: SqlValue[]) {
   let text = strings[0] ?? "";
 

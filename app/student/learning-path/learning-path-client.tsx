@@ -27,7 +27,7 @@ export default function LearningPathClient({ unlockedMaterials, lockedMaterials 
         : lockedMaterials.filter(m => m.subject === filter);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="portal-page-width space-y-6">
             <div className="flex items-center gap-3">
                 <GitBranch className="w-8 h-8 text-primary" />
                 <div>

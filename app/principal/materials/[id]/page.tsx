@@ -26,7 +26,7 @@ export default async function PrincipalMaterialDetailPage({ params }: { params: 
         </aside>
 
         <main className="flex-1 p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="portal-page-width space-y-6">
             <div className="flex items-center gap-4">
               <Link href="/principal/materials">
                 <Button variant="outline" size="icon">

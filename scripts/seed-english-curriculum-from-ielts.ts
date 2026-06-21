@@ -3,7 +3,6 @@ import { createRequire } from "module";
 import path from "path";
 import dotenv from "dotenv";
 import {
-  DEFAULT_CURRICULUM_SCHOOL_SLUG,
   createCurriculumNode,
   listCurriculumTree,
   type CurriculumNode,
@@ -18,6 +17,8 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 const ACTOR_USER_ID = "system-english-ielts-seed";
 const ENGLISH_SUBJECT_TITLE = "English";
 const ENGLISH_SUBJECT_SLUG = "english";
+const ENGLISH_CURRICULUM_SCHOOL_SLUG =
+  process.env.ENGLISH_CURRICULUM_SCHOOL_SLUG?.trim() || "smp-betun-school";
 const overwriteDocs = process.argv.includes("--overwrite-docs");
 const require = createRequire(import.meta.url);
 const missingIeltsPrepSources = new Set<string>();
@@ -837,7 +838,7 @@ function getChapterMetadata(chapter: EnglishBlueprintChapter) {
     weekRange: chapter.weekRange,
     unitTitle: chapter.unitTitle,
     learningOutcomes: chapter.learningOutcomes,
-    assignmentTags: [{ schoolSlug: DEFAULT_CURRICULUM_SCHOOL_SLUG, yearSlug: chapter.yearSlug }],
+    assignmentTags: [{ schoolSlug: ENGLISH_CURRICULUM_SCHOOL_SLUG, yearSlug: chapter.yearSlug }],
   };
 }
 
@@ -854,7 +855,7 @@ function getLessonMetadata(chapter: EnglishBlueprintChapter, lesson: EnglishBlue
   return {
     week: getLessonWeek(chapter.weekRange, index),
     lessonCode: lesson.lessonCode,
-    assignmentTags: [{ schoolSlug: DEFAULT_CURRICULUM_SCHOOL_SLUG, yearSlug: chapter.yearSlug }],
+    assignmentTags: [{ schoolSlug: ENGLISH_CURRICULUM_SCHOOL_SLUG, yearSlug: chapter.yearSlug }],
   };
 }
 

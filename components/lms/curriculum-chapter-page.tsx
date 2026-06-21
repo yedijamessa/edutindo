@@ -69,7 +69,7 @@ export async function CurriculumChapterPage({
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <main className="p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="portal-page-width space-y-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-auto">
             <Link href={materialsPath} className="hover:text-foreground transition-colors whitespace-nowrap">
               Learning Materials

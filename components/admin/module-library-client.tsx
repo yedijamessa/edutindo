@@ -640,7 +640,7 @@ export function ModuleLibraryClient({
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8ff_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1720px]">
+      <div className="portal-page-width flex min-h-screen">
         <aside className="hidden w-[88px] shrink-0 flex-col items-center border-r border-[#e6edf8] bg-white/90 py-5 lg:flex">
           <Link
             href="/admin/curriculum"

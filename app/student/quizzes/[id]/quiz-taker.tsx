@@ -56,7 +56,7 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
                     </aside>
 
                     <main className="flex-1 p-6 lg:p-8">
-                        <div className="max-w-2xl mx-auto space-y-6">
+                        <div className="portal-page-width space-y-6">
                             <Card className="text-center">
                                 <CardContent className="p-12">
                                     <div className="w-20 h-20 mx-auto rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mb-4">
@@ -106,7 +106,7 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
-                    <div className="max-w-3xl mx-auto space-y-6">
+                    <div className="portal-page-width space-y-6">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <Link href="/student/quizzes">

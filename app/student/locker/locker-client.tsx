@@ -103,7 +103,7 @@ export default function LockerClient({ initialFiles, initialStorageUsage, studen
     const storagePercent = (storageUsage / MAX_STORAGE) * 100;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="portal-page-width space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <HardDrive className="w-8 h-8 text-primary" />

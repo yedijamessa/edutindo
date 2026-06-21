@@ -25,7 +25,7 @@ export default function StudentMeetingPage() {
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
-                    <div className="max-w-5xl mx-auto space-y-8">
+                    <div className="portal-page-width space-y-8">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Meeting Room</h1>
                             <p className="text-muted-foreground mt-2">Join your classes and meetings</p>

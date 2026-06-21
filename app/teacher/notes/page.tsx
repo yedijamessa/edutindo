@@ -39,7 +39,7 @@ export default function TeacherNotesPage() {
                 </aside>
 
                 <main className="flex-1 p-6 lg:p-8">
-                    <div className="max-w-5xl mx-auto space-y-6">
+                    <div className="portal-page-width space-y-6">
                         <div className="flex items-center justify-between">
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight">Teaching Notes</h1>

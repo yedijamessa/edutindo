@@ -10,7 +10,11 @@ import {
   resolveAuthenticatedHomePath,
   type PortalKey,
 } from "@/lib/auth-shared";
-import { sqlQuery as sql } from "@/lib/postgres-query";
+import {
+  getPostgresSetupMessage,
+  isPostgresConfigured,
+  sqlQuery as sql,
+} from "@/lib/postgres-query";
 
 export interface AuthUser {
   id: string;
@@ -88,6 +92,7 @@ const PORTAL_SET = new Set<string>(PORTAL_OPTIONS);
 export const DEMO_ACCESS_COOKIE_NAME = "edutindo_demo_portal_access";
 
 let authSchemaReady: Promise<void> | null = null;
+let hasWarnedAboutMissingAuthStorage = false;
 
 export class AuthError extends Error {
   status: number;
@@ -98,6 +103,27 @@ export class AuthError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+export function isAuthStorageConfigured() {
+  return isPostgresConfigured();
+}
+
+function getAuthStorageUnavailableMessage() {
+  return `Authentication is unavailable. ${getPostgresSetupMessage()}`;
+}
+
+function requireAuthStorage() {
+  if (isAuthStorageConfigured()) return;
+
+  throw new AuthError(503, "AUTH_STORAGE_NOT_CONFIGURED", getAuthStorageUnavailableMessage());
+}
+
+function warnAboutMissingAuthStorage(context: string) {
+  if (hasWarnedAboutMissingAuthStorage) return;
+
+  hasWarnedAboutMissingAuthStorage = true;
+  console.warn(`[auth] ${context} skipped because ${getAuthStorageUnavailableMessage()}`);
 }
 
 export function normalizeEmail(input: string) {
@@ -413,6 +439,8 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
 }
 
 export async function ensureAuthSchema() {
+  requireAuthStorage();
+
   if (authSchemaReady) return authSchemaReady;
 
   authSchemaReady = (async () => {
@@ -1075,9 +1103,14 @@ async function createSessionForUser(user: AuthUser) {
 }
 
 export async function getUserFromSessionToken(token: string | null | undefined) {
-  await ensureAuthSchema();
-
   if (!token) return null;
+
+  if (!isAuthStorageConfigured()) {
+    warnAboutMissingAuthStorage("Session lookup");
+    return null;
+  }
+
+  await ensureAuthSchema();
 
   const sessionResult = await sql<{ user_id: string }>`
     SELECT user_id
@@ -1103,8 +1136,14 @@ export async function getCurrentUser() {
 }
 
 export async function revokeSessionByToken(token: string | null | undefined) {
-  await ensureAuthSchema();
   if (!token) return;
+
+  if (!isAuthStorageConfigured()) {
+    warnAboutMissingAuthStorage("Session revoke");
+    return;
+  }
+
+  await ensureAuthSchema();
 
   await sql`
     DELETE FROM auth_sessions

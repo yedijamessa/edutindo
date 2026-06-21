@@ -12,7 +12,7 @@ export default async function AdminAccessPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <main className="p-6 lg:p-8">
-        <div className="mx-auto max-w-6xl space-y-6">
+        <div className="portal-page-width space-y-6">
           <Button asChild variant="outline" className="w-fit">
             <Link href="/admin">
               <ArrowLeft className="mr-2 h-4 w-4" />

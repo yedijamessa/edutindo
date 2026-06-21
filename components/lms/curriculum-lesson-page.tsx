@@ -72,7 +72,7 @@ export async function CurriculumLessonPage({
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_50%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
-      <main className="mx-auto w-full max-w-[1280px] px-4 pb-16 pt-5 sm:px-6 lg:px-8">
+      <main className="portal-page-width px-4 pb-16 pt-5 sm:px-6 lg:px-8">
         {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
         <div className="flex items-center gap-1.5 overflow-auto text-xs text-slate-400">
           <Link href={materialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap">
