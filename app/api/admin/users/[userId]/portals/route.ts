@@ -4,7 +4,9 @@ import {
   getUserFromSessionToken,
   hasAdminPortalAccess,
   setUserPortals,
+  setUserSchoolSlug,
 } from "@/lib/auth";
+import { listCurriculumSchools } from "@/lib/curriculum-portal";
 import { PORTAL_OPTIONS, SESSION_COOKIE_NAME } from "@/lib/auth-shared";
 
 export const runtime = "nodejs";
@@ -32,8 +34,20 @@ export async function POST(req: NextRequest, context: Context) {
     const validPortals = rawPortals.filter((portal: string): portal is (typeof PORTAL_OPTIONS)[number] =>
       PORTAL_OPTIONS.includes(portal as (typeof PORTAL_OPTIONS)[number])
     );
+    const requestedSchoolSlug = typeof body?.schoolSlug === "string" ? body.schoolSlug.trim().toLowerCase() : "";
+    const nextSchoolSlug = requestedSchoolSlug || null;
+
+    if (nextSchoolSlug) {
+      const schools = await listCurriculumSchools();
+      const isValidSchool = schools.some((school) => school.slug === nextSchoolSlug);
+
+      if (!isValidSchool) {
+        return NextResponse.json({ ok: false, error: "Invalid school selection." }, { status: 400 });
+      }
+    }
 
     await setUserPortals(userId, validPortals);
+    await setUserSchoolSlug(userId, nextSchoolSlug);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -58,6 +58,10 @@ export async function PUT(req: NextRequest, context: Context) {
       moduleId,
       title: body?.title,
       pages: body?.pages,
+      subjectSlug: body?.subjectSlug,
+      subjectTitle: body?.subjectTitle,
+      chapterSlug: body?.chapterSlug,
+      chapterTitle: body?.chapterTitle,
       actorUserId: access.user.id,
     });
 

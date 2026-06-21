@@ -11,12 +11,12 @@ import { sqlQuery as sql } from "@/lib/postgres-query";
 import type {
   ModuleEditorBlock,
   ModuleEditorBreadcrumb,
+  ModuleCatalogModuleSummary,
+  ModuleCatalogSubjectGroup,
   ModuleEditorDocument,
-  ModuleEditorImageBlock,
   ModuleLessonAssignment,
   ModuleEditorNodeType,
   ModuleEditorPage,
-  ModuleEditorQuizBlock,
   ModuleEditorQuizMatchPair,
   ModuleEditorQuizOption,
   ModuleEditorQuizOrderingItem,
@@ -29,6 +29,10 @@ type ModuleEditorModuleRow = {
   id: string;
   title: string;
   pages: unknown;
+  catalog_subject_slug: string | null;
+  catalog_subject_title: string | null;
+  catalog_chapter_slug: string | null;
+  catalog_chapter_title: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -51,6 +55,14 @@ function sanitizeText(value: unknown, maxLength: number) {
 
 function sanitizeLongText(value: unknown, maxLength: number) {
   return String(value ?? "").slice(0, maxLength);
+}
+
+function slugifyCatalogValue(value: unknown) {
+  return sanitizeText(value, 180)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 180);
 }
 
 function sanitizeUrl(value: unknown) {
@@ -87,16 +99,6 @@ function createTextBlock(title = "", body = ""): ModuleEditorTextBlock {
     type: "text",
     title,
     body,
-  };
-}
-
-function createImageBlock(): ModuleEditorImageBlock {
-  return {
-    id: randomUUID(),
-    type: "image",
-    imageUrl: "",
-    altText: "",
-    caption: "",
   };
 }
 
@@ -164,22 +166,6 @@ function normalizeQuizType(value: unknown): ModuleEditorQuizType {
   }
 
   return "multiple-choice-single";
-}
-
-function createQuizBlock(quizType: ModuleEditorQuizType = "multiple-choice-single"): ModuleEditorQuizBlock {
-  const options = getDefaultOptionsForQuizType(quizType);
-  return {
-    id: randomUUID(),
-    type: "quiz",
-    quizType,
-    prompt: "",
-    options,
-    correctOptionIds: options[0]?.id ? [options[0].id] : [],
-    acceptableAnswers: [],
-    matchingPairs: quizType === "matching" ? createDefaultMatchingPairs() : [],
-    orderingItems: quizType === "ordering" ? createDefaultOrderingItems() : [],
-    explanation: "",
-  };
 }
 
 function createDefaultPage(title: string): ModuleEditorPage {
@@ -403,10 +389,34 @@ async function ensureModuleEditorSchema() {
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL DEFAULT '',
           pages JSONB NOT NULL DEFAULT '[]'::jsonb,
+          catalog_subject_slug TEXT,
+          catalog_subject_title TEXT,
+          catalog_chapter_slug TEXT,
+          catalog_chapter_title TEXT,
           updated_by_user_id TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+      `;
+
+      await sql`
+        ALTER TABLE module_editor_modules
+        ADD COLUMN IF NOT EXISTS catalog_subject_slug TEXT
+      `;
+
+      await sql`
+        ALTER TABLE module_editor_modules
+        ADD COLUMN IF NOT EXISTS catalog_subject_title TEXT
+      `;
+
+      await sql`
+        ALTER TABLE module_editor_modules
+        ADD COLUMN IF NOT EXISTS catalog_chapter_slug TEXT
+      `;
+
+      await sql`
+        ALTER TABLE module_editor_modules
+        ADD COLUMN IF NOT EXISTS catalog_chapter_title TEXT
       `;
 
       await sql`
@@ -464,6 +474,33 @@ async function ensureModuleEditorSchema() {
         WHERE node_type = 'lesson'
         ON CONFLICT (lesson_id) DO NOTHING
       `;
+
+      await sql`
+        WITH first_assignment AS (
+          SELECT DISTINCT ON (assignment.module_id)
+            assignment.module_id,
+            subject.slug AS subject_slug,
+            subject.title AS subject_title,
+            chapter.slug AS chapter_slug,
+            chapter.title AS chapter_title
+          FROM module_editor_lesson_assignments assignment
+          INNER JOIN curriculum_nodes lesson
+            ON lesson.id = assignment.lesson_id
+          INNER JOIN curriculum_nodes chapter
+            ON chapter.id = lesson.parent_id
+          INNER JOIN curriculum_nodes subject
+            ON subject.id = chapter.parent_id
+          ORDER BY assignment.module_id, assignment.assigned_at ASC
+        )
+        UPDATE module_editor_modules AS modules
+        SET
+          catalog_subject_slug = COALESCE(NULLIF(modules.catalog_subject_slug, ''), first_assignment.subject_slug),
+          catalog_subject_title = COALESCE(NULLIF(modules.catalog_subject_title, ''), first_assignment.subject_title),
+          catalog_chapter_slug = COALESCE(NULLIF(modules.catalog_chapter_slug, ''), first_assignment.chapter_slug),
+          catalog_chapter_title = COALESCE(NULLIF(modules.catalog_chapter_title, ''), first_assignment.chapter_title)
+        FROM first_assignment
+        WHERE modules.id = first_assignment.module_id
+      `;
     } catch (error) {
       moduleEditorSchemaReady = null;
       throw error;
@@ -477,14 +514,30 @@ function getModuleTitle(value: unknown) {
   return sanitizeText(value, 180) || "Untitled Module";
 }
 
+function getCatalogSubjectTitle(value: unknown) {
+  return sanitizeText(value, 180);
+}
+
+function getCatalogChapterTitle(value: unknown) {
+  return sanitizeText(value, 180);
+}
+
 function mapModuleDocument(row: ModuleEditorModuleRow): ModuleEditorDocument {
   const title = getModuleTitle(row.title);
+  const subjectTitle = getCatalogSubjectTitle(row.catalog_subject_title);
+  const chapterTitle = getCatalogChapterTitle(row.catalog_chapter_title);
+  const subjectSlug = slugifyCatalogValue(row.catalog_subject_slug || subjectTitle);
+  const chapterSlug = slugifyCatalogValue(row.catalog_chapter_slug || chapterTitle);
 
   return {
     id: row.id,
     title,
     pages: normalizePages(row.pages, title),
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+    subjectSlug,
+    subjectTitle,
+    chapterSlug,
+    chapterTitle,
   };
 }
 
@@ -569,6 +622,10 @@ export async function getModuleEditorDocument(moduleId: string): Promise<ModuleE
       id,
       title,
       pages,
+      catalog_subject_slug,
+      catalog_subject_title,
+      catalog_chapter_slug,
+      catalog_chapter_title,
       created_at,
       updated_at
     FROM module_editor_modules
@@ -591,12 +648,20 @@ export async function saveModuleEditorDocument(input: {
   moduleId?: string | null;
   title: unknown;
   pages: unknown;
+  subjectSlug?: unknown;
+  subjectTitle?: unknown;
+  chapterSlug?: unknown;
+  chapterTitle?: unknown;
   actorUserId?: string;
 }) {
   await ensureModuleEditorSchema();
   const moduleId = sanitizeText(input.moduleId, 180) || randomUUID();
   const title = getModuleTitle(input.title);
   const pages = normalizePages(input.pages, title);
+  const subjectTitle = getCatalogSubjectTitle(input.subjectTitle);
+  const chapterTitle = getCatalogChapterTitle(input.chapterTitle);
+  const subjectSlug = slugifyCatalogValue(input.subjectSlug || subjectTitle);
+  const chapterSlug = slugifyCatalogValue(input.chapterSlug || chapterTitle);
   const actorUserId = sanitizeText(input.actorUserId, 180) || null;
 
   const result = await sql<ModuleEditorModuleRow>`
@@ -604,6 +669,10 @@ export async function saveModuleEditorDocument(input: {
       id,
       title,
       pages,
+      catalog_subject_slug,
+      catalog_subject_title,
+      catalog_chapter_slug,
+      catalog_chapter_title,
       updated_by_user_id,
       created_at,
       updated_at
@@ -612,6 +681,10 @@ export async function saveModuleEditorDocument(input: {
       ${moduleId},
       ${title},
       ${JSON.stringify(pages)},
+      ${subjectSlug || null},
+      ${subjectTitle || null},
+      ${chapterSlug || null},
+      ${chapterTitle || null},
       ${actorUserId},
       NOW(),
       NOW()
@@ -620,12 +693,20 @@ export async function saveModuleEditorDocument(input: {
     DO UPDATE SET
       title = EXCLUDED.title,
       pages = EXCLUDED.pages,
+      catalog_subject_slug = EXCLUDED.catalog_subject_slug,
+      catalog_subject_title = EXCLUDED.catalog_subject_title,
+      catalog_chapter_slug = EXCLUDED.catalog_chapter_slug,
+      catalog_chapter_title = EXCLUDED.catalog_chapter_title,
       updated_by_user_id = EXCLUDED.updated_by_user_id,
       updated_at = NOW()
     RETURNING
       id,
       title,
       pages,
+      catalog_subject_slug,
+      catalog_subject_title,
+      catalog_chapter_slug,
+      catalog_chapter_title,
       created_at,
       updated_at
   `;
@@ -638,6 +719,10 @@ export type ModuleListEntry = {
   moduleTitle: string;
   pageCount: number;
   updatedAt: string;
+  subjectSlug: string;
+  subjectTitle: string;
+  chapterSlug: string;
+  chapterTitle: string;
   assignments: ModuleLessonAssignment[];
 };
 
@@ -668,7 +753,16 @@ export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
   const targets = await listModuleEditorTargets();
   const [moduleResult, assignmentResult] = await Promise.all([
     sql<ModuleEditorModuleRow>`
-      SELECT id, title, pages, created_at, updated_at
+      SELECT
+        id,
+        title,
+        pages,
+        catalog_subject_slug,
+        catalog_subject_title,
+        catalog_chapter_slug,
+        catalog_chapter_title,
+        created_at,
+        updated_at
       FROM module_editor_modules
       ORDER BY updated_at DESC
     `,
@@ -697,15 +791,168 @@ export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
 
   return moduleResult.rows.map((row) => {
     const document = mapModuleDocument(row);
+    const assignments = assignmentsByModuleId.get(row.id) ?? [];
+    const fallbackAssignment = assignments[0] ?? null;
 
     return {
       moduleId: row.id,
       moduleTitle: document.title,
       pageCount: document.pages.length,
       updatedAt: document.updatedAt ?? new Date(row.updated_at).toISOString(),
-      assignments: assignmentsByModuleId.get(row.id) ?? [],
+      subjectSlug: document.subjectSlug || fallbackAssignment?.subjectSlug || "",
+      subjectTitle: document.subjectTitle || fallbackAssignment?.subjectTitle || "",
+      chapterSlug: document.chapterSlug || fallbackAssignment?.chapterSlug || "",
+      chapterTitle: document.chapterTitle || fallbackAssignment?.chapterTitle || "",
+      assignments,
     };
   });
+}
+
+function sortCurriculumNodesByPosition<T extends { position: number; title: string }>(nodes: T[]) {
+  return [...nodes].sort((left, right) => {
+    if (left.position !== right.position) {
+      return left.position - right.position;
+    }
+
+    return left.title.localeCompare(right.title);
+  });
+}
+
+export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> {
+  await ensureModuleEditorSchema();
+  const [tree, modules] = await Promise.all([listCurriculumTree(), listModuleDocuments()]);
+
+  const subjectOrder = new Map<string, number>();
+  const chapterOrder = new Map<string, number>();
+  const subjects = new Map<
+    string,
+    {
+      slug: string;
+      title: string;
+      chapters: Map<string, { slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>;
+    }
+  >();
+
+  const ensureSubject = (slugInput: string, titleInput: string) => {
+    const slug = slugifyCatalogValue(slugInput || titleInput) || "general";
+    const title = sanitizeText(titleInput, 180) || "General";
+    const existing = subjects.get(slug);
+
+    if (existing) {
+      if (!existing.title && title) {
+        existing.title = title;
+      }
+      return existing;
+    }
+
+    const next = {
+      slug,
+      title,
+      chapters: new Map<string, { slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>(),
+    };
+    subjects.set(slug, next);
+    return next;
+  };
+
+  const ensureChapter = (
+    subject: {
+      slug: string;
+      title: string;
+      chapters: Map<string, { slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>;
+    },
+    slugInput: string,
+    titleInput: string
+  ) => {
+    const slug = slugifyCatalogValue(slugInput || titleInput) || "general";
+    const title = sanitizeText(titleInput, 180) || "General";
+    const existing = subject.chapters.get(slug);
+
+    if (existing) {
+      if (!existing.title && title) {
+        existing.title = title;
+      }
+      return existing;
+    }
+
+    const next = {
+      slug,
+      title,
+      modules: [] as ModuleCatalogModuleSummary[],
+    };
+    subject.chapters.set(slug, next);
+    return next;
+  };
+
+  const topLevelSubjects = sortCurriculumNodesByPosition(
+    tree.filter((node) => node.nodeType === "subject" && node.parentId === null)
+  );
+
+  topLevelSubjects.forEach((subjectNode, subjectIndex) => {
+    subjectOrder.set(subjectNode.slug, subjectIndex);
+    const subject = ensureSubject(subjectNode.slug, subjectNode.title);
+
+    sortCurriculumNodesByPosition(
+      subjectNode.children.filter((child) => child.nodeType === "chapter")
+    ).forEach((chapterNode, chapterIndex) => {
+      chapterOrder.set(`${subjectNode.slug}:${chapterNode.slug}`, chapterIndex);
+      ensureChapter(subject, chapterNode.slug, chapterNode.title);
+    });
+  });
+
+  const sortedModules = [...modules].sort((left, right) =>
+    [left.subjectTitle || "General", left.chapterTitle || "General", left.moduleTitle].join(" / ").localeCompare(
+      [right.subjectTitle || "General", right.chapterTitle || "General", right.moduleTitle].join(" / ")
+    )
+  );
+
+  sortedModules.forEach((module) => {
+    const subject = ensureSubject(module.subjectSlug, module.subjectTitle);
+    const chapter = ensureChapter(subject, module.chapterSlug, module.chapterTitle);
+
+    chapter.modules.push({
+      moduleId: module.moduleId,
+      moduleTitle: module.moduleTitle,
+      pageCount: module.pageCount,
+      updatedAt: module.updatedAt,
+      assignmentCount: module.assignments.length,
+      subjectSlug: subject.slug,
+      subjectTitle: subject.title,
+      chapterSlug: chapter.slug,
+      chapterTitle: chapter.title,
+    });
+  });
+
+  return Array.from(subjects.values())
+    .sort((left, right) => {
+      const leftOrder = subjectOrder.get(left.slug) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = subjectOrder.get(right.slug) ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      return left.title.localeCompare(right.title);
+    })
+    .map((subject) => ({
+      slug: subject.slug,
+      title: subject.title,
+      chapters: Array.from(subject.chapters.values())
+        .sort((left, right) => {
+          const leftOrder = chapterOrder.get(`${subject.slug}:${left.slug}`) ?? Number.MAX_SAFE_INTEGER;
+          const rightOrder = chapterOrder.get(`${subject.slug}:${right.slug}`) ?? Number.MAX_SAFE_INTEGER;
+
+          if (leftOrder !== rightOrder) {
+            return leftOrder - rightOrder;
+          }
+
+          return left.title.localeCompare(right.title);
+        })
+        .map((chapter) => ({
+          slug: chapter.slug,
+          title: chapter.title,
+          modules: chapter.modules,
+        })),
+    }));
 }
 
 export async function assignModuleToLesson(input: {

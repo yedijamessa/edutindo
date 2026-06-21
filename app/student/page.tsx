@@ -1,24 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
+import { StudentSidebarPanel } from "@/components/lms/student-sidebar-panel";
 import { getCurrentUser } from "@/lib/auth";
+import { listCurriculumSchools } from "@/lib/curriculum-portal";
 import { getCalendarEvents, getMaterials, getStudentProgress } from "@/lib/db-services";
 import {
-  Atom,
   CalendarDays,
   CheckSquare,
   ChevronRight,
-  ClipboardList,
-  FlaskConical,
-  GraduationCap,
   HelpCircle,
-  House,
-  Languages,
-  MessageCircleMore,
-  NotebookText,
-  Palette,
   Play,
   Search,
-  Sigma,
   Sparkles,
   Square,
   Target,
@@ -26,35 +18,6 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-const railItems = [
-  { label: "Home", href: "/student", icon: House, tone: "text-[#2f6fff]" },
-  { label: "Assignments", href: "/student/quizzes", icon: ClipboardList, tone: "text-[#f97316]" },
-  { label: "Biology", href: "/student/materials", icon: FlaskConical, tone: "text-[#159a61]" },
-  { label: "English", href: "/student/materials", icon: Languages, tone: "text-[#8b5cf6]" },
-  { label: "Maths", href: "/student/materials", icon: Sigma, tone: "text-[#d97706]" },
-  { label: "Creative", href: "/student/materials", icon: Palette, tone: "text-[#db2777]" },
-];
-
-const lessonGroups = [
-  {
-    title: "Cell Biology",
-    lessons: [
-      { title: "What are cells?", active: false },
-      { title: "Types of cells", active: true },
-      { title: "Animal and plant cells", active: false },
-      { title: "Specialised cells", active: false },
-    ],
-  },
-  {
-    title: "Working Scientifically",
-    lessons: [
-      { title: "Using microscopes", active: false },
-      { title: "Recording observations", active: false },
-      { title: "Review checkpoint", active: false },
-    ],
-  },
-];
 
 const fallbackMaterials = [
   {
@@ -116,6 +79,10 @@ function formatDate(value: Date | string) {
 export default async function StudentDashboard() {
   const user = await getCurrentUser();
   const studentName = user ? `${user.firstName} ${user.lastName}`.trim() || user.email : "Student";
+  const schools = user?.schoolSlug ? await listCurriculumSchools() : [];
+  const schoolTitle = user?.schoolSlug
+    ? schools.find((school) => school.slug === user.schoolSlug)?.title ?? null
+    : null;
   const studentId = user?.id ?? "student-1";
 
   const [materials, studentProgress, studentEvents] = await Promise.all([
@@ -137,118 +104,7 @@ export default async function StudentDashboard() {
   return (
     <div className="min-h-screen bg-[#f4f8fc] text-slate-900">
       <div className="portal-page-width flex min-h-screen">
-        <aside className="hidden w-[88px] shrink-0 border-r border-[#e5edf7] bg-white/90 px-3 py-5 xl:flex xl:flex-col">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-[#eef4ff] text-[#2f6fff]">
-            <Sparkles className="h-6 w-6" />
-          </div>
-
-          <nav className="mt-8 flex flex-1 flex-col items-center gap-3">
-            {railItems.map((item, index) => {
-              const Icon = item.icon;
-              const active = index === 0;
-
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex w-full flex-col items-center gap-1 rounded-2xl px-2 py-3 text-[11px] font-medium transition-colors ${
-                    active ? "bg-[#eef4ff] text-[#2f6fff]" : "text-slate-400 hover:bg-white hover:text-slate-700"
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 ${active ? "text-[#2f6fff]" : item.tone}`} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="rounded-2xl bg-[#0b1d3a] px-2 py-4 text-center text-white">
-            <GraduationCap className="mx-auto h-5 w-5" />
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Level</p>
-            <p className="text-lg font-bold">12</p>
-          </div>
-        </aside>
-
-        <aside className="hidden w-[282px] shrink-0 border-r border-[#e5edf7] bg-white/90 lg:flex lg:flex-col">
-          <div className="border-b border-[#edf2f8] px-5 py-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Student portal</p>
-            <p className="mt-2 text-lg font-bold text-slate-900">{studentName}</p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-5">
-            <div className="space-y-1">
-              {[
-                { label: "Overview", href: "/student", icon: House, active: true },
-                { label: "Assignments", href: "/student/quizzes", icon: ClipboardList, active: false },
-                { label: "Notes", href: "/student/notes", icon: NotebookText, active: false },
-                { label: "Ask Tutor", href: "/student/ai-assistant", icon: MessageCircleMore, active: false },
-              ].map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      item.active
-                        ? "bg-[#eef4ff] text-[#2f6fff]"
-                        : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-800"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 border-t border-[#edf2f8] pt-5">
-              <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Current course</p>
-              <div className="mt-3 rounded-3xl border border-[#e6edf8] bg-[#fbfdff] p-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e8f5e9] text-[#159a61]">
-                    <Atom className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900">Science</p>
-                    <p className="mt-0.5 text-xs text-slate-400">Year 7 foundation</p>
-                  </div>
-                </div>
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-[#2f6fff]" style={{ width: `${overallProgress}%` }} />
-                </div>
-                <p className="mt-2 text-xs font-medium text-slate-500">{overallProgress}% complete</p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-5">
-              {lessonGroups.map((group) => (
-                <section key={group.title}>
-                  <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    {group.title}
-                  </p>
-                  <div className="mt-2 space-y-1">
-                    {group.lessons.map((lesson) => (
-                      <div
-                        key={lesson.title}
-                        className={`flex items-center justify-between rounded-2xl px-3 py-2.5 text-sm ${
-                          lesson.active ? "bg-[#eef4ff] font-semibold text-[#2f6fff]" : "text-slate-500"
-                        }`}
-                      >
-                        <span>{lesson.title}</span>
-                        <span
-                          className={`h-4 w-4 rounded-full border ${
-                            lesson.active ? "border-[#2f6fff] bg-white" : "border-slate-200"
-                          }`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </div>
-        </aside>
+        <StudentSidebarPanel heading={studentName} subheading="Student portal" detail={schoolTitle} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="border-b border-[#e5edf7] bg-white/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">

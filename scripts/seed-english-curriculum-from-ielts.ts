@@ -813,6 +813,10 @@ function buildLessonDocument(chapter: EnglishBlueprintChapter, lesson: EnglishBl
     title: lesson.title,
     pages: pages.length > 0 ? pages : [buildOverviewPage(chapter, lesson)],
     updatedAt: null,
+    subjectSlug: "english",
+    subjectTitle: "English",
+    chapterSlug: chapter.slug,
+    chapterTitle: chapter.shortTitle,
   };
 }
 

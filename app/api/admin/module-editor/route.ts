@@ -29,6 +29,10 @@ export async function POST(req: NextRequest) {
     const document = await saveModuleEditorDocument({
       title: body?.title,
       pages: body?.pages,
+      subjectSlug: body?.subjectSlug,
+      subjectTitle: body?.subjectTitle,
+      chapterSlug: body?.chapterSlug,
+      chapterTitle: body?.chapterTitle,
       actorUserId: access.user.id,
     });
 

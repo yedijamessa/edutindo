@@ -1,4 +1,6 @@
+import { notFound } from "next/navigation";
 import { CurriculumLessonPage } from "@/components/lms/curriculum-lesson-page";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,11 @@ type LessonPageProps = {
 
 export default async function StudentSchoolCurriculumLessonPage({ params }: LessonPageProps) {
   const { schoolSlug, yearSlug, subjectSlug, chapterSlug, lessonSlug } = await params;
+  const user = await getCurrentUser();
+
+  if (user?.schoolSlug && user.schoolSlug !== schoolSlug) {
+    notFound();
+  }
 
   return (
     <CurriculumLessonPage

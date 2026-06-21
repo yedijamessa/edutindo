@@ -90,6 +90,10 @@ export interface ModuleEditorDocument {
   title: string;
   pages: ModuleEditorPage[];
   updatedAt: string | null;
+  subjectSlug: string;
+  subjectTitle: string;
+  chapterSlug: string;
+  chapterTitle: string;
 }
 
 export interface ModuleLessonAssignment {
@@ -105,4 +109,28 @@ export interface ModuleLessonAssignment {
   yearSlug: string;
   subjectSlug: string;
   chapterSlug: string;
+}
+
+export interface ModuleCatalogModuleSummary {
+  moduleId: string;
+  moduleTitle: string;
+  pageCount: number;
+  updatedAt: string;
+  assignmentCount: number;
+  subjectSlug: string;
+  subjectTitle: string;
+  chapterSlug: string;
+  chapterTitle: string;
+}
+
+export interface ModuleCatalogChapterGroup {
+  slug: string;
+  title: string;
+  modules: ModuleCatalogModuleSummary[];
+}
+
+export interface ModuleCatalogSubjectGroup {
+  slug: string;
+  title: string;
+  chapters: ModuleCatalogChapterGroup[];
 }

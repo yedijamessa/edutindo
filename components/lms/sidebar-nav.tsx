@@ -95,7 +95,7 @@ export function SidebarNav({ role }: SidebarNavProps) {
 
     return (
         <>
-            <nav className="space-y-1">
+            <nav className={role === "student" ? "space-y-1.5" : "space-y-1"}>
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     // For dashboard routes (ending with /student, /teacher, /parent), use exact match
@@ -110,19 +110,29 @@ export function SidebarNav({ role }: SidebarNavProps) {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                                isActive
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                role === "student"
+                                    ? "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors"
+                                    : "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                                role === "student"
+                                    ? isActive
+                                        ? "bg-[#eef4ff] text-[#2f6fff]"
+                                        : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-800"
+                                    : isActive
+                                        ? "bg-primary text-primary-foreground"
+                                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                             )}
                         >
-                            <Icon className="w-5 h-5" />
+                            <Icon className={role === "student" ? "h-4 w-4" : "h-5 w-5"} />
                             {item.title}
                         </Link>
                     );
                 })}
             </nav>
-            {role === 'student' && <FocusTimer />}
+            {role === 'student' && (
+                <div className="mt-6 border-t border-[#edf2f8] pt-5">
+                    <FocusTimer />
+                </div>
+            )}
         </>
     );
 }

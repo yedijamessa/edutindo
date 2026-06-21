@@ -64,6 +64,44 @@ export default function DashboardHome({ user, initialShowPendingPopup }: Dashboa
 
   const hasPortalAccess = portalKeys.length > 0;
   const [showPendingPopup, setShowPendingPopup] = useState(initialShowPendingPopup || !hasPortalAccess);
+  const [isSendingAdminNotice, setIsSendingAdminNotice] = useState(false);
+  const [adminNoticeStatus, setAdminNoticeStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  async function handleNotifyAdmin() {
+    setIsSendingAdminNotice(true);
+    setAdminNoticeStatus(null);
+
+    try {
+      const response = await fetch("/api/admin/access-request", {
+        method: "POST",
+      });
+
+      const data = (await response.json()) as { ok?: boolean; message?: string; error?: string };
+
+      if (!response.ok || !data.ok) {
+        setAdminNoticeStatus({
+          type: "error",
+          message: data.error || "Failed to send admin notification.",
+        });
+        return;
+      }
+
+      setAdminNoticeStatus({
+        type: "success",
+        message: data.message || "Admin notification sent successfully.",
+      });
+    } catch {
+      setAdminNoticeStatus({
+        type: "error",
+        message: "Unable to send admin notification right now.",
+      });
+    } finally {
+      setIsSendingAdminNotice(false);
+    }
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950">
@@ -91,9 +129,18 @@ export default function DashboardHome({ user, initialShowPendingPopup }: Dashboa
                   <p className="text-sm text-slate-700">
                     Please notify your admin to release the portal view for your account.
                   </p>
+                  {adminNoticeStatus ? (
+                    <p
+                      className={`text-sm ${
+                        adminNoticeStatus.type === "success" ? "text-green-700" : "text-red-700"
+                      }`}
+                    >
+                      {adminNoticeStatus.message}
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
-                    <Button asChild>
-                      <Link href="mailto:admin@edutindo.org">Notify Admin</Link>
+                    <Button onClick={handleNotifyAdmin} disabled={isSendingAdminNotice}>
+                      {isSendingAdminNotice ? "Sending..." : "Notify Admin"}
                     </Button>
                     <Button variant="outline" onClick={() => setShowPendingPopup(true)}>
                       Show Notice
@@ -142,9 +189,18 @@ export default function DashboardHome({ user, initialShowPendingPopup }: Dashboa
               Your account has been created, but no portal is visible yet. Please notify admin to release your portal view.
             </DialogDescription>
           </DialogHeader>
+          {adminNoticeStatus ? (
+            <p
+              className={`text-sm ${
+                adminNoticeStatus.type === "success" ? "text-green-700" : "text-red-700"
+              }`}
+            >
+              {adminNoticeStatus.message}
+            </p>
+          ) : null}
           <DialogFooter>
-            <Button asChild>
-              <Link href="mailto:admin@edutindo.org">Notify Admin</Link>
+            <Button onClick={handleNotifyAdmin} disabled={isSendingAdminNotice}>
+              {isSendingAdminNotice ? "Sending..." : "Notify Admin"}
             </Button>
             <Button variant="outline" onClick={() => setShowPendingPopup(false)}>
               Close

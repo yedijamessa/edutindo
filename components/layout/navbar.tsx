@@ -32,6 +32,7 @@ export function Navbar() {
     const isFocusedScienceRoute = isLegacyFocusedScienceRoute || isCurriculumLessonFocusRoute(pathname)
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
     const isAdminRoute = pathname.startsWith("/admin")
+    const isDashboardRoute = pathname.startsWith("/dashboard")
     const showAdminBackButton = isAdminRoute && pathname !== "/admin" && isAdminUser
 
     React.useEffect(() => {
@@ -86,7 +87,7 @@ export function Navbar() {
 
                 {/* Desktop Nav */}
                 <nav className="hidden items-center gap-6 md:flex">
-                    {!isPortalRoute && navItems.map((item) => (
+                    {!isPortalRoute && !isDashboardRoute && navItems.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}
@@ -110,7 +111,7 @@ export function Navbar() {
                         </Button>
                     )}
 
-                    {!isPortalRoute && (
+                    {!isPortalRoute && !isDashboardRoute && (
                         <Button
                             asChild
                             size="sm"
@@ -121,11 +122,15 @@ export function Navbar() {
                         </Button>
                     )}
                     <AuthNavActions />
-                    <ModeToggle />
+                    {!isDashboardRoute && <ModeToggle />}
                 </nav>
 
                 {/* Mobile Menu Button */}
                 <div className="flex items-center gap-2 md:hidden">
+                    {isDashboardRoute ? (
+                        <AuthNavActions />
+                    ) : (
+                        <>
                     {showAdminBackButton && (
                         <Button
                             asChild
@@ -146,11 +151,13 @@ export function Navbar() {
                     >
                         {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                     </button>
+                        </>
+                    )}
                 </div>
             </div>
 
             {/* Mobile Nav */}
-            {isOpen && (
+            {isOpen && !isDashboardRoute && (
                 <div className="border-t border-[#e1d5be] bg-[#fdf5e3]/98 p-4 md:hidden">
                     <nav className="flex flex-col space-y-4">
                         {showAdminBackButton && (

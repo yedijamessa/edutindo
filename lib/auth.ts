@@ -24,6 +24,7 @@ export interface AuthUser {
   emailVerified: boolean;
   isAdmin: boolean;
   portals: PortalKey[];
+  schoolSlug: string | null;
   createdAt: Date;
 }
 
@@ -36,6 +37,7 @@ type AuthUserRow = {
   email_verified: boolean;
   email_verified_at: Date | null;
   is_admin: boolean;
+  school_slug: string | null;
   created_at: Date;
 };
 
@@ -455,6 +457,7 @@ export async function ensureAuthSchema() {
           email_verified BOOLEAN NOT NULL DEFAULT FALSE,
           email_verified_at TIMESTAMPTZ,
           is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+          school_slug TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
@@ -465,6 +468,7 @@ export async function ensureAuthSchema() {
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS password_hash TEXT;`;
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN;`;
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;`;
+      await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS school_slug TEXT;`;
       await sql`UPDATE auth_users SET email_verified = TRUE WHERE email_verified IS NULL;`;
       await sql`ALTER TABLE auth_users ALTER COLUMN email_verified SET DEFAULT FALSE;`;
       await sql`ALTER TABLE auth_users ALTER COLUMN email_verified SET NOT NULL;`;
@@ -543,7 +547,7 @@ export async function ensureAuthSchema() {
 
 async function getUserRowByEmail(email: string) {
   const result = await sql<AuthUserRow>`
-    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, created_at
+    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
     FROM auth_users
     WHERE email = ${email}
     LIMIT 1
@@ -554,7 +558,7 @@ async function getUserRowByEmail(email: string) {
 
 async function getUserRowById(userId: string) {
   const result = await sql<AuthUserRow>`
-    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, created_at
+    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
     FROM auth_users
     WHERE id = ${userId}
     LIMIT 1
@@ -588,6 +592,7 @@ async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
     emailVerified: userRow.email_verified,
     isAdmin,
     portals,
+    schoolSlug: userRow.school_slug ?? null,
     createdAt: new Date(userRow.created_at),
   };
 }
@@ -754,6 +759,23 @@ export async function setUserPortals(userId: string, portals: PortalKey[]) {
       ON CONFLICT (user_id, portal) DO NOTHING
     `;
   }
+}
+
+export async function setUserSchoolSlug(userId: string, schoolSlug: string | null) {
+  await ensureAuthSchema();
+
+  const userRow = await getUserRowById(userId);
+  if (!userRow) {
+    throw new AuthError(404, "USER_NOT_FOUND", "User not found.");
+  }
+
+  const normalizedSchoolSlug = schoolSlug?.trim() ? schoolSlug.trim().toLowerCase() : null;
+
+  await sql`
+    UPDATE auth_users
+    SET school_slug = ${normalizedSchoolSlug}, updated_at = NOW()
+    WHERE id = ${userId}
+  `;
 }
 
 export async function signupWithPassword(params: {
@@ -1277,7 +1299,7 @@ export async function listUsersWithPortals() {
   await ensureAuthSchema();
 
   const usersResult = await sql<AuthUserRow>`
-    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, created_at
+    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
     FROM auth_users
     ORDER BY created_at DESC
   `;
@@ -1303,6 +1325,7 @@ export async function listUsersWithPortals() {
     lastName: row.last_name ?? "",
     emailVerified: row.email_verified,
     isAdmin: row.is_admin || (portalsByUser.get(row.id) ?? []).includes("admin"),
+    schoolSlug: row.school_slug ?? null,
     createdAt: new Date(row.created_at),
     portals: portalsByUser.get(row.id) ?? [],
   }));

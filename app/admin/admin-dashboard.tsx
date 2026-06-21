@@ -16,13 +16,13 @@ const adminTools = [
   {
     title: "Learning Materials",
     href: "/admin/materials",
-    description: "Review curriculum-linked materials and content pages.",
+    description: "Manage the master subject, chapter, and module catalog.",
     icon: BookOpen,
   },
   {
     title: "Module Editor",
     href: "/admin/module-editor",
-    description: "Build chapter and module pages with text, images, and quizzes.",
+    description: "Choose a subject, chapter, and module to build or update content.",
     icon: NotebookTabs,
   },
   {

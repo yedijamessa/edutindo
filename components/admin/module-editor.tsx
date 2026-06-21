@@ -44,6 +44,10 @@ import type {
 interface ModuleEditorProps {
   initialModuleId: string | null;
   initialDocument: ModuleEditorDocument | null;
+  subjectSlug: string | null;
+  subjectTitle: string;
+  chapterSlug: string | null;
+  chapterTitle: string;
 }
 
 const QUIZ_TYPE_OPTIONS: Array<{ value: ModuleEditorQuizType; label: string }> = [
@@ -495,7 +499,14 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
   );
 }
 
-export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorProps) {
+export function ModuleEditor({
+  initialModuleId,
+  initialDocument,
+  subjectSlug,
+  subjectTitle,
+  chapterSlug,
+  chapterTitle,
+}: ModuleEditorProps) {
   const router = useRouter();
   const [moduleId, setModuleId] = useState(initialModuleId);
   const [title, setTitle] = useState(initialDocument?.title ?? "");
@@ -519,7 +530,7 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
     setDirty(false);
     setMessage("");
     setError("");
-  }, [initialDocument, initialModuleId]);
+  }, [chapterSlug, initialDocument, initialModuleId, subjectSlug]);
 
   useEffect(() => {
     if (pages.some((page) => page.id === selectedPageId)) return;
@@ -554,6 +565,12 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
   };
 
   const saveDocument = async () => {
+    if (!subjectSlug || !chapterSlug) {
+      setError("Choose subject and chapter first.");
+      setMessage("");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
     setError("");
@@ -566,6 +583,10 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
         body: JSON.stringify({
           title,
           pages,
+          subjectSlug,
+          subjectTitle,
+          chapterSlug,
+          chapterTitle,
         }),
       });
       const data = await response.json();
@@ -580,8 +601,10 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
       setPages(data.document.pages);
       setUpdatedAt(data.document.updatedAt);
       setDirty(false);
-      setMessage("Module saved. Assign it from Module Library when you're ready.");
-      router.replace(`/admin/module-editor?moduleId=${encodeURIComponent(data.document.id)}`);
+      setMessage("Module saved in the materials catalog.");
+      router.replace(
+        `/admin/module-editor?subjectSlug=${encodeURIComponent(subjectSlug)}&chapterSlug=${encodeURIComponent(chapterSlug)}&moduleId=${encodeURIComponent(data.document.id)}`
+      );
       router.refresh();
     } catch (saveError) {
       console.error(saveError);
@@ -614,14 +637,24 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
                   <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
                     Reusable Content
                   </Badge>
+                  {subjectTitle ? (
+                    <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
+                      {subjectTitle}
+                    </Badge>
+                  ) : null}
+                  {chapterTitle ? (
+                    <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
+                      {chapterTitle}
+                    </Badge>
+                  ) : null}
                   <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
                     {pages.length} page{pages.length === 1 ? "" : "s"}
                   </Badge>
                 </div>
                 <h1 className="mt-3 text-[2.15rem] font-black tracking-tight text-slate-950">Module Editor</h1>
                 <p className="mt-1 max-w-3xl text-[15px] leading-7 text-slate-500">
-                  Build page-by-page content with text, images, and quizzes, then save it as a reusable module that
-                  can be assigned to any lesson later.
+                  Build page-by-page content with text, images, and quizzes, then save it to the materials catalog.
+                  Curriculum can place this module anywhere later.
                 </p>
               </div>
             </div>
@@ -632,9 +665,9 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
                 variant="outline"
                 className="h-11 rounded-2xl border-[#dce6f7] bg-white px-5 text-slate-700 shadow-none hover:bg-[#f7faff]"
               >
-                <Link href="/admin/modules">
+                <Link href="/admin/materials">
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Module Library
+                  Back to Materials
                 </Link>
               </Button>
               <Button
@@ -660,9 +693,13 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
             />
             <MetaItem
               icon={BookCopy}
-              label="Assignment"
-              value={moduleId ? "Assign from Module Library" : "Unassigned draft"}
-              hint={moduleId ? "Choose lessons later from /admin/modules." : "Save first, then assign later."}
+              label="Catalog Path"
+              value={
+                subjectTitle && chapterTitle
+                  ? `${subjectTitle} / ${chapterTitle}`
+                  : subjectTitle || chapterTitle || "Choose subject and chapter"
+              }
+              hint="This is the materials catalog location for this module."
             />
             <MetaItem
               icon={FileText}
@@ -674,7 +711,7 @@ export function ModuleEditor({ initialModuleId, initialDocument }: ModuleEditorP
               icon={Cloud}
               label="Last Saved"
               value={formatTimestamp(updatedAt)}
-              hint={moduleId ? "Reusable module ready for assignment." : "Draft has not been saved yet."}
+              hint={moduleId ? "Reusable module ready for curriculum placement." : "Draft has not been saved yet."}
             />
           </div>
           {(dirty || message || error) && (

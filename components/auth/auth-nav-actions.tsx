@@ -38,7 +38,8 @@ export function AuthNavActions({ mobile = false, onNavigate }: AuthNavActionsPro
     pathname.startsWith("/principal") ||
     pathname.startsWith("/admin");
 
-  const shouldHideHomeAction = (homePath: string) => homePath === "/admin" && pathname.startsWith("/admin");
+  const shouldHideHomeAction = (homePath: string) =>
+    pathname.startsWith("/dashboard") || (homePath === "/admin" && pathname.startsWith("/admin"));
 
   useEffect(() => {
     let isMounted = true;

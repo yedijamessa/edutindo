@@ -1,4 +1,6 @@
+import { notFound } from "next/navigation";
 import { CurriculumChapterPage } from "@/components/lms/curriculum-chapter-page";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +10,11 @@ type ChapterPageProps = {
 
 export default async function StudentSchoolCurriculumChapterPage({ params }: ChapterPageProps) {
   const { schoolSlug, yearSlug, subjectSlug, chapterSlug } = await params;
+  const user = await getCurrentUser();
+
+  if (user?.schoolSlug && user.schoolSlug !== schoolSlug) {
+    notFound();
+  }
 
   return (
     <CurriculumChapterPage
