@@ -14,7 +14,7 @@ export default async function ModulesLayout({ children }: { children: React.Reac
     user.portals.includes("curriculum");
 
   if (!canAccess) {
-    redirect("/");
+    redirect("/login?next=/admin/modules");
   }
 
   return <>{children}</>;

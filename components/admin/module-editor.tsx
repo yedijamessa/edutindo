@@ -884,7 +884,8 @@ export function ModuleEditor({
           )}
         </section>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)_21rem]">
+        <div className="mt-5 space-y-5">
+          <div className="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)_21rem]">
           <Card className={cn(shellCardClassName, "rounded-[28px]")}>
             <CardHeader className="pb-4">
               <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Pages</CardTitle>
@@ -1009,114 +1010,181 @@ export function ModuleEditor({
             </CardContent>
           </Card>
 
+          {selectedPage ? (
+            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Settings</CardTitle>
+                <CardDescription className="text-sm leading-6 text-slate-500">
+                  Set the label students will see before the content blocks.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">Page Title</label>
+                    <Input
+                      className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
+                      value={selectedPage.title}
+                      onChange={(event) =>
+                        updateSelectedPage((page) => ({ ...page, title: event.target.value }))
+                      }
+                      placeholder="Page title"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">Position</label>
+                    <div className="relative">
+                      <List className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <select
+                        className="h-11 w-full appearance-none rounded-2xl border border-[#dfe7f5] bg-white pl-11 pr-4 text-sm text-slate-700 focus:outline-none"
+                        value={selectedPage.id}
+                        onChange={(event) => setSelectedPageId(event.target.value)}
+                      >
+                        {pages.map((page, index) => (
+                          <option key={page.id} value={page.id}>
+                            Page {index + 1}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-sm font-semibold text-slate-700">Intro Note (Optional)</label>
+                    <span className="text-xs text-slate-400">{selectedPage.description.length}/500</span>
+                  </div>
+                  <Textarea
+                    className="min-h-[108px] rounded-[20px] border-[#dfe7f5] bg-white"
+                    value={selectedPage.description}
+                    onChange={(event) =>
+                      updateSelectedPage((page) => ({ ...page, description: event.target.value.slice(0, 500) }))
+                    }
+                    placeholder="Short teacher note or student instruction for this page."
+                    rows={4}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="rounded-[28px] border-dashed border-[#d6dff0] bg-[#fbfcff]">
+              <CardContent className="p-8 text-sm text-slate-500">Select or add a page to edit its settings.</CardContent>
+            </Card>
+          )}
+
           <div className="space-y-5">
-            {selectedPage ? (
-              <>
-                <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Settings</CardTitle>
+            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
+              <CardHeader className="pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Live Preview</CardTitle>
                     <CardDescription className="text-sm leading-6 text-slate-500">
-                      Set the label students will see before the content blocks.
+                      This is how students will see the current page.
                     </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Page Title</label>
-                        <Input
-                          className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
-                          value={selectedPage.title}
-                          onChange={(event) =>
-                            updateSelectedPage((page) => ({ ...page, title: event.target.value }))
-                          }
-                          placeholder="Page title"
-                        />
-                      </div>
+                  </div>
+                  <span className="rounded-full bg-[#eafbf2] px-3 py-1 text-xs font-semibold text-[#149b61]">
+                    Student View
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewOpen(true)}
+                  disabled={!selectedPage}
+                  className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                >
+                  <ArrowUpRight className="mr-2 h-4 w-4" />
+                  Open Preview
+                </Button>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Position</label>
-                        <div className="relative">
-                          <List className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <select
-                            className="h-11 w-full appearance-none rounded-2xl border border-[#dfe7f5] bg-white pl-11 pr-4 text-sm text-slate-700 focus:outline-none"
-                            value={selectedPage.id}
-                            onChange={(event) => setSelectedPageId(event.target.value)}
-                          >
-                            {pages.map((page, index) => (
-                              <option key={page.id} value={page.id}>
-                                Page {index + 1}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+                <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                  <p className="text-sm text-slate-400">
+                    Page {pageIndex >= 0 ? pageIndex + 1 : 0} of {pages.length}
+                  </p>
+                  <h3 className="mt-4 text-[1.85rem] font-black tracking-tight text-slate-950">
+                    {previewCopy.heading}
+                  </h3>
+                  <ModuleMarkdown content={previewCopy.body} className="mt-3 text-base leading-8 text-slate-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="overflow-hidden rounded-[22px] border border-[#e5ecf8] bg-white">
+                  <SummaryRow
+                    icon={FileText}
+                    label="Blocks on this page"
+                    value={String(selectedPage?.blocks.length ?? 0)}
+                  />
+                  <SummaryRow icon={Eye} label="Estimated read time" value={getEstimatedReadTime(selectedPage)} />
+                  <SummaryRow
+                    icon={Cloud}
+                    label="Last edited"
+                    value={dirty ? "Unsaved" : updatedAt ? "Saved" : "Draft"}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          </div>
+
+          {selectedPage ? (
+            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Blocks</CardTitle>
+                <CardDescription className="text-sm leading-6 text-slate-500">
+                  Mix content types inside the current page. Quick-add stays pinned while you scroll.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="sticky top-24 z-20 -mx-1 rounded-[24px] border-2 border-[#c3d3f5] bg-[linear-gradient(180deg,rgba(248,251,255,0.98)_0%,rgba(255,255,255,0.98)_100%)] p-3 shadow-[0_24px_54px_-34px_rgba(15,23,42,0.42)] backdrop-blur">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Quick Add</p>
+                      <p className="text-xs text-slate-600">Add content without jumping back to the top.</p>
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="text-sm font-semibold text-slate-700">Intro Note (Optional)</label>
-                        <span className="text-xs text-slate-400">{selectedPage.description.length}/500</span>
-                      </div>
-                      <Textarea
-                        className="min-h-[108px] rounded-[20px] border-[#dfe7f5] bg-white"
-                        value={selectedPage.description}
-                        onChange={(event) =>
-                          updateSelectedPage((page) => ({ ...page, description: event.target.value.slice(0, 500) }))
-                        }
-                        placeholder="Short teacher note or student instruction for this page."
-                        rows={4}
-                      />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-2xl border-[#c5d7fb] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                        onClick={() => addBlockToSelectedPage(createTextBlock)}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Add Text
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-2xl border-[#c5d7fb] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                        onClick={() => addBlockToSelectedPage(createImageBlock)}
+                      >
+                        <ImageIcon className="mr-2 h-4 w-4" />
+                        Add Image
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-2xl border-[#c5d7fb] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                        onClick={() => addBlockToSelectedPage(createQuizBlock)}
+                      >
+                        <CircleHelp className="mr-2 h-4 w-4" />
+                        Add Quiz
+                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
-                <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Blocks</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-slate-500">
-                      Mix content types inside the current page. Quick-add stays pinned while you scroll.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="sticky top-24 z-20 -mx-1 rounded-[24px] border border-[#dfe7f5] bg-white/95 p-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.32)] backdrop-blur">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">Quick Add</p>
-                          <p className="text-xs text-slate-500">Add content without jumping back to the top.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                            onClick={() => addBlockToSelectedPage(createTextBlock)}
-                          >
-                            <FileText className="mr-2 h-4 w-4" />
-                            Add Text
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                            onClick={() => addBlockToSelectedPage(createImageBlock)}
-                          >
-                            <ImageIcon className="mr-2 h-4 w-4" />
-                            Add Image
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                            onClick={() => addBlockToSelectedPage(createQuizBlock)}
-                          >
-                            <CircleHelp className="mr-2 h-4 w-4" />
-                            Add Quiz
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {selectedPage.blocks.map((block, index) => (
+                {selectedPage.blocks.map((block, index) => (
                       <div key={block.id} className="rounded-[24px] border border-[#e5ecf8] bg-white p-4 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.35)]">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
@@ -1841,82 +1909,18 @@ export function ModuleEditor({
                           </div>
                         )}
                       </div>
-                    ))}
+                ))}
 
-                    <div className="rounded-[20px] border border-dashed border-[#d6dff0] bg-[#fbfcff] px-4 py-3 text-center text-sm font-medium text-slate-500">
-                      Use the arrows above to reorder blocks
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card className="rounded-[28px] border-dashed border-[#d6dff0] bg-[#fbfcff]">
-                <CardContent className="p-8 text-sm text-slate-500">Add a page to start building the module.</CardContent>
-              </Card>
-            )}
-          </div>
-
-          <div className="space-y-5">
-            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-              <CardHeader className="pb-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Live Preview</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-slate-500">
-                      This is how students will see the current page.
-                    </CardDescription>
-                  </div>
-                  <span className="rounded-full bg-[#eafbf2] px-3 py-1 text-xs font-semibold text-[#149b61]">
-                    Student View
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPreviewOpen(true)}
-                  disabled={!selectedPage}
-                  className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                >
-                  <ArrowUpRight className="mr-2 h-4 w-4" />
-                  Open Preview
-                </Button>
-
-                <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-                  <p className="text-sm text-slate-400">
-                    Page {pageIndex >= 0 ? pageIndex + 1 : 0} of {pages.length}
-                  </p>
-                  <h3 className="mt-4 text-[1.85rem] font-black tracking-tight text-slate-950">
-                    {previewCopy.heading}
-                  </h3>
-                  <ModuleMarkdown content={previewCopy.body} className="mt-3 text-base leading-8 text-slate-600" />
+                <div className="rounded-[20px] border border-dashed border-[#d6dff0] bg-[#fbfcff] px-4 py-3 text-center text-sm font-medium text-slate-500">
+                  Use the arrows above to reorder blocks
                 </div>
               </CardContent>
             </Card>
-
-            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="overflow-hidden rounded-[22px] border border-[#e5ecf8] bg-white">
-                  <SummaryRow
-                    icon={FileText}
-                    label="Blocks on this page"
-                    value={String(selectedPage?.blocks.length ?? 0)}
-                  />
-                  <SummaryRow icon={Eye} label="Estimated read time" value={getEstimatedReadTime(selectedPage)} />
-                  <SummaryRow
-                    icon={Cloud}
-                    label="Last edited"
-                    value={dirty ? "Unsaved" : updatedAt ? "Saved" : "Draft"}
-                  />
-                </div>
-              </CardContent>
+          ) : (
+            <Card className="rounded-[28px] border-dashed border-[#d6dff0] bg-[#fbfcff]">
+              <CardContent className="p-8 text-sm text-slate-500">Add a page to start building the module.</CardContent>
             </Card>
-          </div>
+          )}
         </div>
 
         <p className="pt-8 text-center text-sm text-slate-400">© {currentYear} Yayasan Edutindo. All rights reserved.</p>

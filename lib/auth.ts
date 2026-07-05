@@ -1281,12 +1281,14 @@ export async function requirePortalAccess(portal: PortalKey, nextPath: string) {
   }
 
   if (!user.isAdmin && !user.portals.includes(portal)) {
-    if (portal !== "admin") {
-      const cookieStore = await cookies();
-      const demoToken = cookieStore.get(DEMO_ACCESS_COOKIE_NAME)?.value;
-      if (hasValidDemoAccessToken(demoToken)) {
-        return user;
-      }
+    if (portal === "admin") {
+      redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+    }
+
+    const cookieStore = await cookies();
+    const demoToken = cookieStore.get(DEMO_ACCESS_COOKIE_NAME)?.value;
+    if (hasValidDemoAccessToken(demoToken)) {
+      return user;
     }
 
     redirect(resolveAuthenticatedHomePath(user));
