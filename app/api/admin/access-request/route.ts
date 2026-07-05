@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-const ADMIN_NOTIFICATION_RECIPIENTS = ["admin@edutindo.org", "it@edutindo.org"];
+const ADMIN_NOTIFICATION_RECIPIENTS = ["it@edutindo.org", "ymsp@edutindo.org"];
 
 type SmtpCandidate = {
   host: string;
