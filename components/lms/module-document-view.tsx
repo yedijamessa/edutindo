@@ -357,19 +357,24 @@ export function ModuleDocumentView({
   document,
   showAnswers = false,
   meta,
+  initialPageId,
 }: {
   document: ModuleEditorDocument;
   showAnswers?: boolean;
   meta?: ModuleDocumentViewMeta;
+  initialPageId?: string;
 }) {
-  const [currentPage, setCurrentPage] = useState(0);
+  const pages = document.pages;
+  const [currentPage, setCurrentPage] = useState(() => {
+    const requestedIndex = initialPageId ? pages.findIndex((page) => page.id === initialPageId) : -1;
+    return requestedIndex >= 0 ? requestedIndex : 0;
+  });
   // When showAnswers is false (student role) the mode is permanently locked to "student"
   const [viewMode, setViewMode] = useState<"teacher" | "student">(
     showAnswers ? "teacher" : "student"
   );
   const [note, setNote] = useState("");
 
-  const pages = document.pages;
   const page = pages[currentPage] ?? pages[0];
   const pageIndex = Math.min(currentPage, pages.length - 1);
   const progressPct = Math.round(((pageIndex + 1) / pages.length) * 100);

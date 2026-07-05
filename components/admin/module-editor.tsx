@@ -30,7 +30,7 @@ import {
   Underline,
   type LucideIcon,
 } from "lucide-react";
-import { ModuleMarkdown } from "@/components/module-markdown";
+import { ModuleDocumentView } from "@/components/lms/module-document-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -229,10 +229,6 @@ function formatTimestamp(value: string | null) {
   return parsed.toLocaleString();
 }
 
-function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
-  return QUIZ_TYPE_OPTIONS.find((option) => option.value === quizType)?.label ?? "Quiz";
-}
-
 function createInitialPages() {
   return [createPage(1)];
 }
@@ -376,145 +372,6 @@ function SummaryRow({
         <span>{label}</span>
       </div>
       <span className="rounded-full bg-[#f3f7ff] px-2.5 py-1 text-xs font-semibold text-[#3467f6]">{value}</span>
-    </div>
-  );
-}
-
-function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
-  if (!page) {
-    return <p className="text-sm text-slate-500">No page selected.</p>;
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          {page.title || "Untitled page"}
-        </p>
-        {page.description && (
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">{page.description}</p>
-        )}
-      </div>
-
-      {page.blocks.map((block) => (
-        <div key={block.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          {block.type === "text" && (
-            <div className="space-y-3">
-              {block.title && <h3 className="text-lg font-semibold text-slate-900">{block.title}</h3>}
-              <ModuleMarkdown content={block.body} className="text-sm" />
-            </div>
-          )}
-
-          {block.type === "image" && (
-            <div className="space-y-3">
-              {block.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={block.imageUrl}
-                  alt={block.altText || ""}
-                  className="max-h-[32rem] w-full rounded-2xl object-cover"
-                />
-              ) : (
-                <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-                  Add an image URL to preview it here.
-                </div>
-              )}
-              {block.caption && <p className="text-sm text-slate-600">{block.caption}</p>}
-            </div>
-          )}
-
-          {block.type === "quiz" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Badge variant="outline">{getQuizTypeLabel(block.quizType)}</Badge>
-                <p className="text-sm font-semibold text-slate-900">{block.prompt || "Quiz question"}</p>
-              </div>
-              {usesOptionAnswers(block.quizType) ? (
-                <div className="space-y-2">
-                  {block.options.map((option) => (
-                    <div
-                      key={option.id}
-                      className={cn(
-                        "rounded-2xl border px-3 py-2 text-sm",
-                        block.correctOptionIds.includes(option.id)
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                          : "border-slate-200 bg-slate-50 text-slate-700"
-                      )}
-                    >
-                      {option.text || "Untitled option"}
-                    </div>
-                  ))}
-                </div>
-              ) : usesMatchingPairs(block.quizType) ? (
-                <div className="space-y-2">
-                  {block.matchingPairs.map((pair, index) => (
-                    <div
-                      key={pair.id}
-                      className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_auto_1fr]"
-                    >
-                      <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
-                        {pair.prompt || `Prompt ${index + 1}`}
-                      </div>
-                      <div className="flex items-center justify-center text-slate-400">=</div>
-                      <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
-                        {pair.match || `Match ${index + 1}`}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : usesOrderingItems(block.quizType) ? (
-                <div className="space-y-2">
-                  {block.orderingItems.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                    >
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
-                        {index + 1}
-                      </span>
-                      <span>{item.text || `Step ${index + 1}`}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : usesAcceptableAnswerInputs(block.quizType) ? (
-                <div className="space-y-2">
-                  {block.acceptableAnswers.filter((answer) => answer.trim().length > 0).length > 0 ? (
-                    block.acceptableAnswers
-                      .filter((answer) => answer.trim().length > 0)
-                      .map((answer, index) => (
-                        <div
-                          key={`${block.id}-${index}`}
-                          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-                        >
-                          {answer}
-                        </div>
-                      ))
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                      Add at least one accepted answer.
-                    </div>
-                  )}
-                </div>
-              ) : isEssayQuiz(block.quizType) ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600">
-                  Learners will write a long-form response here.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                    Configure this quiz block.
-                  </div>
-                </div>
-              )}
-              {block.explanation && (
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                  {block.explanation}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
@@ -865,12 +722,15 @@ export function ModuleEditor({
                 }}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Page
+                Add Next Page
               </Button>
 
               <div>
                 <p className="text-sm font-semibold text-slate-500">
                   {selectedPage ? `${pageIndex + 1} of ${pages.length} pages` : `${pages.length} pages`}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  Students move page by page. Create a new page here when you want the next screen to start.
                 </p>
               </div>
 
@@ -956,18 +816,24 @@ export function ModuleEditor({
                 ))}
               </div>
 
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-[#2f6fff]"
-                onClick={() => {
-                  const nextPage = createPage(pages.length + 1);
-                  updatePages((current) => [...current, nextPage]);
-                  setSelectedPageId(nextPage.id);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                Add New Page
-              </button>
+              <div className="rounded-[20px] border border-dashed border-[#d6e2fb] bg-[#f8fbff] px-4 py-3">
+                <p className="text-sm font-semibold text-slate-700">Need the next student page?</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Click below to create the next page. Everything in the Blocks section stays on the currently selected page until you add another page.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-[#2f6fff]"
+                  onClick={() => {
+                    const nextPage = createPage(pages.length + 1);
+                    updatePages((current) => [...current, nextPage]);
+                    setSelectedPageId(nextPage.id);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Next Page
+                </button>
+              </div>
             </CardContent>
           </Card>
 
@@ -1079,7 +945,7 @@ export function ModuleEditor({
               <CardHeader className="pb-4">
                 <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Blocks</CardTitle>
                 <CardDescription className="text-sm leading-6 text-slate-500">
-                  Mix content types inside the current page. Quick-add stays pinned while you scroll.
+                  Mix content types inside the current page. Use Add Next Page in the Pages panel when the next student page should begin.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1869,13 +1735,26 @@ export function ModuleEditor({
             <DialogTitle className="text-xl">Full Preview</DialogTitle>
             <DialogDescription>
               {selectedPage
-                ? `${selectedPage.title || "Untitled page"} in ${title || "module draft"}`
+                ? `Preview the student flow page-by-page starting from ${selectedPage.title || "the selected page"}.`
                 : "No page selected."}
             </DialogDescription>
           </DialogHeader>
           <div className="overflow-y-auto bg-slate-50 px-6 py-6">
             <div className="mx-auto max-w-4xl">
-              <PreviewPageContent page={selectedPage} />
+              <ModuleDocumentView
+                key={selectedPage?.id || "preview"}
+                document={{
+                  id: moduleId || "draft-module",
+                  title: title || "Module draft",
+                  pages,
+                  updatedAt,
+                  subjectSlug: subjectSlug || "",
+                  subjectTitle,
+                  chapterSlug: chapterSlug || "",
+                  chapterTitle,
+                }}
+                initialPageId={selectedPage?.id}
+              />
             </div>
           </div>
         </DialogContent>
