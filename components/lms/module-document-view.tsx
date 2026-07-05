@@ -226,13 +226,9 @@ function QuestionBlock({
 
 function PageContent({
   page,
-  index,
-  total,
   showAnswers,
 }: {
   page: ModuleEditorPage;
-  index: number;
-  total: number;
   showAnswers: boolean;
 }) {
   return (
@@ -240,10 +236,7 @@ function PageContent({
       {/* Page header */}
       <div className="flex items-start justify-between gap-3 rounded-[24px] border border-[#e5ecf8] bg-white p-6 shadow-[0_20px_48px_-40px_rgba(15,23,42,0.35)]">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Page {index + 1} of {total}
-          </p>
-          <h2 className="mt-2 text-[1.6rem] font-bold tracking-tight text-slate-950">
+          <h2 className="text-[1.6rem] font-bold tracking-tight text-slate-950">
             {page.title}
           </h2>
           {page.description.trim() ? (
@@ -486,8 +479,6 @@ export function ModuleDocumentView({
           {page ? (
             <PageContent
               page={page}
-              index={pageIndex}
-              total={pages.length}
               showAnswers={effectiveShowAnswers}
             />
           ) : (

@@ -1103,10 +1103,7 @@ export function ModuleEditor({
                 </Button>
 
                 <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-                  <p className="text-sm text-slate-400">
-                    Page {pageIndex >= 0 ? pageIndex + 1 : 0} of {pages.length}
-                  </p>
-                  <h3 className="mt-4 text-[1.85rem] font-black tracking-tight text-slate-950">
+                  <h3 className="text-[1.85rem] font-black tracking-tight text-slate-950">
                     {previewCopy.heading}
                   </h3>
                   <ModuleMarkdown content={previewCopy.body} className="mt-3 text-base leading-8 text-slate-600" />
