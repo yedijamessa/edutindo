@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
   Check,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   CircleHelp,
   FileText,
@@ -23,8 +21,8 @@ import {
   Search,
   User,
   Calculator,
-  Sigma,
 } from "lucide-react";
+import { ModuleMarkdown } from "@/components/module-markdown";
 import { cn } from "@/lib/utils";
 import type {
   ModuleEditorDocument,
@@ -32,13 +30,6 @@ import type {
   ModuleEditorQuizBlock,
   ModuleEditorQuizType,
 } from "@/types/module-editor";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
   switch (quizType) {
@@ -52,16 +43,6 @@ function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
     case "essay": return "Extended Response";
     default: return "Quiz";
   }
-}
-
-function renderMarkdown(value: string) {
-  return (
-    <div className="prose prose-sm max-w-none text-slate-700 prose-p:leading-relaxed prose-headings:font-bold prose-headings:text-slate-900 prose-a:text-[#2f6fff] prose-a:no-underline hover:prose-a:underline prose-strong:font-bold prose-strong:text-slate-900 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-img:float-right prose-img:ml-6 prose-img:w-[150px] sm:prose-img:w-[220px] prose-img:rounded-[12px] prose-img:object-cover prose-img:shadow-sm">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {value || "Content will appear here."}
-      </ReactMarkdown>
-    </div>
-  );
 }
 
 function blockCount(page: ModuleEditorPage) {
@@ -316,7 +297,7 @@ function PageContent({
                   )}
                 </div>
                 <div className="space-y-3 pt-1">
-                  {renderMarkdown(block.body)}
+                  <ModuleMarkdown content={block.body} />
                 </div>
               </div>
             );

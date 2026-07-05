@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,22 +8,29 @@ import {
   ArrowUpRight,
   ArrowUp,
   ArrowDown,
+  Bold,
   BookCopy,
   Cloud,
   Eye,
   FileText,
   Image as ImageIcon,
+  Italic,
   Layers3,
+  Link2,
   List,
+  ListOrdered,
   MoreVertical,
   NotebookPen,
   PencilLine,
   Plus,
+  Quote,
   Save,
   Trash2,
   CircleHelp,
+  Underline,
   type LucideIcon,
 } from "lucide-react";
+import { ModuleMarkdown } from "@/components/module-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -269,6 +276,59 @@ function getPageWordCount(page: ModuleEditorPage | null) {
   }, 0);
 }
 
+type TextFormattingAction =
+  | "bold"
+  | "italic"
+  | "underline"
+  | "link"
+  | "bullet-list"
+  | "numbered-list"
+  | "quote";
+
+function wrapSelection(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  prefix: string,
+  suffix: string,
+  fallback: string
+) {
+  const selectedText = value.slice(selectionStart, selectionEnd);
+  const content = selectedText || fallback;
+  const replacement = `${prefix}${content}${suffix}`;
+  const nextValue = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`;
+  const contentStart = selectionStart + prefix.length;
+  const contentEnd = contentStart + content.length;
+
+  return {
+    nextValue,
+    selectionStart: contentStart,
+    selectionEnd: contentEnd,
+  };
+}
+
+function prefixSelectedLines(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  formatter: (line: string, index: number) => string,
+  fallback: string
+) {
+  const blockStart = value.lastIndexOf("\n", Math.max(0, selectionStart - 1)) + 1;
+  const blockEndCandidate = value.indexOf("\n", selectionEnd);
+  const blockEnd = blockEndCandidate === -1 ? value.length : blockEndCandidate;
+  const selectedBlock = value.slice(blockStart, blockEnd);
+  const lines = (selectedBlock || fallback).split("\n");
+  const replacement = lines.map((line, index) => formatter(line, index)).join("\n");
+  const nextValue = `${value.slice(0, blockStart)}${replacement}${value.slice(blockEnd)}`;
+
+  return {
+    nextValue,
+    selectionStart: blockStart,
+    selectionEnd: blockStart + replacement.length,
+  };
+}
+
 function getEstimatedReadTime(page: ModuleEditorPage | null) {
   const words = getPageWordCount(page);
   const minutes = Math.max(1, Math.ceil(words / 180));
@@ -379,9 +439,7 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
           {block.type === "text" && (
             <div className="space-y-3">
               {block.title && <h3 className="text-lg font-semibold text-slate-900">{block.title}</h3>}
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                {block.body || "Text content will appear here."}
-              </p>
+              <ModuleMarkdown content={block.body} className="text-sm" />
             </div>
           )}
 
@@ -518,6 +576,7 @@ export function ModuleEditor({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const textAreaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   useEffect(() => {
     setModuleId(initialModuleId);
@@ -562,6 +621,96 @@ export function ModuleEditor({
       ...page,
       blocks: page.blocks.map((block) => (block.id === blockId ? updater(block) : block)),
     }));
+  };
+
+  const addBlockToSelectedPage = (factory: () => ModuleEditorBlock) => {
+    if (!selectedPage) return;
+
+    const nextBlock = factory();
+    updateSelectedPage((page) => ({ ...page, blocks: [...page.blocks, nextBlock] }));
+    window.requestAnimationFrame(() => {
+      textAreaRefs.current[nextBlock.id]?.focus();
+    });
+  };
+
+  const applyTextFormatting = (blockId: string, action: TextFormattingAction) => {
+    const textarea = textAreaRefs.current[blockId];
+    if (!textarea) return;
+
+    const value = textarea.value;
+    const selectionStart = textarea.selectionStart ?? value.length;
+    const selectionEnd = textarea.selectionEnd ?? value.length;
+
+    let result: { nextValue: string; selectionStart: number; selectionEnd: number } | null = null;
+
+    if (action === "bold") {
+      result = wrapSelection(value, selectionStart, selectionEnd, "**", "**", "bold text");
+    }
+
+    if (action === "italic") {
+      result = wrapSelection(value, selectionStart, selectionEnd, "*", "*", "italic text");
+    }
+
+    if (action === "underline") {
+      result = wrapSelection(value, selectionStart, selectionEnd, "<u>", "</u>", "underlined text");
+    }
+
+    if (action === "link") {
+      const nextUrl = window.prompt("Enter the link URL", "https://");
+      if (nextUrl === null) return;
+
+      const trimmedUrl = nextUrl.trim();
+      if (!trimmedUrl) return;
+
+      const selectedText = value.slice(selectionStart, selectionEnd);
+      const linkLabel = selectedText || window.prompt("Enter the link text", "Link text") || "Link text";
+      const replacement = `[${linkLabel}](${trimmedUrl})`;
+      result = {
+        nextValue: `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`,
+        selectionStart: selectionStart + 1,
+        selectionEnd: selectionStart + 1 + linkLabel.length,
+      };
+    }
+
+    if (action === "bullet-list") {
+      result = prefixSelectedLines(value, selectionStart, selectionEnd, (line) => {
+        const cleaned = line.trim();
+        return cleaned.startsWith("- ") ? cleaned : `- ${cleaned || "List item"}`;
+      }, "List item");
+    }
+
+    if (action === "numbered-list") {
+      result = prefixSelectedLines(
+        value,
+        selectionStart,
+        selectionEnd,
+        (line, index) => `${index + 1}. ${line.trim() || `Item ${index + 1}`}`,
+        "List item"
+      );
+    }
+
+    if (action === "quote") {
+      result = prefixSelectedLines(value, selectionStart, selectionEnd, (line) => {
+        const cleaned = line.trim();
+        return cleaned.startsWith("> ") ? cleaned : `> ${cleaned || "Quoted note"}`;
+      }, "Quoted note");
+    }
+
+    if (!result) return;
+
+    updateBlock(blockId, (current) => ({
+      ...current,
+      type: "text",
+      title: current.type === "text" ? current.title : "",
+      body: result.nextValue,
+    }));
+
+    window.requestAnimationFrame(() => {
+      const nextTextarea = textAreaRefs.current[blockId];
+      if (!nextTextarea) return;
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(result.selectionStart, result.selectionEnd);
+    });
   };
 
   const saveDocument = async () => {
@@ -923,51 +1072,50 @@ export function ModuleEditor({
 
                 <Card className={cn(shellCardClassName, "rounded-[28px]")}>
                   <CardHeader className="pb-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Blocks</CardTitle>
-                        <CardDescription className="text-sm leading-6 text-slate-500">
-                          Mix content types inside the current page.
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                          onClick={() =>
-                            updateSelectedPage((page) => ({ ...page, blocks: [...page.blocks, createTextBlock()] }))
-                          }
-                        >
-                          <FileText className="mr-2 h-4 w-4" />
-                          Add Text
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                          onClick={() =>
-                            updateSelectedPage((page) => ({ ...page, blocks: [...page.blocks, createImageBlock()] }))
-                          }
-                        >
-                          <ImageIcon className="mr-2 h-4 w-4" />
-                          Add Image
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                          onClick={() =>
-                            updateSelectedPage((page) => ({ ...page, blocks: [...page.blocks, createQuizBlock()] }))
-                          }
-                        >
-                          <CircleHelp className="mr-2 h-4 w-4" />
-                          Add Quiz
-                        </Button>
-                      </div>
-                    </div>
+                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Blocks</CardTitle>
+                    <CardDescription className="text-sm leading-6 text-slate-500">
+                      Mix content types inside the current page. Quick-add stays pinned while you scroll.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="sticky top-24 z-20 -mx-1 rounded-[24px] border border-[#dfe7f5] bg-white/95 p-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.32)] backdrop-blur">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">Quick Add</p>
+                          <p className="text-xs text-slate-500">Add content without jumping back to the top.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                            onClick={() => addBlockToSelectedPage(createTextBlock)}
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Add Text
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                            onClick={() => addBlockToSelectedPage(createImageBlock)}
+                          >
+                            <ImageIcon className="mr-2 h-4 w-4" />
+                            Add Image
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                            onClick={() => addBlockToSelectedPage(createQuizBlock)}
+                          >
+                            <CircleHelp className="mr-2 h-4 w-4" />
+                            Add Quiz
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
                     {selectedPage.blocks.map((block, index) => (
                       <div key={block.id} className="rounded-[24px] border border-[#e5ecf8] bg-white p-4 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.35)]">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1056,8 +1204,41 @@ export function ModuleEditor({
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-sm font-semibold text-slate-700">Body</label>
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <label className="text-sm font-semibold text-slate-700">Body</label>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Supports bold, italic, underline, links, bullet lists, numbered lists, and quotes.
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {[
+                                    { label: "Bold", icon: Bold, action: "bold" as const },
+                                    { label: "Italic", icon: Italic, action: "italic" as const },
+                                    { label: "Underline", icon: Underline, action: "underline" as const },
+                                    { label: "Link", icon: Link2, action: "link" as const },
+                                    { label: "Bullets", icon: List, action: "bullet-list" as const },
+                                    { label: "Numbered", icon: ListOrdered, action: "numbered-list" as const },
+                                    { label: "Quote", icon: Quote, action: "quote" as const },
+                                  ].map(({ label, icon: Icon, action }) => (
+                                    <Button
+                                      key={`${block.id}-${action}`}
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-9 rounded-xl border-[#dfe7f5] bg-white px-3 text-slate-600 shadow-none hover:bg-[#f7faff]"
+                                      onClick={() => applyTextFormatting(block.id, action)}
+                                    >
+                                      <Icon className="mr-1.5 h-3.5 w-3.5" />
+                                      {label}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
                               <Textarea
+                                ref={(element) => {
+                                  textAreaRefs.current[block.id] = element;
+                                }}
                                 className="min-h-[120px] rounded-[20px] border-[#dfe7f5] bg-white"
                                 value={block.body}
                                 onChange={(event) =>
@@ -1710,9 +1891,7 @@ export function ModuleEditor({
                   <h3 className="mt-4 text-[1.85rem] font-black tracking-tight text-slate-950">
                     {previewCopy.heading}
                   </h3>
-                  <p className="mt-3 whitespace-pre-wrap text-base leading-8 text-slate-600">
-                    {previewCopy.body}
-                  </p>
+                  <ModuleMarkdown content={previewCopy.body} className="mt-3 text-base leading-8 text-slate-600" />
                 </div>
               </CardContent>
             </Card>
