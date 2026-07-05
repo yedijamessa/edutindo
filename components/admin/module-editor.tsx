@@ -335,44 +335,6 @@ function getEstimatedReadTime(page: ModuleEditorPage | null) {
   return `~ ${minutes} min`;
 }
 
-function getPreviewHeadline(page: ModuleEditorPage | null) {
-  if (!page) {
-    return {
-      heading: "No page selected",
-      body: "Choose a page to preview how students will experience the module content.",
-    };
-  }
-
-  const textBlock = page.blocks.find((block) => block.type === "text");
-  if (textBlock?.type === "text") {
-    return {
-      heading: textBlock.title.trim() || page.title || "Untitled page",
-      body: textBlock.body.trim() || "Text content will appear here for students.",
-    };
-  }
-
-  const imageBlock = page.blocks.find((block) => block.type === "image");
-  if (imageBlock?.type === "image") {
-    return {
-      heading: page.title || "Image section",
-      body: imageBlock.caption.trim() || "Image content will appear here for students.",
-    };
-  }
-
-  const quizBlock = page.blocks.find((block) => block.type === "quiz");
-  if (quizBlock?.type === "quiz") {
-    return {
-      heading: page.title || "Quiz section",
-      body: quizBlock.prompt.trim() || "Quiz content will appear here for students.",
-    };
-  }
-
-  return {
-    heading: page.title || "Untitled page",
-    body: page.description.trim() || "Content will appear here for students.",
-  };
-}
-
 function MetaItem({
   icon: Icon,
   label,
@@ -764,7 +726,6 @@ export function ModuleEditor({
   };
 
   const pageIndex = selectedPage ? pages.findIndex((page) => page.id === selectedPage.id) : -1;
-  const previewCopy = getPreviewHeadline(selectedPage);
   const currentYear = new Date().getFullYear();
   const shellCardClassName =
     "border-[#e8eef8] bg-white/90 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.25)] backdrop-blur";
@@ -1013,10 +974,25 @@ export function ModuleEditor({
           {selectedPage ? (
             <Card className={cn(shellCardClassName, "rounded-[28px]")}>
               <CardHeader className="pb-4">
-                <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Settings</CardTitle>
-                <CardDescription className="text-sm leading-6 text-slate-500">
-                  Set the label students will see before the content blocks.
-                </CardDescription>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Settings</CardTitle>
+                    <CardDescription className="text-sm leading-6 text-slate-500">
+                      Set the label students will see before the content blocks.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewOpen(true)}
+                    disabled={!selectedPage}
+                    className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  >
+                    <ArrowUpRight className="mr-2 h-4 w-4" />
+                    Open Preview
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
@@ -1075,42 +1051,6 @@ export function ModuleEditor({
           )}
 
           <div className="space-y-5">
-            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-              <CardHeader className="pb-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Live Preview</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-slate-500">
-                      This is how students will see the current page.
-                    </CardDescription>
-                  </div>
-                  <span className="rounded-full bg-[#eafbf2] px-3 py-1 text-xs font-semibold text-[#149b61]">
-                    Student View
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPreviewOpen(true)}
-                  disabled={!selectedPage}
-                  className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                >
-                  <ArrowUpRight className="mr-2 h-4 w-4" />
-                  Open Preview
-                </Button>
-
-                <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-                  <h3 className="text-[1.85rem] font-black tracking-tight text-slate-950">
-                    {previewCopy.heading}
-                  </h3>
-                  <ModuleMarkdown content={previewCopy.body} className="mt-3 text-base leading-8 text-slate-600" />
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className={cn(shellCardClassName, "rounded-[28px]")}>
               <CardHeader className="pb-4">
                 <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Summary</CardTitle>
