@@ -1730,7 +1730,7 @@ export function ModuleEditor({
       </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="h-[92vh] max-w-[min(96vw,82rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl p-0">
+        <DialogContent className="h-[92vh] max-w-[min(98vw,96rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl p-0">
           <DialogHeader className="border-b border-slate-200 px-6 py-5">
             <DialogTitle className="text-xl">Full Preview</DialogTitle>
             <DialogDescription>
@@ -1739,8 +1739,8 @@ export function ModuleEditor({
                 : "No page selected."}
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto bg-slate-50 px-6 py-6">
-            <div className="mx-auto max-w-4xl">
+          <div className="overflow-y-auto bg-slate-50 px-4 py-6 lg:px-6">
+            <div className="mx-auto w-full max-w-[88rem]">
               <ModuleDocumentView
                 key={selectedPage?.id || "preview"}
                 document={{
