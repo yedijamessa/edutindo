@@ -55,6 +55,19 @@ type AuthAdminOtpRow = {
   expires_at: Date;
 };
 
+type AuthAccountInviteRow = {
+  id: number;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  portals_json: unknown;
+  school_slug: string | null;
+  token_hash: string;
+  expires_at: Date;
+  accepted_at: Date | null;
+  created_at: Date;
+};
+
 type SmtpCandidate = {
   host: string;
   port: number;
@@ -85,6 +98,7 @@ const DEMO_PORTAL_CODE = process.env.DEMO_PORTAL_CODE ?? "123456";
 const DEMO_ACCESS_MAX_DAYS = Number(process.env.DEMO_ACCESS_MAX_DAYS ?? 7);
 const DEMO_ACCESS_MAX_SECONDS = DEMO_ACCESS_MAX_DAYS * 24 * 60 * 60;
 const EMAIL_VERIFICATION_EXPIRES_HOURS = Number(process.env.AUTH_EMAIL_VERIFICATION_EXPIRES_HOURS ?? 24);
+const ACCOUNT_INVITE_EXPIRES_HOURS = Number(process.env.AUTH_ACCOUNT_INVITE_EXPIRES_HOURS ?? 72);
 const PASSWORD_MIN_LENGTH = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 8);
 const PASSWORD_HASH_ITERATIONS = Number(process.env.AUTH_PASSWORD_HASH_ITERATIONS ?? 120000);
 const ADMIN_OTP_EXPIRES_MINUTES = Number(process.env.AUTH_ADMIN_OTP_EXPIRES_MINUTES ?? 10);
@@ -182,6 +196,10 @@ function hasValidDemoAccessToken(token: string | null | undefined) {
 
 function hashEmailVerificationToken(token: string) {
   return createHash("sha256").update(`${AUTH_SECRET}:verify-email:${token}`).digest("hex");
+}
+
+function hashAccountInviteToken(token: string) {
+  return createHash("sha256").update(`${AUTH_SECRET}:account-invite:${token}`).digest("hex");
 }
 
 function hashAdminOtp(email: string, code: string) {
@@ -440,6 +458,95 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
   );
 }
 
+async function sendAccountInviteEmail(params: {
+  email: string;
+  firstName: string;
+  token: string;
+  invitedByName: string;
+  portals: PortalKey[];
+}) {
+  const candidates = buildSmtpCandidates();
+  const inviteUrl = `${getAppBaseUrl()}/signup?invite=${encodeURIComponent(params.token)}`;
+  const expiresHours = ACCOUNT_INVITE_EXPIRES_HOURS;
+  const portalText = params.portals.length > 0 ? params.portals.join(", ") : "No portals assigned";
+  let lastError: unknown = null;
+
+  for (const smtp of candidates) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: smtp.from,
+        to: params.email,
+        subject: "You have been invited to Edutindo",
+        text:
+          `Hi ${params.firstName},\n\n` +
+          `${params.invitedByName} invited you to Edutindo.\n` +
+          `Assigned access: ${portalText}\n\n` +
+          `Create your account and set your password here:\n${inviteUrl}\n\n` +
+          `This invite expires in ${expiresHours} hours.\n\n` +
+          "If you were not expecting this invite, you can ignore this email.",
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">
+            <h2 style="margin:0 0 12px;">You have been invited to Edutindo</h2>
+            <p style="margin:0 0 12px;">Hi ${params.firstName}, ${params.invitedByName} invited you to join Edutindo.</p>
+            <p style="margin:0 0 12px;"><strong>Assigned access:</strong> ${portalText}</p>
+            <p style="margin:0 0 16px;">
+              <a
+                href="${inviteUrl}"
+                style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;"
+              >
+                Create Account
+              </a>
+            </p>
+            <p style="margin:0 0 8px;">Or copy this link into your browser:</p>
+            <p style="margin:0 0 8px;word-break:break-all;color:#1d4ed8;">${inviteUrl}</p>
+            <p style="margin:0;color:#64748b;">This invite expires in ${expiresHours} hours.</p>
+          </div>
+        `,
+      });
+
+      const accepted = info.accepted ?? [];
+      const rejected = info.rejected ?? [];
+      const wasAccepted = accepted.some((entry) => recipientMatch(entry, params.email));
+      const wasRejected = rejected.some((entry) => recipientMatch(entry, params.email));
+
+      if (!wasAccepted || wasRejected) {
+        throw new Error(
+          `Recipient not accepted by SMTP server. accepted=${accepted.join(",")} rejected=${rejected.join(",")} response=${info.response ?? ""}`
+        );
+      }
+
+      console.info(
+        `[auth-email] account-invite sent to=${params.email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} response=${info.response ?? ""} accepted=${accepted.join(",")} rejected=${rejected.join(",")}`
+      );
+
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[auth-email] account-invite failed to=${params.email} via ${smtp.host}:${smtp.port} secure=${smtp.secure}`,
+        error
+      );
+    }
+  }
+
+  console.error("All SMTP candidates failed for account invite email:", lastError);
+  throw new AuthError(
+    500,
+    "EMAIL_SEND_FAILED",
+    "Failed to send invitation email. Check SMTP host/port and credentials."
+  );
+}
+
 export async function ensureAuthSchema() {
   requireAuthStorage();
 
@@ -536,6 +643,39 @@ export async function ensureAuthSchema() {
         CREATE INDEX IF NOT EXISTS auth_user_portals_user_idx
         ON auth_user_portals (user_id);
       `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS auth_account_invites (
+          id SERIAL PRIMARY KEY,
+          email TEXT NOT NULL,
+          first_name TEXT,
+          last_name TEXT,
+          portals_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+          school_slug TEXT,
+          token_hash TEXT NOT NULL UNIQUE,
+          invited_by_user_id TEXT REFERENCES auth_users(id) ON DELETE SET NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          accepted_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `;
+
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS first_name TEXT;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS last_name TEXT;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS portals_json JSONB;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS school_slug TEXT;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS token_hash TEXT;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS invited_by_user_id TEXT;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;`;
+      await sql`ALTER TABLE auth_account_invites ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;`;
+      await sql`UPDATE auth_account_invites SET portals_json = '[]'::jsonb WHERE portals_json IS NULL;`;
+      await sql`ALTER TABLE auth_account_invites ALTER COLUMN portals_json SET DEFAULT '[]'::jsonb;`;
+      await sql`ALTER TABLE auth_account_invites ALTER COLUMN portals_json SET NOT NULL;`;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS auth_account_invites_email_created_idx
+        ON auth_account_invites (email, created_at DESC);
+      `;
     } catch (error) {
       authSchemaReady = null;
       throw error;
@@ -605,6 +745,32 @@ export function hasAdminPortalAccess(user: Pick<AuthUser, "isAdmin" | "portals">
 function sanitizePortals(input: string[]): PortalKey[] {
   const unique = Array.from(new Set(input.map((portal) => portal.toLowerCase().trim())));
   return unique.filter((portal): portal is PortalKey => PORTAL_SET.has(portal));
+}
+
+function sanitizeOptionalName(value: string) {
+  const cleaned = value.trim();
+  if (!cleaned) return "";
+  if (cleaned.length > 80) {
+    throw new AuthError(400, "INVALID_NAME", "Name is too long.");
+  }
+  return cleaned;
+}
+
+function parseInvitePortals(value: unknown): PortalKey[] {
+  if (!Array.isArray(value)) return [];
+  return sanitizePortals(value.map((portal) => String(portal)));
+}
+
+async function getAccountInviteRowByToken(tokenHash: string) {
+  const result = await sql<AuthAccountInviteRow>`
+    SELECT id, email, first_name, last_name, portals_json, school_slug, token_hash, expires_at, accepted_at, created_at
+    FROM auth_account_invites
+    WHERE token_hash = ${tokenHash}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  return result.rows[0] ?? null;
 }
 
 async function createUser(params: {
@@ -776,6 +942,238 @@ export async function setUserSchoolSlug(userId: string, schoolSlug: string | nul
     SET school_slug = ${normalizedSchoolSlug}, updated_at = NOW()
     WHERE id = ${userId}
   `;
+}
+
+export type AccountInvitePreview =
+  | {
+      ok: true;
+      email: string;
+      firstName: string;
+      lastName: string;
+      schoolSlug: string | null;
+      portals: PortalKey[];
+      expiresAt: string;
+    }
+  | {
+      ok: false;
+      code: "INVALID_TOKEN" | "TOKEN_EXPIRED" | "TOKEN_ACCEPTED";
+      error: string;
+    };
+
+export async function createAccountInvite(params: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  portals: string[];
+  schoolSlug?: string | null;
+  invitedByUserId: string;
+  invitedByName: string;
+}) {
+  await ensureAuthSchema();
+
+  const email = normalizeEmail(params.email);
+  const firstName = sanitizeOptionalName(params.firstName ?? "");
+  const lastName = sanitizeOptionalName(params.lastName ?? "");
+  const portals = sanitizePortals(params.portals);
+  const schoolSlug = params.schoolSlug?.trim() ? params.schoolSlug.trim().toLowerCase() : null;
+
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  if (portals.length === 0) {
+    throw new AuthError(400, "INVALID_PORTALS", "Select at least one portal before inviting someone.");
+  }
+
+  const existingUser = await getUserRowByEmail(email);
+  if (existingUser?.email_verified && existingUser.password_hash) {
+    throw new AuthError(
+      409,
+      "ACCOUNT_EXISTS",
+      "This email already has an account. Update their access from the user list instead."
+    );
+  }
+
+  const rawToken = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + ACCOUNT_INVITE_EXPIRES_HOURS * 60 * 60 * 1000);
+  const portalsJson = JSON.stringify(portals);
+
+  await sql`
+    UPDATE auth_account_invites
+    SET accepted_at = NOW()
+    WHERE email = ${email} AND accepted_at IS NULL
+  `;
+
+  await sql`
+    INSERT INTO auth_account_invites (
+      email,
+      first_name,
+      last_name,
+      portals_json,
+      school_slug,
+      token_hash,
+      invited_by_user_id,
+      expires_at
+    )
+    VALUES (
+      ${email},
+      ${firstName || null},
+      ${lastName || null},
+      ${portalsJson}::jsonb,
+      ${schoolSlug},
+      ${hashAccountInviteToken(rawToken)},
+      ${params.invitedByUserId},
+      ${expiresAt.toISOString()}
+    )
+  `;
+
+  await sendAccountInviteEmail({
+    email,
+    firstName: firstName || "there",
+    token: rawToken,
+    invitedByName: params.invitedByName,
+    portals,
+  });
+
+  return {
+    ok: true as const,
+    email,
+    expiresAt: expiresAt.toISOString(),
+  };
+}
+
+export async function getAccountInvitePreview(tokenInput: string): Promise<AccountInvitePreview> {
+  await ensureAuthSchema();
+
+  const token = tokenInput.trim();
+  if (token.length < 20) {
+    return { ok: false, code: "INVALID_TOKEN", error: "This invitation link is invalid." };
+  }
+
+  const invite = await getAccountInviteRowByToken(hashAccountInviteToken(token));
+  if (!invite) {
+    return { ok: false, code: "INVALID_TOKEN", error: "This invitation link is invalid." };
+  }
+
+  if (invite.accepted_at) {
+    return { ok: false, code: "TOKEN_ACCEPTED", error: "This invitation link has already been used." };
+  }
+
+  if (new Date(invite.expires_at).getTime() < Date.now()) {
+    return { ok: false, code: "TOKEN_EXPIRED", error: "This invitation link has expired." };
+  }
+
+  return {
+    ok: true,
+    email: invite.email,
+    firstName: invite.first_name ?? "",
+    lastName: invite.last_name ?? "",
+    schoolSlug: invite.school_slug ?? null,
+    portals: parseInvitePortals(invite.portals_json),
+    expiresAt: new Date(invite.expires_at).toISOString(),
+  };
+}
+
+export async function acceptAccountInvite(params: {
+  token: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}) {
+  await ensureAuthSchema();
+
+  const token = params.token.trim();
+  if (token.length < 20) {
+    throw new AuthError(400, "INVALID_TOKEN", "This invitation link is invalid.");
+  }
+
+  const invite = await getAccountInviteRowByToken(hashAccountInviteToken(token));
+  if (!invite) {
+    throw new AuthError(400, "INVALID_TOKEN", "This invitation link is invalid.");
+  }
+
+  if (invite.accepted_at) {
+    throw new AuthError(409, "TOKEN_ACCEPTED", "This invitation link has already been used.");
+  }
+
+  if (new Date(invite.expires_at).getTime() < Date.now()) {
+    throw new AuthError(400, "TOKEN_EXPIRED", "This invitation link has expired.");
+  }
+
+  const firstName = sanitizeName(params.firstName, "first name");
+  const lastName = sanitizeName(params.lastName, "last name");
+  validatePassword(params.password);
+
+  const passwordHash = hashPassword(params.password);
+  const portals = parseInvitePortals(invite.portals_json);
+  const shouldBeAdmin = portals.includes("admin") || isAllowlistedAdmin(invite.email);
+
+  let userRow = await getUserRowByEmail(invite.email);
+
+  if (userRow?.email_verified && userRow.password_hash) {
+    throw new AuthError(409, "ACCOUNT_EXISTS", "This account already exists. Please log in instead.");
+  }
+
+  if (userRow) {
+    await sql`
+      UPDATE auth_users
+      SET
+        first_name = ${firstName},
+        last_name = ${lastName},
+        password_hash = ${passwordHash},
+        email_verified = TRUE,
+        email_verified_at = NOW(),
+        is_admin = ${shouldBeAdmin},
+        updated_at = NOW()
+      WHERE id = ${userRow.id}
+    `;
+  } else {
+    const userId = randomUUID();
+    await sql`
+      INSERT INTO auth_users (
+        id,
+        email,
+        first_name,
+        last_name,
+        password_hash,
+        email_verified,
+        email_verified_at,
+        is_admin
+      )
+      VALUES (
+        ${userId},
+        ${invite.email},
+        ${firstName},
+        ${lastName},
+        ${passwordHash},
+        TRUE,
+        NOW(),
+        ${shouldBeAdmin}
+      )
+    `;
+    userRow = await getUserRowById(userId);
+  }
+
+  const resolvedUserId = userRow?.id;
+  if (!resolvedUserId) {
+    throw new AuthError(500, "USER_CREATE_FAILED", "Failed to create your account.");
+  }
+
+  await setUserPortals(resolvedUserId, portals);
+  await setUserSchoolSlug(resolvedUserId, invite.school_slug ?? null);
+
+  await sql`
+    UPDATE auth_account_invites
+    SET accepted_at = NOW()
+    WHERE id = ${invite.id}
+  `;
+
+  const refreshedUserRow = await getUserRowById(resolvedUserId);
+  if (!refreshedUserRow) {
+    throw new AuthError(500, "USER_LOAD_FAILED", "Failed to load your account.");
+  }
+
+  return createSessionForUser(await hydrateUser(refreshedUserRow));
 }
 
 export async function signupWithPassword(params: {

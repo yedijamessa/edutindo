@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,16 @@ interface EmailPasswordAuthFormProps {
   presetEmail?: string;
   verificationStatus?: "success" | "error";
   verificationReason?: string;
+  inviteToken?: string;
+  invitePreview?: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    schoolSlug: string | null;
+    portals: string[];
+    expiresAt: string;
+  } | null;
+  inviteError?: string | null;
 }
 
 type ApiResponse = {
@@ -50,17 +61,22 @@ export function EmailPasswordAuthForm({
   presetEmail,
   verificationStatus,
   verificationReason,
+  inviteToken,
+  invitePreview,
+  inviteError,
 }: EmailPasswordAuthFormProps) {
   const router = useRouter();
+  const isInviteSignup = mode === "signup" && Boolean(inviteToken);
+  const hasValidInvite = Boolean(inviteToken && invitePreview);
 
-  const [email, setEmail] = useState(presetEmail || "");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState(invitePreview?.email || presetEmail || "");
+  const [firstName, setFirstName] = useState(invitePreview?.firstName || "");
+  const [lastName, setLastName] = useState(invitePreview?.lastName || "");
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [loginStep, setLoginStep] = useState<LoginStep>("email");
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(inviteError || null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(
     verificationStatus === "success"
@@ -100,17 +116,28 @@ export function EmailPasswordAuthForm({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/signup", {
+      const endpoint = isInviteSignup ? "/api/auth/invite/accept" : "/api/auth/signup";
+      const body = isInviteSignup
+        ? { token: inviteToken, firstName, lastName, password, nextPath }
+        : { email, firstName, lastName, password };
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, firstName, lastName, password }),
+        body: JSON.stringify(body),
       });
 
       const data: ApiResponse = await response.json();
 
       if (!response.ok || !data.ok) {
         setErrorCode(data.code || null);
-        setError(data.error || "Failed to create account.");
+        setError(data.error || (isInviteSignup ? "Failed to finish account setup." : "Failed to create account."));
+        return;
+      }
+
+      if (isInviteSignup) {
+        setInfo(data.message || "Account created successfully.");
+        router.push(data.redirectTo || "/dashboard");
+        router.refresh();
         return;
       }
 
@@ -118,7 +145,7 @@ export function EmailPasswordAuthForm({
       setPassword("");
     } catch (signupError) {
       console.error(signupError);
-      setError("Unable to create account right now.");
+      setError(isInviteSignup ? "Unable to finish account setup right now." : "Unable to create account right now.");
     } finally {
       setIsSubmitting(false);
     }
@@ -289,15 +316,35 @@ export function EmailPasswordAuthForm({
           <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
             {cardIcon}
           </div>
-          <CardTitle className="text-2xl">{isLogin ? "Log In" : "Create Account"}</CardTitle>
+          <CardTitle className="text-2xl">
+            {isLogin ? "Log In" : isInviteSignup ? "Set Up Your Account" : "Create Account"}
+          </CardTitle>
           <CardDescription>
             {isLogin
               ? loginDescription
-              : "Enter your details. We will send a verification email before you can log in."}
+              : isInviteSignup
+                ? hasValidInvite
+                  ? "You were invited to Edutindo. Create your password to finish setting up your account."
+                  : "This invitation link is not available anymore."
+                : "Enter your details. We will send a verification email before you can log in."}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {isInviteSignup && invitePreview && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">{invitePreview.email}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {invitePreview.portals.map((portal) => (
+                  <Badge key={portal} variant="secondary">
+                    {portal}
+                  </Badge>
+                ))}
+                {invitePreview.schoolSlug ? <Badge variant="secondary">{invitePreview.schoolSlug}</Badge> : null}
+              </div>
+            </div>
+          )}
+
           {!isLogin && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -329,7 +376,7 @@ export function EmailPasswordAuthForm({
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
-              readOnly={isLogin && loginStep !== "email"}
+              readOnly={isInviteSignup || (isLogin && loginStep !== "email")}
             />
           </div>
 
@@ -379,6 +426,7 @@ export function EmailPasswordAuthForm({
               onClick={submitSignup}
               disabled={
                 isSubmitting ||
+                (isInviteSignup && !hasValidInvite) ||
                 !email.trim() ||
                 !password ||
                 !firstName.trim() ||
@@ -388,11 +436,11 @@ export function EmailPasswordAuthForm({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating account...
+                  {isInviteSignup ? "Setting up account..." : "Creating account..."}
                 </>
               ) : (
                 <>
-                  Create Account
+                  {isInviteSignup ? "Create Password and Continue" : "Create Account"}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}

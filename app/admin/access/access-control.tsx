@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,8 +36,14 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
   const [draftSchoolSlugs, setDraftSchoolSlugs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
+  const [inviteSchoolSlug, setInviteSchoolSlug] = useState("");
+  const [invitePortals, setInvitePortals] = useState<Set<string>>(new Set(["admin"]));
 
   const portalLabels = useMemo(
     () => ({
@@ -136,6 +142,56 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
     }));
   };
 
+  const toggleInvitePortal = (portal: string) => {
+    setInvitePortals((prev) => {
+      const next = new Set(prev);
+      if (next.has(portal)) {
+        next.delete(portal);
+      } else {
+        next.add(portal);
+      }
+      return next;
+    });
+  };
+
+  const sendInvite = async () => {
+    setIsInviting(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteEmail,
+          firstName: inviteFirstName,
+          lastName: inviteLastName,
+          schoolSlug: inviteSchoolSlug || null,
+          portals: Array.from(invitePortals),
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setError(data.error || "Failed to send invitation.");
+        return;
+      }
+
+      setMessage(data.message || `Invitation sent to ${inviteEmail.trim().toLowerCase()}.`);
+      setInviteEmail("");
+      setInviteFirstName("");
+      setInviteLastName("");
+      setInviteSchoolSlug("");
+      setInvitePortals(new Set(["admin"]));
+    } catch (inviteError) {
+      console.error(inviteError);
+      setError("Failed to send invitation.");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   const savePortals = async (user: AdminUser) => {
     setSavingUserId(user.id);
     setError(null);
@@ -177,6 +233,117 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
             Signed in as <span className="font-medium text-foreground">{adminEmail}</span>. Configure which portals and school each user can access.
           </CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Invite People</CardTitle>
+          <CardDescription>
+            Send a setup link so a new teammate can create their account, choose a password, and receive the assigned access automatically.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="invite-email">
+                Email
+              </label>
+              <input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="name@example.com"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="invite-first-name">
+                First name
+              </label>
+              <input
+                id="invite-first-name"
+                value={inviteFirstName}
+                onChange={(event) => setInviteFirstName(event.target.value)}
+                placeholder="Optional"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="invite-last-name">
+                Last name
+              </label>
+              <input
+                id="invite-last-name"
+                value={inviteLastName}
+                onChange={(event) => setInviteLastName(event.target.value)}
+                placeholder="Optional"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="invite-school">
+              School
+            </label>
+            <select
+              id="invite-school"
+              value={inviteSchoolSlug}
+              onChange={(event) => setInviteSchoolSlug(event.target.value)}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">No school assigned</option>
+              {schools.map((school) => (
+                <option key={school.id} value={school.slug}>
+                  {school.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+            {PORTAL_OPTIONS.map((portal) => {
+              const checked = invitePortals.has(portal);
+
+              return (
+                <label
+                  key={portal}
+                  className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleInvitePortal(portal)}
+                    className="h-4 w-4"
+                  />
+                  <span>{portalLabels[portal]}</span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={sendInvite}
+              disabled={isInviting || !inviteEmail.trim() || invitePortals.size === 0}
+            >
+              {isInviting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending invite...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Invite People
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
       </Card>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
