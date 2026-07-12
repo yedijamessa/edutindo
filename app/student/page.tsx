@@ -79,10 +79,14 @@ function formatDate(value: Date | string) {
 export default async function StudentDashboard() {
   const user = await getCurrentUser();
   const studentName = user ? `${user.firstName} ${user.lastName}`.trim() || user.email : "Student";
-  const schools = user?.schoolSlug ? await listCurriculumSchools() : [];
-  const schoolTitle = user?.schoolSlug
-    ? schools.find((school) => school.slug === user.schoolSlug)?.title ?? null
-    : null;
+  const schools = user?.schoolSlugs && user.schoolSlugs.length > 0 ? await listCurriculumSchools() : [];
+  const assignedSchoolTitles = (user?.schoolSlugs ?? [])
+    .map((schoolSlug) => schools.find((school) => school.slug === schoolSlug)?.title)
+    .filter((title): title is string => Boolean(title));
+  const schoolTitle =
+    assignedSchoolTitles.length <= 1
+      ? assignedSchoolTitles[0] ?? null
+      : `${assignedSchoolTitles.length} schools assigned`;
   const studentId = user?.id ?? "student-1";
 
   const [materials, studentProgress, studentEvents] = await Promise.all([

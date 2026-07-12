@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
         isAdmin: user.isAdmin,
         portals: user.portals,
         schoolSlug: user.schoolSlug,
+        schoolSlugs: user.schoolSlugs,
         createdAt: user.createdAt.toISOString(),
       })),
     });

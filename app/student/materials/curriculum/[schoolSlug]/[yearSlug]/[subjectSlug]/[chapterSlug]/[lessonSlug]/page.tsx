@@ -18,7 +18,7 @@ export default async function StudentSchoolCurriculumLessonPage({ params }: Less
   const { schoolSlug, yearSlug, subjectSlug, chapterSlug, lessonSlug } = await params;
   const user = await getCurrentUser();
 
-  if (user?.schoolSlug && user.schoolSlug !== schoolSlug) {
+  if (user?.schoolSlugs && user.schoolSlugs.length > 0 && !user.schoolSlugs.includes(schoolSlug)) {
     notFound();
   }
 

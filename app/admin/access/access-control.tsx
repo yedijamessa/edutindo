@@ -16,6 +16,7 @@ type AdminUser = {
   isAdmin: boolean;
   portals: string[];
   schoolSlug: string | null;
+  schoolSlugs: string[];
   createdAt: string;
 };
 
@@ -33,7 +34,7 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [draftPortals, setDraftPortals] = useState<Record<string, Set<string>>>({});
-  const [draftSchoolSlugs, setDraftSchoolSlugs] = useState<Record<string, string>>({});
+  const [draftSchoolSlugs, setDraftSchoolSlugs] = useState<Record<string, Set<string>>>({});
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [isInviting, setIsInviting] = useState(false);
@@ -74,10 +75,10 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
       setUsers(loadedUsers);
 
       const nextDrafts: Record<string, Set<string>> = {};
-      const nextSchoolDrafts: Record<string, string> = {};
+      const nextSchoolDrafts: Record<string, Set<string>> = {};
       for (const user of loadedUsers) {
         nextDrafts[user.id] = new Set(user.portals);
-        nextSchoolDrafts[user.id] = user.schoolSlug ?? "";
+        nextSchoolDrafts[user.id] = new Set(user.schoolSlugs ?? (user.schoolSlug ? [user.schoolSlug] : []));
       }
       setDraftPortals(nextDrafts);
       setDraftSchoolSlugs(nextSchoolDrafts);
@@ -135,11 +136,20 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
     });
   };
 
-  const updateSchool = (userId: string, schoolSlug: string) => {
-    setDraftSchoolSlugs((prev) => ({
-      ...prev,
-      [userId]: schoolSlug,
-    }));
+  const toggleSchool = (userId: string, schoolSlug: string) => {
+    setDraftSchoolSlugs((prev) => {
+      const next = { ...prev };
+      const current = new Set(next[userId] ?? []);
+
+      if (current.has(schoolSlug)) {
+        current.delete(schoolSlug);
+      } else {
+        current.add(schoolSlug);
+      }
+
+      next[userId] = current;
+      return next;
+    });
   };
 
   const toggleInvitePortal = (portal: string) => {
@@ -199,12 +209,13 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
 
     try {
       const selected = Array.from(draftPortals[user.id] ?? []);
+      const selectedSchoolSlugs = Array.from(draftSchoolSlugs[user.id] ?? []);
       const response = await fetch(`/api/admin/users/${user.id}/portals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           portals: selected,
-          schoolSlug: draftSchoolSlugs[user.id] || null,
+          schoolSlugs: selectedSchoolSlugs,
         }),
       });
       const data = await response.json();
@@ -230,19 +241,19 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
         <CardHeader>
           <CardTitle className="text-2xl">Admin Access Control</CardTitle>
           <CardDescription>
-            Signed in as <span className="font-medium text-foreground">{adminEmail}</span>. Configure which portals and school each user can access.
+            Signed in as <span className="font-medium text-foreground">{adminEmail}</span>. Configure which portals and schools each user can access.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden border-sky-200/80 bg-[linear-gradient(135deg,rgba(239,246,255,0.95),rgba(248,250,255,0.98))] shadow-[0_24px_70px_-48px_rgba(37,99,235,0.55)]">
+        <CardHeader className="border-b border-sky-100/80 bg-white/35 backdrop-blur-sm">
           <CardTitle className="text-xl">Invite People</CardTitle>
           <CardDescription>
             Send a setup link so a new teammate can create their account, choose a password, and receive the assigned access automatically.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 bg-transparent">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="invite-email">
@@ -287,7 +298,7 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground" htmlFor="invite-school">
-              School
+              Primary school
             </label>
             <select
               id="invite-school"
@@ -381,8 +392,8 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
                         {user.emailVerified ? "Verified" : "Unverified"}
                       </Badge>
                       <Badge variant="secondary">
-                        {draftSchoolSlugs[user.id]
-                          ? schools.find((school) => school.slug === draftSchoolSlugs[user.id])?.title ?? "School assigned"
+                        {(draftSchoolSlugs[user.id]?.size ?? 0) > 0
+                          ? `${draftSchoolSlugs[user.id]?.size ?? 0} school${(draftSchoolSlugs[user.id]?.size ?? 0) === 1 ? "" : "s"}`
                           : "No school"}
                       </Badge>
                       <Badge variant="secondary">{selectedPortals.size} portals</Badge>
@@ -390,22 +401,25 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor={`school-${user.id}`}>
-                      School
+                    <label className="text-sm font-medium text-foreground">
+                      Schools
                     </label>
-                    <select
-                      id={`school-${user.id}`}
-                      value={draftSchoolSlugs[user.id] ?? ""}
-                      onChange={(event) => updateSchool(user.id, event.target.value)}
-                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">No school assigned</option>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {schools.map((school) => (
-                        <option key={school.id} value={school.slug}>
-                          {school.title}
-                        </option>
+                        <label
+                          key={school.id}
+                          className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={draftSchoolSlugs[user.id]?.has(school.slug) ?? false}
+                            onChange={() => toggleSchool(user.id, school.slug)}
+                            className="h-4 w-4"
+                          />
+                          <span>{school.title}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">

@@ -112,7 +112,7 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
             return (
               <article
                 key={tool.href}
-                className="flex h-full flex-col rounded-[28px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_-48px_rgba(15,23,42,0.5)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_32px_70px_-44px_rgba(37,99,235,0.36)] dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none"
+                className="flex h-full min-h-[18.5rem] flex-col rounded-[28px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_-48px_rgba(15,23,42,0.5)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_32px_70px_-44px_rgba(37,99,235,0.36)] dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none"
               >
                 <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#eef4ff_0%,#dfe8ff_100%)] text-[#2f6fff] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.32)_0%,rgba(37,99,235,0.16)_100%)] dark:text-blue-200">
                   <Icon className="h-6 w-6" strokeWidth={1.9} />
@@ -125,7 +125,7 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
                 </p>
                 <Button
                   asChild
-                  className="mt-8 h-11 w-full rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-[15px] font-medium text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
+                  className="mt-auto h-11 w-full rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-[15px] font-medium text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
                 >
                   <Link href={tool.href}>Open</Link>
                 </Button>

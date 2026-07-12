@@ -12,7 +12,7 @@ export default async function StudentSchoolCurriculumChapterPage({ params }: Cha
   const { schoolSlug, yearSlug, subjectSlug, chapterSlug } = await params;
   const user = await getCurrentUser();
 
-  if (user?.schoolSlug && user.schoolSlug !== schoolSlug) {
+  if (user?.schoolSlugs && user.schoolSlugs.length > 0 && !user.schoolSlugs.includes(schoolSlug)) {
     notFound();
   }
 

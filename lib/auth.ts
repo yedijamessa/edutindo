@@ -25,6 +25,7 @@ export interface AuthUser {
   isAdmin: boolean;
   portals: PortalKey[];
   schoolSlug: string | null;
+  schoolSlugs: string[];
   createdAt: Date;
 }
 
@@ -66,6 +67,11 @@ type AuthAccountInviteRow = {
   expires_at: Date;
   accepted_at: Date | null;
   created_at: Date;
+};
+
+type AuthUserSchoolRow = {
+  user_id: string;
+  school_slug: string;
 };
 
 type SmtpCandidate = {
@@ -645,6 +651,29 @@ export async function ensureAuthSchema() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS auth_user_schools (
+          id SERIAL PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+          school_slug TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE(user_id, school_slug)
+        );
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS auth_user_schools_user_idx
+        ON auth_user_schools (user_id);
+      `;
+
+      await sql`
+        INSERT INTO auth_user_schools (user_id, school_slug)
+        SELECT id, school_slug
+        FROM auth_users
+        WHERE school_slug IS NOT NULL AND school_slug <> ''
+        ON CONFLICT (user_id, school_slug) DO NOTHING
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS auth_account_invites (
           id SERIAL PRIMARY KEY,
           email TEXT NOT NULL,
@@ -720,8 +749,32 @@ async function getPortalsForUser(userId: string) {
     .filter((portal): portal is PortalKey => PORTAL_SET.has(portal));
 }
 
+async function getSchoolSlugsForUser(userId: string, fallbackSchoolSlug: string | null) {
+  const result = await sql<{ school_slug: string }>`
+    SELECT school_slug
+    FROM auth_user_schools
+    WHERE user_id = ${userId}
+    ORDER BY created_at ASC, school_slug ASC
+  `;
+
+  const schoolSlugs = Array.from(
+    new Set(
+      result.rows
+        .map((row) => row.school_slug.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+
+  if (schoolSlugs.length > 0) {
+    return schoolSlugs;
+  }
+
+  return fallbackSchoolSlug ? [fallbackSchoolSlug] : [];
+}
+
 async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
   const portals = await getPortalsForUser(userRow.id);
+  const schoolSlugs = await getSchoolSlugsForUser(userRow.id, userRow.school_slug ?? null);
   const isAdmin = userRow.is_admin || portals.includes("admin");
 
   return {
@@ -732,7 +785,8 @@ async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
     emailVerified: userRow.email_verified,
     isAdmin,
     portals,
-    schoolSlug: userRow.school_slug ?? null,
+    schoolSlug: schoolSlugs[0] ?? userRow.school_slug ?? null,
+    schoolSlugs,
     createdAt: new Date(userRow.created_at),
   };
 }
@@ -928,6 +982,11 @@ export async function setUserPortals(userId: string, portals: PortalKey[]) {
 }
 
 export async function setUserSchoolSlug(userId: string, schoolSlug: string | null) {
+  const schoolSlugs = schoolSlug ? [schoolSlug] : [];
+  return setUserSchoolSlugs(userId, schoolSlugs);
+}
+
+export async function setUserSchoolSlugs(userId: string, schoolSlugs: string[]) {
   await ensureAuthSchema();
 
   const userRow = await getUserRowById(userId);
@@ -935,11 +994,31 @@ export async function setUserSchoolSlug(userId: string, schoolSlug: string | nul
     throw new AuthError(404, "USER_NOT_FOUND", "User not found.");
   }
 
-  const normalizedSchoolSlug = schoolSlug?.trim() ? schoolSlug.trim().toLowerCase() : null;
+  const normalizedSchoolSlugs = Array.from(
+    new Set(
+      schoolSlugs
+        .map((schoolSlug) => schoolSlug.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  const primarySchoolSlug = normalizedSchoolSlugs[0] ?? null;
+
+  await sql`
+    DELETE FROM auth_user_schools
+    WHERE user_id = ${userId}
+  `;
+
+  for (const schoolSlug of normalizedSchoolSlugs) {
+    await sql`
+      INSERT INTO auth_user_schools (user_id, school_slug)
+      VALUES (${userId}, ${schoolSlug})
+      ON CONFLICT (user_id, school_slug) DO NOTHING
+    `;
+  }
 
   await sql`
     UPDATE auth_users
-    SET school_slug = ${normalizedSchoolSlug}, updated_at = NOW()
+    SET school_slug = ${primarySchoolSlug}, updated_at = NOW()
     WHERE id = ${userId}
   `;
 }
@@ -951,6 +1030,7 @@ export type AccountInvitePreview =
       firstName: string;
       lastName: string;
       schoolSlug: string | null;
+      schoolSlugs: string[];
       portals: PortalKey[];
       expiresAt: string;
     }
@@ -1069,6 +1149,7 @@ export async function getAccountInvitePreview(tokenInput: string): Promise<Accou
     firstName: invite.first_name ?? "",
     lastName: invite.last_name ?? "",
     schoolSlug: invite.school_slug ?? null,
+    schoolSlugs: invite.school_slug ? [invite.school_slug] : [],
     portals: parseInvitePortals(invite.portals_json),
     expiresAt: new Date(invite.expires_at).toISOString(),
   };
@@ -1709,7 +1790,14 @@ export async function listUsersWithPortals() {
     FROM auth_user_portals
   `;
 
+  const schoolsResult = await sql<AuthUserSchoolRow>`
+    SELECT user_id, school_slug
+    FROM auth_user_schools
+    ORDER BY created_at ASC, school_slug ASC
+  `;
+
   const portalsByUser = new Map<string, PortalKey[]>();
+  const schoolsByUser = new Map<string, string[]>();
 
   for (const row of portalsResult.rows) {
     if (!PORTAL_SET.has(row.portal)) continue;
@@ -1718,17 +1806,32 @@ export async function listUsersWithPortals() {
     portalsByUser.set(row.user_id, existing);
   }
 
-  return usersResult.rows.map((row) => ({
-    id: row.id,
-    email: row.email,
-    firstName: row.first_name ?? "",
-    lastName: row.last_name ?? "",
-    emailVerified: row.email_verified,
-    isAdmin: row.is_admin || (portalsByUser.get(row.id) ?? []).includes("admin"),
-    schoolSlug: row.school_slug ?? null,
-    createdAt: new Date(row.created_at),
-    portals: portalsByUser.get(row.id) ?? [],
-  }));
+  for (const row of schoolsResult.rows) {
+    const schoolSlug = row.school_slug.trim().toLowerCase();
+    if (!schoolSlug) continue;
+    const existing = schoolsByUser.get(row.user_id) ?? [];
+    if (!existing.includes(schoolSlug)) {
+      existing.push(schoolSlug);
+      schoolsByUser.set(row.user_id, existing);
+    }
+  }
+
+  return usersResult.rows.map((row) => {
+    const schoolSlugs = schoolsByUser.get(row.id) ?? (row.school_slug ? [row.school_slug] : []);
+
+    return {
+      id: row.id,
+      email: row.email,
+      firstName: row.first_name ?? "",
+      lastName: row.last_name ?? "",
+      emailVerified: row.email_verified,
+      isAdmin: row.is_admin || (portalsByUser.get(row.id) ?? []).includes("admin"),
+      schoolSlug: schoolSlugs[0] ?? row.school_slug ?? null,
+      schoolSlugs,
+      createdAt: new Date(row.created_at),
+      portals: portalsByUser.get(row.id) ?? [],
+    };
+  });
 }
 
 export function sanitizeNextPath(nextPath: string | null | undefined, fallback = "/dashboard") {

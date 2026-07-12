@@ -916,7 +916,7 @@ export function ModuleEditor({
             </Card>
           )}
 
-          <div className="space-y-5">
+          <div className="space-y-5 xl:sticky xl:top-24 xl:self-start">
             <Card className={cn(shellCardClassName, "rounded-[28px]")}>
               <CardHeader className="pb-4">
                 <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Summary</CardTitle>
@@ -933,6 +933,47 @@ export function ModuleEditor({
                     icon={Cloud}
                     label="Last edited"
                     value={dirty ? "Unsaved" : updatedAt ? "Saved" : "Draft"}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={cn(shellCardClassName, "rounded-[28px] overflow-hidden")}>
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Live Preview</CardTitle>
+                    <CardDescription className="text-sm leading-6 text-slate-500">
+                      Updates instantly while you edit blocks on this page.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewOpen(true)}
+                    className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  >
+                    <ArrowUpRight className="mr-2 h-4 w-4" />
+                    Full Preview
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="max-h-[70vh] overflow-y-auto rounded-[24px] border border-[#e5ecf8] bg-slate-50 p-3">
+                  <ModuleDocumentView
+                    key={selectedPage?.id || "inline-preview"}
+                    document={{
+                      id: moduleId || "draft-module",
+                      title: title || "Module draft",
+                      pages,
+                      updatedAt,
+                      subjectSlug: subjectSlug || "",
+                      subjectTitle,
+                      chapterSlug: chapterSlug || "",
+                      chapterTitle,
+                    }}
+                    initialPageId={selectedPage?.id}
                   />
                 </div>
               </CardContent>

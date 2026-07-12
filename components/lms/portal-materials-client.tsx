@@ -53,7 +53,7 @@ type LegacyPortalRole = Exclude<PortalRole, "admin">;
 interface PortalMaterialsClientProps {
   role: PortalRole;
   materials: Material[];
-  lockedSchoolSlug?: string | null;
+  lockedSchoolSlugs?: string[] | null;
 }
 
 type CurriculumChapter = {
@@ -2045,7 +2045,7 @@ function LegacyPortalMaterialsExperience({
   );
 }
 
-export function PortalMaterialsClient({ role, materials, lockedSchoolSlug = null }: PortalMaterialsClientProps) {
+export function PortalMaterialsClient({ role, materials, lockedSchoolSlugs = null }: PortalMaterialsClientProps) {
   const searchParams = useSearchParams();
   const [legacySearchQuery, setLegacySearchQuery] = useState("");
   const [outlineLoading, setOutlineLoading] = useState(true);
@@ -2082,20 +2082,20 @@ export function PortalMaterialsClient({ role, materials, lockedSchoolSlug = null
 
         const allSchools: CurriculumSchool[] = Array.isArray(data.schools) ? data.schools : [];
         const visibleSchools =
-          role === "student" && lockedSchoolSlug
-            ? allSchools.filter((school) => school.slug === lockedSchoolSlug)
+          role === "student" && lockedSchoolSlugs && lockedSchoolSlugs.length > 0
+            ? allSchools.filter((school) => lockedSchoolSlugs.includes(school.slug))
             : allSchools;
 
         setSchools(visibleSchools);
         setDefaultSchoolSlug(
-          role === "student" && lockedSchoolSlug
-            ? lockedSchoolSlug
+          role === "student" && lockedSchoolSlugs && lockedSchoolSlugs.length > 0
+            ? lockedSchoolSlugs[0] ?? ""
             : typeof data.defaultSchoolSlug === "string"
               ? data.defaultSchoolSlug
               : ""
         );
 
-        if (role === "student" && lockedSchoolSlug && visibleSchools.length === 0) {
+        if (role === "student" && lockedSchoolSlugs && lockedSchoolSlugs.length > 0 && visibleSchools.length === 0) {
           setOutlineError("Your assigned school is not available in the curriculum yet.");
         }
       } catch (error) {
@@ -2114,20 +2114,13 @@ export function PortalMaterialsClient({ role, materials, lockedSchoolSlug = null
     return () => {
       mounted = false;
     };
-  }, [lockedSchoolSlug, role]);
+  }, [lockedSchoolSlugs, role]);
 
   useEffect(() => {
     if (schools.length === 0) {
       setSelectedSchoolSlug("");
       setSelectedYearSlug("");
       setSelectedSubjectSlug("");
-      return;
-    }
-
-    if (role === "student" && lockedSchoolSlug && schools.some((school) => school.slug === lockedSchoolSlug)) {
-      if (selectedSchoolSlug !== lockedSchoolSlug) {
-        setSelectedSchoolSlug(lockedSchoolSlug);
-      }
       return;
     }
 
@@ -2138,12 +2131,22 @@ export function PortalMaterialsClient({ role, materials, lockedSchoolSlug = null
       return;
     }
 
+    if (
+      role === "student" &&
+      lockedSchoolSlugs &&
+      lockedSchoolSlugs.length > 0 &&
+      !selectedSchoolSlug
+    ) {
+      setSelectedSchoolSlug(lockedSchoolSlugs[0] ?? "");
+      return;
+    }
+
     if (!selectedSchoolSlug || !schools.some((school) => school.slug === selectedSchoolSlug)) {
       const preferredSchool =
         schools.find((school) => school.slug === defaultSchoolSlug) ?? schools[0];
       setSelectedSchoolSlug(preferredSchool?.slug ?? "");
     }
-  }, [defaultSchoolSlug, lockedSchoolSlug, requestedSchoolSlug, role, schools, selectedSchoolSlug]);
+  }, [defaultSchoolSlug, lockedSchoolSlugs, requestedSchoolSlug, role, schools, selectedSchoolSlug]);
 
   const selectedSchool = useMemo(
     () => schools.find((school) => school.slug === selectedSchoolSlug) ?? null,

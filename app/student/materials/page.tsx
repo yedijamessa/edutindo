@@ -6,5 +6,5 @@ export default async function StudentMaterialsPage() {
     const user = await getCurrentUser();
     const materials = await getMaterials();
 
-    return <PortalMaterialsClient role="student" materials={materials} lockedSchoolSlug={user?.schoolSlug ?? null} />;
+    return <PortalMaterialsClient role="student" materials={materials} lockedSchoolSlugs={user?.schoolSlugs ?? null} />;
 }

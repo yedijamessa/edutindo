@@ -4,7 +4,7 @@ import {
   getUserFromSessionToken,
   hasAdminPortalAccess,
   setUserPortals,
-  setUserSchoolSlug,
+  setUserSchoolSlugs,
 } from "@/lib/auth";
 import { listCurriculumSchools } from "@/lib/curriculum-portal";
 import { PORTAL_OPTIONS, SESSION_COOKIE_NAME } from "@/lib/auth-shared";
@@ -34,20 +34,27 @@ export async function POST(req: NextRequest, context: Context) {
     const validPortals = rawPortals.filter((portal: string): portal is (typeof PORTAL_OPTIONS)[number] =>
       PORTAL_OPTIONS.includes(portal as (typeof PORTAL_OPTIONS)[number])
     );
-    const requestedSchoolSlug = typeof body?.schoolSlug === "string" ? body.schoolSlug.trim().toLowerCase() : "";
-    const nextSchoolSlug = requestedSchoolSlug || null;
+    const requestedSchoolSlugs: string[] = Array.isArray(body?.schoolSlugs)
+      ? body.schoolSlugs
+          .map((item: unknown) => String(item).trim().toLowerCase())
+          .filter((schoolSlug: string) => schoolSlug.length > 0)
+      : typeof body?.schoolSlug === "string" && body.schoolSlug.trim()
+        ? [body.schoolSlug.trim().toLowerCase()]
+        : [];
+    const nextSchoolSlugs = Array.from(new Set(requestedSchoolSlugs));
 
-    if (nextSchoolSlug) {
+    if (nextSchoolSlugs.length > 0) {
       const schools = await listCurriculumSchools();
-      const isValidSchool = schools.some((school) => school.slug === nextSchoolSlug);
+      const validSchoolSlugs = new Set(schools.map((school) => school.slug));
+      const hasInvalidSchool = nextSchoolSlugs.some((schoolSlug) => !validSchoolSlugs.has(schoolSlug));
 
-      if (!isValidSchool) {
+      if (hasInvalidSchool) {
         return NextResponse.json({ ok: false, error: "Invalid school selection." }, { status: 400 });
       }
     }
 
     await setUserPortals(userId, validPortals);
-    await setUserSchoolSlug(userId, nextSchoolSlug);
+    await setUserSchoolSlugs(userId, nextSchoolSlugs);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
