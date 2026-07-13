@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, Layers3, NotebookPen, Plus } from "lucide-react";
+import { ArrowUpRight, Layers3, Loader2, NotebookPen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { ModuleCatalogSubjectGroup } from "@/types/module-editor";
 
 function createSearch(
@@ -42,6 +43,10 @@ export function ModuleEditorSelector({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [chapterTitle, setChapterTitle] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [createMessage, setCreateMessage] = useState("");
+  const [creatingChapter, setCreatingChapter] = useState(false);
 
   const currentSubject = useMemo(
     () => subjects.find((subject) => subject.slug === currentSubjectSlug) ?? null,
@@ -59,6 +64,58 @@ export function ModuleEditorSelector({
     nextCreatingNew: boolean
   ) => {
     router.replace(`${pathname}${createSearch(subjectSlug, chapterSlug, moduleId, nextCreatingNew)}`);
+  };
+
+  useEffect(() => {
+    setChapterTitle("");
+    setCreateError("");
+    setCreateMessage("");
+  }, [currentSubjectSlug]);
+
+  const handleCreateChapter = async () => {
+    if (!currentSubject?.id) {
+      setCreateError("Choose a curriculum subject first.");
+      return;
+    }
+
+    const trimmedTitle = chapterTitle.trim();
+    if (!trimmedTitle) {
+      setCreateError("Enter a chapter title first.");
+      return;
+    }
+
+    setCreatingChapter(true);
+    setCreateError("");
+    setCreateMessage("");
+
+    try {
+      const response = await fetch("/api/admin/curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nodeType: "chapter",
+          parentId: currentSubject.id,
+          title: trimmedTitle,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setCreateError(data?.error || "Failed to create chapter.");
+        return;
+      }
+
+      const createdSlug = String(data?.node?.slug || "");
+      setChapterTitle("");
+      setCreateMessage("Chapter created. You can now open existing modules or add a new one.");
+      navigate(currentSubject.slug, createdSlug || null, null, false);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setCreateError("Failed to create chapter.");
+    } finally {
+      setCreatingChapter(false);
+    }
   };
 
   return (
@@ -176,15 +233,61 @@ export function ModuleEditorSelector({
           )}
         </div>
 
-        <Button
-          type="button"
-          disabled={!currentSubject || !currentChapter}
-          onClick={() => navigate(currentSubjectSlug, currentChapterSlug, null, true)}
-          className="h-12 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_20px_40px_-28px_rgba(37,99,235,0.88)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Module
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            disabled={!currentSubject || !currentChapter}
+            onClick={() => navigate(currentSubjectSlug, currentChapterSlug, null, true)}
+            className="h-12 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_20px_40px_-28px_rgba(37,99,235,0.88)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Module
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-[24px] border border-[#e7edf8] bg-white p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Need a new chapter?</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Create the chapter here first, then choose modules already inside it or start a new module right away.
+            </p>
+          </div>
+          <span className="rounded-full border border-[#dce6ff] bg-[#f4f8ff] px-3 py-1 text-xs font-semibold text-[#2f6fff]">
+            {currentSubject ? currentSubject.title : "Select a subject first"}
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+          <Input
+            value={chapterTitle}
+            onChange={(event) => setChapterTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (!creatingChapter) {
+                  void handleCreateChapter();
+                }
+              }
+            }}
+            disabled={!currentSubject?.id || creatingChapter}
+            placeholder={currentSubject ? "New chapter title" : "Choose a subject before creating a chapter"}
+            className="h-12 rounded-2xl border-[#dfe7f5] px-4"
+          />
+          <Button
+            type="button"
+            disabled={!currentSubject?.id || !chapterTitle.trim() || creatingChapter}
+            onClick={handleCreateChapter}
+            className="h-12 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_20px_40px_-28px_rgba(37,99,235,0.88)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {creatingChapter ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            Save Chapter
+          </Button>
+        </div>
+
+        {createError ? <p className="mt-3 text-sm text-rose-600">{createError}</p> : null}
+        {createMessage ? <p className="mt-3 text-sm text-emerald-600">{createMessage}</p> : null}
       </div>
 
       {currentChapter && modules.length > 0 && !currentModuleId && !creatingNew ? (

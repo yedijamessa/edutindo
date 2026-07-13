@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Layers3, NotebookPen, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BookOpen, Layers3, Loader2, NotebookPen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { ModuleCatalogChapterGroup, ModuleCatalogSubjectGroup } from "@/types/module-editor";
 
 function formatDate(value: string) {
@@ -22,8 +24,12 @@ export function AdminMaterialsCatalog({
 }: {
   subjects: ModuleCatalogSubjectGroup[];
 }) {
+  const router = useRouter();
   const [selectedSubjectSlug, setSelectedSubjectSlug] = useState<string>("");
   const [selectedChapterSlug, setSelectedChapterSlug] = useState<string>("");
+  const [chapterTitle, setChapterTitle] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [creatingChapter, setCreatingChapter] = useState(false);
 
   const totalChapters = subjects.reduce((sum, subject) => sum + subject.chapters.length, 0);
   const totalModules = subjects.reduce(
@@ -41,6 +47,55 @@ export function AdminMaterialsCatalog({
     () => selectedSubject?.chapters.find((chapter) => chapter.slug === effectiveChapterSlug) ?? null,
     [effectiveChapterSlug, selectedSubject]
   );
+
+  useEffect(() => {
+    setChapterTitle("");
+    setCreateError("");
+  }, [selectedSubjectSlug]);
+
+  const handleCreateChapter = async () => {
+    if (!selectedSubject?.id) {
+      setCreateError("Choose a subject first.");
+      return;
+    }
+
+    const trimmedTitle = chapterTitle.trim();
+    if (!trimmedTitle) {
+      setCreateError("Enter a chapter title first.");
+      return;
+    }
+
+    setCreatingChapter(true);
+    setCreateError("");
+
+    try {
+      const response = await fetch("/api/admin/curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nodeType: "chapter",
+          parentId: selectedSubject.id,
+          title: trimmedTitle,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setCreateError(data?.error || "Failed to create chapter.");
+        return;
+      }
+
+      const createdSlug = String(data?.node?.slug || "");
+      setChapterTitle("");
+      setSelectedChapterSlug(createdSlug);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setCreateError("Failed to create chapter.");
+    } finally {
+      setCreatingChapter(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#fcf8ef_0%,#f7f9ff_18%,#f3f7ff_100%)]">
@@ -135,17 +190,49 @@ export function AdminMaterialsCatalog({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Selected Subject</p>
                 <h2 className="mt-2 text-[1.8rem] font-black tracking-tight text-slate-950">{selectedSubject.title}</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Add a chapter here, then open that chapter to review existing modules or create a new one inside it.
+                </p>
               </div>
               <Button
                 asChild
                 variant="outline"
                 className="h-11 rounded-2xl border-[#dce6f7] bg-white px-5 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                >
+                  <Link href={`/admin/module-editor?subjectSlug=${encodeURIComponent(selectedSubject.slug)}`}>
+                    Open Subject in Editor
+                  </Link>
+                </Button>
+              </div>
+
+            <div className="mt-5 grid gap-3 rounded-[24px] border border-[#e7edf8] bg-[#f8fbff] p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+              <Input
+                value={chapterTitle}
+                onChange={(event) => setChapterTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (!creatingChapter) {
+                      void handleCreateChapter();
+                    }
+                  }
+                }}
+                disabled={!selectedSubject.id || creatingChapter}
+                placeholder="Create a new chapter in this subject"
+                className="h-12 rounded-2xl border-[#dfe7f5] px-4"
+              />
+              <Button
+                type="button"
+                disabled={!selectedSubject.id || !chapterTitle.trim() || creatingChapter}
+                onClick={handleCreateChapter}
+                className="h-12 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_20px_40px_-28px_rgba(37,99,235,0.88)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Link href={`/admin/module-editor?subjectSlug=${encodeURIComponent(selectedSubject.slug)}`}>
-                  Open Subject in Editor
-                </Link>
+                {creatingChapter ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                Create Chapter
               </Button>
             </div>
+
+            {createError ? <p className="mt-3 text-sm text-rose-600">{createError}</p> : null}
           </section>
         ) : null}
 

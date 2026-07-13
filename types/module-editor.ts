@@ -124,12 +124,14 @@ export interface ModuleCatalogModuleSummary {
 }
 
 export interface ModuleCatalogChapterGroup {
+  id: string | null;
   slug: string;
   title: string;
   modules: ModuleCatalogModuleSummary[];
 }
 
 export interface ModuleCatalogSubjectGroup {
+  id: string | null;
   slug: string;
   title: string;
   chapters: ModuleCatalogChapterGroup[];

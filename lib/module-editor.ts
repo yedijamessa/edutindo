@@ -827,18 +827,22 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
   const subjects = new Map<
     string,
     {
+      id: string | null;
       slug: string;
       title: string;
-      chapters: Map<string, { slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>;
+      chapters: Map<string, { id: string | null; slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>;
     }
   >();
 
-  const ensureSubject = (slugInput: string, titleInput: string) => {
+  const ensureSubject = (slugInput: string, titleInput: string, idInput?: string | null) => {
     const slug = slugifyCatalogValue(slugInput || titleInput) || "general";
     const title = sanitizeText(titleInput, 180) || "General";
     const existing = subjects.get(slug);
 
     if (existing) {
+      if (!existing.id && idInput) {
+        existing.id = idInput;
+      }
       if (!existing.title && title) {
         existing.title = title;
       }
@@ -846,9 +850,10 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
     }
 
     const next = {
+      id: sanitizeText(idInput, 180) || null,
       slug,
       title,
-      chapters: new Map<string, { slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>(),
+      chapters: new Map<string, { id: string | null; slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>(),
     };
     subjects.set(slug, next);
     return next;
@@ -856,18 +861,23 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
 
   const ensureChapter = (
     subject: {
+      id: string | null;
       slug: string;
       title: string;
-      chapters: Map<string, { slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>;
+      chapters: Map<string, { id: string | null; slug: string; title: string; modules: ModuleCatalogModuleSummary[] }>;
     },
     slugInput: string,
-    titleInput: string
+    titleInput: string,
+    idInput?: string | null
   ) => {
     const slug = slugifyCatalogValue(slugInput || titleInput) || "general";
     const title = sanitizeText(titleInput, 180) || "General";
     const existing = subject.chapters.get(slug);
 
     if (existing) {
+      if (!existing.id && idInput) {
+        existing.id = idInput;
+      }
       if (!existing.title && title) {
         existing.title = title;
       }
@@ -875,6 +885,7 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
     }
 
     const next = {
+      id: sanitizeText(idInput, 180) || null,
       slug,
       title,
       modules: [] as ModuleCatalogModuleSummary[],
@@ -889,13 +900,13 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
 
   topLevelSubjects.forEach((subjectNode, subjectIndex) => {
     subjectOrder.set(subjectNode.slug, subjectIndex);
-    const subject = ensureSubject(subjectNode.slug, subjectNode.title);
+    const subject = ensureSubject(subjectNode.slug, subjectNode.title, subjectNode.id);
 
     sortCurriculumNodesByPosition(
       subjectNode.children.filter((child) => child.nodeType === "chapter")
     ).forEach((chapterNode, chapterIndex) => {
       chapterOrder.set(`${subjectNode.slug}:${chapterNode.slug}`, chapterIndex);
-      ensureChapter(subject, chapterNode.slug, chapterNode.title);
+      ensureChapter(subject, chapterNode.slug, chapterNode.title, chapterNode.id);
     });
   });
 
@@ -934,6 +945,7 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
       return left.title.localeCompare(right.title);
     })
     .map((subject) => ({
+      id: subject.id,
       slug: subject.slug,
       title: subject.title,
       chapters: Array.from(subject.chapters.values())
@@ -948,6 +960,7 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
           return left.title.localeCompare(right.title);
         })
         .map((chapter) => ({
+          id: chapter.id,
           slug: chapter.slug,
           title: chapter.title,
           modules: chapter.modules,
