@@ -503,19 +503,39 @@ export function ContentSandboxClient({
           </Button>
 
           <section className="rounded-[30px] border border-white/70 bg-white/92 p-6 shadow-[0_36px_90px_-68px_rgba(37,99,235,0.58)]">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[#eef4ff] text-[#2f6fff]">
-                <HeaderIcon className="h-7 w-7" />
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[#eef4ff] text-[#2f6fff]">
+                  <HeaderIcon className="h-7 w-7" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{copy.eyebrow}</p>
+                  <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                    {copy.title}
+                  </h1>
+                  <p className="mt-2 max-w-3xl text-[15px] leading-7 text-slate-500 dark:text-slate-300">
+                    {copy.description}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{copy.eyebrow}</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                  {copy.title}
-                </h1>
-                <p className="mt-2 max-w-3xl text-[15px] leading-7 text-slate-500 dark:text-slate-300">
-                  {copy.description}
-                </p>
-              </div>
+              {mode === "curriculum" ? (
+                <Button onClick={handleCreateCurriculum} disabled={busy} className="h-11 rounded-full px-5">
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                  Create Curriculum
+                </Button>
+              ) : null}
+              {mode === "chapter" ? (
+                <Button onClick={handleCreateChapter} disabled={busy} className="h-11 rounded-full px-5">
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                  Create Chapter
+                </Button>
+              ) : null}
+              {mode === "module" ? (
+                <Button onClick={handleCreateModule} disabled={busy} className="h-11 rounded-full px-5">
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                  Create Module
+                </Button>
+              ) : null}
             </div>
           </section>
 
@@ -628,6 +648,20 @@ export function ContentSandboxClient({
               {mode === "curriculum" ? (
                 <>
                   <Panel title="Chapters" description="Copy available chapters or create a first empty chapter." icon={Layers3}>
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_220px]">
+                      <div className="space-y-2">
+                        <FieldLabel>New chapter name</FieldLabel>
+                        <Input value={chapterTitle} onChange={(event) => setChapterTitle(event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <FieldLabel>Chapter code</FieldLabel>
+                        <Input value={chapterCode} onChange={(event) => setChapterCode(event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <FieldLabel>Unique identifier</FieldLabel>
+                        <Input value={chapterUniqueId} onChange={(event) => setChapterUniqueId(event.target.value)} />
+                      </div>
+                    </div>
                     <div className="grid gap-2 md:grid-cols-2">
                       {allChapters.map((chapter) => (
                         <button
@@ -645,20 +679,6 @@ export function ContentSandboxClient({
                           {selectedChapterIds.includes(chapter.id) ? <Check className="h-4 w-4" /> : null}
                         </button>
                       ))}
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_220px]">
-                      <div className="space-y-2">
-                        <FieldLabel>New chapter name</FieldLabel>
-                        <Input value={chapterTitle} onChange={(event) => setChapterTitle(event.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel>Chapter code</FieldLabel>
-                        <Input value={chapterCode} onChange={(event) => setChapterCode(event.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel>Unique identifier</FieldLabel>
-                        <Input value={chapterUniqueId} onChange={(event) => setChapterUniqueId(event.target.value)} />
-                      </div>
                     </div>
                   </Panel>
                   <Button onClick={handleCreateCurriculum} disabled={busy} className="h-11 rounded-full px-5">
@@ -839,28 +859,6 @@ function ModulePicker({
 }) {
   return (
     <Panel title="Modules Inside" description="Choose existing modules or add new module drafts for this chapter." icon={NotebookTabs}>
-      <div className="grid gap-2 md:grid-cols-2">
-        {modules.slice(0, 16).map((module) => (
-          <button
-            key={module.moduleId}
-            type="button"
-            onClick={() => toggleModule(module.moduleId)}
-            className={cn(
-              "flex items-center justify-between rounded-2xl border px-3 py-3 text-left text-sm",
-              selectedModuleIds.includes(module.moduleId)
-                ? "border-[#2f6fff] bg-[#f4f8ff] text-[#174ea6]"
-                : "border-slate-200 bg-white text-slate-700"
-            )}
-          >
-            <span className="min-w-0">
-              <span className="block truncate font-semibold">{module.moduleTitle}</span>
-              <span className="block truncate text-xs text-slate-500">{module.moduleCode || module.uniqueIdentifier || "No code"}</span>
-            </span>
-            {selectedModuleIds.includes(module.moduleId) ? <Check className="h-4 w-4 shrink-0" /> : null}
-          </button>
-        ))}
-      </div>
-
       <div className="space-y-3">
         {newModules.map((module, index) => (
           <div key={index} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px_180px]">
@@ -902,6 +900,28 @@ function ModulePicker({
           <Plus className="mr-2 h-4 w-4" />
           Add New Module
         </Button>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        {modules.slice(0, 16).map((module) => (
+          <button
+            key={module.moduleId}
+            type="button"
+            onClick={() => toggleModule(module.moduleId)}
+            className={cn(
+              "flex items-center justify-between rounded-2xl border px-3 py-3 text-left text-sm",
+              selectedModuleIds.includes(module.moduleId)
+                ? "border-[#2f6fff] bg-[#f4f8ff] text-[#174ea6]"
+                : "border-slate-200 bg-white text-slate-700"
+            )}
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">{module.moduleTitle}</span>
+              <span className="block truncate text-xs text-slate-500">{module.moduleCode || module.uniqueIdentifier || "No code"}</span>
+            </span>
+            {selectedModuleIds.includes(module.moduleId) ? <Check className="h-4 w-4 shrink-0" /> : null}
+          </button>
+        ))}
       </div>
     </Panel>
   );
