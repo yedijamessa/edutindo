@@ -387,6 +387,8 @@ export function ModuleEditor({
   const router = useRouter();
   const [moduleId, setModuleId] = useState(initialModuleId);
   const [title, setTitle] = useState(initialDocument?.title ?? "");
+  const [moduleCode, setModuleCode] = useState(initialDocument?.moduleCode ?? "");
+  const [uniqueIdentifier, setUniqueIdentifier] = useState(initialDocument?.uniqueIdentifier ?? "");
   const [pages, setPages] = useState<ModuleEditorPage[]>(() => initialDocument?.pages ?? createInitialPages());
   const [selectedPageId, setSelectedPageId] = useState(initialDocument?.pages[0]?.id ?? "");
   const [updatedAt, setUpdatedAt] = useState<string | null>(initialDocument?.updatedAt ?? null);
@@ -400,6 +402,8 @@ export function ModuleEditor({
   useEffect(() => {
     setModuleId(initialModuleId);
     setTitle(initialDocument?.title ?? "");
+    setModuleCode(initialDocument?.moduleCode ?? "");
+    setUniqueIdentifier(initialDocument?.uniqueIdentifier ?? "");
     const nextPages = initialDocument?.pages ?? createInitialPages();
     setPages(nextPages);
     setSelectedPageId(nextPages[0]?.id ?? "");
@@ -550,6 +554,8 @@ export function ModuleEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
+          moduleCode,
+          uniqueIdentifier,
           pages,
           subjectSlug,
           subjectTitle,
@@ -566,6 +572,8 @@ export function ModuleEditor({
 
       setModuleId(data.document.id);
       setTitle(data.document.title);
+      setModuleCode(data.document.moduleCode ?? "");
+      setUniqueIdentifier(data.document.uniqueIdentifier ?? "");
       setPages(data.document.pages);
       setUpdatedAt(data.document.updatedAt);
       setDirty(false);
@@ -680,6 +688,50 @@ export function ModuleEditor({
               value={formatTimestamp(updatedAt)}
               hint={moduleId ? "Reusable module ready for curriculum placement." : "Draft has not been saved yet."}
             />
+          </div>
+          <div className="mt-4 grid gap-3 border-t border-[#edf2fb] pt-4 md:grid-cols-[minmax(0,1fr)_160px_minmax(180px,0.7fr)]">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500">Module title</label>
+              <Input
+                value={title}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  setDirty(true);
+                  setMessage("");
+                  setError("");
+                }}
+                placeholder="Module title"
+                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500">Module code</label>
+              <Input
+                value={moduleCode}
+                onChange={(event) => {
+                  setModuleCode(event.target.value);
+                  setDirty(true);
+                  setMessage("");
+                  setError("");
+                }}
+                placeholder="MOD-01"
+                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500">Unique identifier</label>
+              <Input
+                value={uniqueIdentifier}
+                onChange={(event) => {
+                  setUniqueIdentifier(event.target.value);
+                  setDirty(true);
+                  setMessage("");
+                  setError("");
+                }}
+                placeholder={moduleId || "Auto ID after save"}
+                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
+              />
+            </div>
           </div>
           {(dirty || message || error) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#edf2fb] pt-3 text-sm">
@@ -966,6 +1018,8 @@ export function ModuleEditor({
                     document={{
                       id: moduleId || "draft-module",
                       title: title || "Module draft",
+                      moduleCode,
+                      uniqueIdentifier,
                       pages,
                       updatedAt,
                       subjectSlug: subjectSlug || "",
@@ -1787,6 +1841,8 @@ export function ModuleEditor({
                 document={{
                   id: moduleId || "draft-module",
                   title: title || "Module draft",
+                  moduleCode,
+                  uniqueIdentifier,
                   pages,
                   updatedAt,
                   subjectSlug: subjectSlug || "",

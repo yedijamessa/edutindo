@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { BookOpen, LayoutGrid, NotebookTabs, ShieldCheck, Users } from "lucide-react";
+import {
+  BookOpen,
+  FileClock,
+  FolderPlus,
+  Layers3,
+  LayoutGrid,
+  NotebookTabs,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AdminDashboardProps {
@@ -30,6 +39,33 @@ const adminTools = [
     href: "/admin/access",
     description: "Manage which users can open each portal.",
     icon: ShieldCheck,
+  },
+];
+
+const creationTools = [
+  {
+    title: "Create Curriculum",
+    href: "/admin/content-sandbox/curriculum",
+    description: "Build curriculum, choose chapters and modules, create new items, and assign them to schools.",
+    icon: FolderPlus,
+  },
+  {
+    title: "Create Chapter",
+    href: "/admin/content-sandbox/chapter",
+    description: "Create a chapter, attach existing modules, or create new modules for a curriculum.",
+    icon: Layers3,
+  },
+  {
+    title: "Create Module",
+    href: "/admin/content-sandbox/module",
+    description: "Create module content first, then assign it into any chapter from the module library.",
+    icon: NotebookTabs,
+  },
+  {
+    title: "Check Logs",
+    href: "/admin/logs",
+    description: "Review recent curriculum, chapter, module, assignment, and edit activity.",
+    icon: FileClock,
   },
 ];
 
@@ -92,6 +128,46 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
             </div>
           </div>
           <AdminHeroArtwork />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+            Content Sandbox
+          </h2>
+          <p className="text-[15px] text-slate-500 dark:text-slate-300">
+            Create and audit curriculum content from one place.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {creationTools.map((tool) => {
+            const Icon = tool.icon;
+
+            return (
+              <article
+                key={tool.href + tool.title}
+                className="flex h-full min-h-[15.5rem] flex-col rounded-[28px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_-48px_rgba(15,23,42,0.5)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_32px_70px_-44px_rgba(37,99,235,0.36)] dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none"
+              >
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#eef4ff_0%,#dfe8ff_100%)] text-[#2f6fff] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.32)_0%,rgba(37,99,235,0.16)_100%)] dark:text-blue-200">
+                  <Icon className="h-5 w-5" strokeWidth={1.9} />
+                </div>
+                <h3 className="text-[1.25rem] font-semibold leading-tight tracking-tight text-slate-950 dark:text-slate-50">
+                  {tool.title}
+                </h3>
+                <p className="mt-3 text-[14px] leading-6 text-slate-500 dark:text-slate-300">
+                  {tool.description}
+                </p>
+                <Button
+                  asChild
+                  className="mt-auto h-10 w-full rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-sm font-medium text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
+                >
+                  <Link href={tool.href}>Open</Link>
+                </Button>
+              </article>
+            );
+          })}
         </div>
       </section>
 

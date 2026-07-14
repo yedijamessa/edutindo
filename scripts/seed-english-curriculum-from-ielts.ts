@@ -803,6 +803,7 @@ function buildOverviewPage(chapter: EnglishBlueprintChapter, lesson: EnglishBlue
 }
 
 function buildLessonDocument(chapter: EnglishBlueprintChapter, lesson: EnglishBlueprintLesson): ModuleEditorDocument {
+  const lessonSlug = slugify(lesson.title);
   const pages = [
     buildOverviewPage(chapter, lesson),
     ...lesson.sourceRefs.flatMap((ref) => buildPagesForSourceRef(ref)),
@@ -811,6 +812,8 @@ function buildLessonDocument(chapter: EnglishBlueprintChapter, lesson: EnglishBl
   return {
     id: "",
     title: lesson.title,
+    moduleCode: lesson.lessonCode,
+    uniqueIdentifier: `${chapter.slug}:${lessonSlug}`,
     pages: pages.length > 0 ? pages : [buildOverviewPage(chapter, lesson)],
     updatedAt: null,
     subjectSlug: "english",

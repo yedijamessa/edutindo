@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const document = await saveModuleEditorDocument({
       title: body?.title,
+      moduleCode: body?.moduleCode,
+      uniqueIdentifier: body?.uniqueIdentifier,
       pages: body?.pages,
       subjectSlug: body?.subjectSlug,
       subjectTitle: body?.subjectTitle,

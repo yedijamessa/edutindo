@@ -28,6 +28,8 @@ import type {
 type ModuleEditorModuleRow = {
   id: string;
   title: string;
+  module_code: string | null;
+  unique_identifier: string | null;
   pages: unknown;
   catalog_subject_slug: string | null;
   catalog_subject_title: string | null;
@@ -388,6 +390,8 @@ async function ensureModuleEditorSchema() {
         CREATE TABLE IF NOT EXISTS module_editor_modules (
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL DEFAULT '',
+          module_code TEXT,
+          unique_identifier TEXT,
           pages JSONB NOT NULL DEFAULT '[]'::jsonb,
           catalog_subject_slug TEXT,
           catalog_subject_title TEXT,
@@ -397,6 +401,16 @@ async function ensureModuleEditorSchema() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+      `;
+
+      await sql`
+        ALTER TABLE module_editor_modules
+        ADD COLUMN IF NOT EXISTS module_code TEXT
+      `;
+
+      await sql`
+        ALTER TABLE module_editor_modules
+        ADD COLUMN IF NOT EXISTS unique_identifier TEXT
       `;
 
       await sql`
@@ -442,6 +456,8 @@ async function ensureModuleEditorSchema() {
         INSERT INTO module_editor_modules (
           id,
           title,
+          module_code,
+          unique_identifier,
           pages,
           updated_by_user_id,
           created_at,
@@ -450,6 +466,8 @@ async function ensureModuleEditorSchema() {
         SELECT
           curriculum_node_id,
           title,
+          NULL,
+          NULL,
           pages,
           updated_by_user_id,
           COALESCE(updated_at, NOW()),
@@ -532,6 +550,8 @@ function mapModuleDocument(row: ModuleEditorModuleRow): ModuleEditorDocument {
   return {
     id: row.id,
     title,
+    moduleCode: sanitizeText(row.module_code, 80),
+    uniqueIdentifier: sanitizeText(row.unique_identifier, 120),
     pages: normalizePages(row.pages, title),
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
     subjectSlug,
@@ -621,6 +641,8 @@ export async function getModuleEditorDocument(moduleId: string): Promise<ModuleE
     SELECT
       id,
       title,
+      module_code,
+      unique_identifier,
       pages,
       catalog_subject_slug,
       catalog_subject_title,
@@ -647,6 +669,8 @@ export async function getAssignedModuleDocumentForLesson(lessonId: string): Prom
 export async function saveModuleEditorDocument(input: {
   moduleId?: string | null;
   title: unknown;
+  moduleCode?: unknown;
+  uniqueIdentifier?: unknown;
   pages: unknown;
   subjectSlug?: unknown;
   subjectTitle?: unknown;
@@ -657,6 +681,8 @@ export async function saveModuleEditorDocument(input: {
   await ensureModuleEditorSchema();
   const moduleId = sanitizeText(input.moduleId, 180) || randomUUID();
   const title = getModuleTitle(input.title);
+  const moduleCode = sanitizeText(input.moduleCode, 80);
+  const uniqueIdentifier = sanitizeText(input.uniqueIdentifier, 120);
   const pages = normalizePages(input.pages, title);
   const subjectTitle = getCatalogSubjectTitle(input.subjectTitle);
   const chapterTitle = getCatalogChapterTitle(input.chapterTitle);
@@ -668,6 +694,8 @@ export async function saveModuleEditorDocument(input: {
     INSERT INTO module_editor_modules (
       id,
       title,
+      module_code,
+      unique_identifier,
       pages,
       catalog_subject_slug,
       catalog_subject_title,
@@ -680,6 +708,8 @@ export async function saveModuleEditorDocument(input: {
     VALUES (
       ${moduleId},
       ${title},
+      ${moduleCode || null},
+      ${uniqueIdentifier || null},
       ${JSON.stringify(pages)},
       ${subjectSlug || null},
       ${subjectTitle || null},
@@ -692,6 +722,8 @@ export async function saveModuleEditorDocument(input: {
     ON CONFLICT (id)
     DO UPDATE SET
       title = EXCLUDED.title,
+      module_code = EXCLUDED.module_code,
+      unique_identifier = EXCLUDED.unique_identifier,
       pages = EXCLUDED.pages,
       catalog_subject_slug = EXCLUDED.catalog_subject_slug,
       catalog_subject_title = EXCLUDED.catalog_subject_title,
@@ -702,6 +734,8 @@ export async function saveModuleEditorDocument(input: {
     RETURNING
       id,
       title,
+      module_code,
+      unique_identifier,
       pages,
       catalog_subject_slug,
       catalog_subject_title,
@@ -717,6 +751,8 @@ export async function saveModuleEditorDocument(input: {
 export type ModuleListEntry = {
   moduleId: string;
   moduleTitle: string;
+  moduleCode: string;
+  uniqueIdentifier: string;
   pageCount: number;
   updatedAt: string;
   subjectSlug: string;
@@ -756,6 +792,8 @@ export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
       SELECT
         id,
         title,
+        module_code,
+        unique_identifier,
         pages,
         catalog_subject_slug,
         catalog_subject_title,
@@ -797,6 +835,8 @@ export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
     return {
       moduleId: row.id,
       moduleTitle: document.title,
+      moduleCode: document.moduleCode,
+      uniqueIdentifier: document.uniqueIdentifier,
       pageCount: document.pages.length,
       updatedAt: document.updatedAt ?? new Date(row.updated_at).toISOString(),
       subjectSlug: document.subjectSlug || fallbackAssignment?.subjectSlug || "",
@@ -923,6 +963,8 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
     chapter.modules.push({
       moduleId: module.moduleId,
       moduleTitle: module.moduleTitle,
+      moduleCode: module.moduleCode,
+      uniqueIdentifier: module.uniqueIdentifier,
       pageCount: module.pageCount,
       updatedAt: module.updatedAt,
       assignmentCount: module.assignments.length,

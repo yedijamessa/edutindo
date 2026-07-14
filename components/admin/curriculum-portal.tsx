@@ -106,6 +106,7 @@ type LessonEditDraft = {
   title: string;
   week: string;
   lessonCode: string;
+  uniqueIdentifier: string;
 };
 
 interface CurriculumPortalProps {
@@ -784,7 +785,12 @@ export function CurriculumPortal({
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [collapsedBranches, setCollapsedBranches] = useState<Record<string, boolean>>({});
   const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, ChapterWeekDraft>>({});
+  const [subjectTitleDraft, setSubjectTitleDraft] = useState("");
+  const [subjectCodeDraft, setSubjectCodeDraft] = useState("");
+  const [subjectUniqueIdentifierDraft, setSubjectUniqueIdentifierDraft] = useState("");
   const [chapterTitleDraft, setChapterTitleDraft] = useState("");
+  const [chapterCodeDraft, setChapterCodeDraft] = useState("");
+  const [chapterUniqueIdentifierDraft, setChapterUniqueIdentifierDraft] = useState("");
   const [lessonEditDraft, setLessonEditDraft] = useState<LessonEditDraft | null>(null);
   const [assessmentDrafts, setAssessmentDrafts] = useState<Record<string, ChapterAssessmentDraft>>({});
   const [assessmentBusyId, setAssessmentBusyId] = useState<string | null>(null);
@@ -808,6 +814,7 @@ export function CurriculumPortal({
   const [chapterWeekEndDraft, setChapterWeekEndDraft] = useState("");
   const [lessonWeekDraft, setLessonWeekDraft] = useState("");
   const [lessonCodeDraft, setLessonCodeDraft] = useState("");
+  const [lessonUniqueIdentifierDraft, setLessonUniqueIdentifierDraft] = useState("");
 
   const loadTree = useCallback(async () => {
     setLoading(true);
@@ -948,6 +955,13 @@ export function CurriculumPortal({
     () => subjects.find((item) => item.id === selectedSubjectId) ?? null,
     [selectedSubjectId, subjects]
   );
+
+  useEffect(() => {
+    setSubjectTitleDraft(selectedSubject?.title ?? "");
+    setSubjectCodeDraft(text(selectedSubject?.metadata.curriculumCode));
+    setSubjectUniqueIdentifierDraft(text(selectedSubject?.metadata.uniqueIdentifier));
+  }, [selectedSubject]);
+
   const isLockedSubjectWorkspace = Boolean(compactMode && lockedSchoolSlug && lockedSubjectSlug);
   const toggleBranch = useCallback((key: string) => {
     setCollapsedBranches((current) => ({
@@ -1019,6 +1033,8 @@ export function CurriculumPortal({
 
   useEffect(() => {
     setChapterTitleDraft(selectedChapter?.title ?? "");
+    setChapterCodeDraft(text(selectedChapter?.metadata.chapterCode));
+    setChapterUniqueIdentifierDraft(text(selectedChapter?.metadata.uniqueIdentifier));
   }, [selectedChapter]);
 
   const lessons = useMemo(() => {
@@ -1130,7 +1146,13 @@ export function CurriculumPortal({
     if (!title) return null;
 
     const metadata: Record<string, unknown> = { ...(override?.metadata ?? {}) };
+    if (nodeType === "subject") {
+      metadata.curriculumCode = metadata.curriculumCode ?? subjectCodeDraft.trim();
+      metadata.uniqueIdentifier = metadata.uniqueIdentifier ?? subjectUniqueIdentifierDraft.trim();
+    }
     if (nodeType === "chapter") {
+      metadata.chapterCode = metadata.chapterCode ?? chapterCodeDraft.trim();
+      metadata.uniqueIdentifier = metadata.uniqueIdentifier ?? chapterUniqueIdentifierDraft.trim();
       metadata.weekRange =
         metadata.weekRange ?? formatChapterWeekRange(chapterWeekStartDraft, chapterWeekEndDraft);
       if (
@@ -1145,6 +1167,7 @@ export function CurriculumPortal({
     if (nodeType === "lesson") {
       metadata.week = metadata.week ?? lessonWeekDraft.trim();
       metadata.lessonCode = metadata.lessonCode ?? lessonCodeDraft.trim();
+      metadata.uniqueIdentifier = metadata.uniqueIdentifier ?? lessonUniqueIdentifierDraft.trim();
       if (
         isLockedSubjectWorkspace &&
         selectedSchool &&
@@ -1181,6 +1204,7 @@ export function CurriculumPortal({
       if (nodeType === "lesson") {
         setLessonWeekDraft("");
         setLessonCodeDraft("");
+        setLessonUniqueIdentifierDraft("");
       }
 
       await loadTree();
@@ -1254,6 +1278,26 @@ export function CurriculumPortal({
     }));
   };
 
+  const saveSelectedSubjectDetails = async () => {
+    if (!selectedSubject) return;
+
+    const nextTitle = subjectTitleDraft.trim();
+    if (!nextTitle) {
+      setError("Curriculum title is required.");
+      return;
+    }
+
+    await saveNode(
+      selectedSubject,
+      nextTitle,
+      {
+        ...(selectedSubject.metadata ?? {}),
+        curriculumCode: subjectCodeDraft.trim(),
+        uniqueIdentifier: subjectUniqueIdentifierDraft.trim(),
+      },
+      "Curriculum updated."
+    );
+  };
 
   const saveSelectedChapterDetails = async () => {
     if (!selectedChapter) return;
@@ -1268,14 +1312,24 @@ export function CurriculumPortal({
       return;
     }
 
-    if (nextTitle === selectedChapter.title && nextWeekRange === currentWeekRange) {
+    if (
+      nextTitle === selectedChapter.title &&
+      nextWeekRange === currentWeekRange &&
+      chapterCodeDraft.trim() === text(selectedChapter.metadata.chapterCode) &&
+      chapterUniqueIdentifierDraft.trim() === text(selectedChapter.metadata.uniqueIdentifier)
+    ) {
       return;
     }
 
     await saveNode(
       selectedChapter,
       nextTitle,
-      { ...(selectedChapter.metadata ?? {}), weekRange: nextWeekRange },
+      {
+        ...(selectedChapter.metadata ?? {}),
+        chapterCode: chapterCodeDraft.trim(),
+        uniqueIdentifier: chapterUniqueIdentifierDraft.trim(),
+        weekRange: nextWeekRange,
+      },
       "Chapter updated."
     );
   };
@@ -1293,6 +1347,7 @@ export function CurriculumPortal({
       title: lesson.title,
       week: text(lesson.metadata.week),
       lessonCode: text(lesson.metadata.lessonCode),
+      uniqueIdentifier: text(lesson.metadata.uniqueIdentifier),
     });
   };
 
@@ -1322,6 +1377,7 @@ export function CurriculumPortal({
         ...(lesson.metadata ?? {}),
         week: lessonEditDraft.week.trim(),
         lessonCode: lessonEditDraft.lessonCode.trim(),
+        uniqueIdentifier: lessonEditDraft.uniqueIdentifier.trim(),
       },
       "Lesson / module updated."
     );
@@ -1417,7 +1473,24 @@ export function CurriculumPortal({
 
     const metadata: Record<string, unknown> = { ...(node.metadata ?? {}) };
 
+    if (node.nodeType === "subject") {
+      const nextCurriculumCode = window.prompt("Curriculum code", text(metadata.curriculumCode));
+      if (nextCurriculumCode === null) return;
+
+      const nextUniqueIdentifier = window.prompt("Unique identifier", text(metadata.uniqueIdentifier));
+      if (nextUniqueIdentifier === null) return;
+
+      metadata.curriculumCode = nextCurriculumCode;
+      metadata.uniqueIdentifier = nextUniqueIdentifier;
+    }
+
     if (node.nodeType === "chapter") {
+      const nextChapterCode = window.prompt("Chapter code", text(metadata.chapterCode));
+      if (nextChapterCode === null) return;
+
+      const nextUniqueIdentifier = window.prompt("Unique identifier", text(metadata.uniqueIdentifier));
+      if (nextUniqueIdentifier === null) return;
+
       const currentDraft = parseChapterWeekDraft(metadata.weekRange);
       const nextStart = window.prompt("Start week", currentDraft.start);
       if (nextStart === null) return;
@@ -1425,6 +1498,8 @@ export function CurriculumPortal({
       const nextEnd = window.prompt("End week", currentDraft.end);
       if (nextEnd === null) return;
 
+      metadata.chapterCode = nextChapterCode;
+      metadata.uniqueIdentifier = nextUniqueIdentifier;
       metadata.weekRange = formatChapterWeekRange(nextStart, nextEnd);
     }
 
@@ -1435,8 +1510,12 @@ export function CurriculumPortal({
       const nextLessonCode = window.prompt("Module code (example: 2.1)", text(metadata.lessonCode));
       if (nextLessonCode === null) return;
 
+      const nextUniqueIdentifier = window.prompt("Unique identifier", text(metadata.uniqueIdentifier));
+      if (nextUniqueIdentifier === null) return;
+
       metadata.week = nextWeek;
       metadata.lessonCode = nextLessonCode;
+      metadata.uniqueIdentifier = nextUniqueIdentifier;
     }
 
     await saveNode(node, nextTitle.trim(), metadata, `${nodeLabelByType[node.nodeType]} updated.`);
@@ -2459,14 +2538,76 @@ export function CurriculumPortal({
 
               {selectedChapter ? (
                 <div className="space-y-5 p-5">
+                  {selectedSubject ? (
+                    <div>
+                      <p className="text-base font-bold text-slate-950 dark:text-slate-50">Curriculum details</p>
+                      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_160px_minmax(180px,0.8fr)_150px]">
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Curriculum title</label>
+                          <Input
+                            value={subjectTitleDraft}
+                            onChange={(event) => setSubjectTitleDraft(event.target.value)}
+                            className={fieldClassName}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Curriculum code</label>
+                          <Input
+                            value={subjectCodeDraft}
+                            onChange={(event) => setSubjectCodeDraft(event.target.value)}
+                            placeholder="ENG-7"
+                            className={fieldClassName}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Unique identifier</label>
+                          <Input
+                            value={subjectUniqueIdentifierDraft}
+                            onChange={(event) => setSubjectUniqueIdentifierDraft(event.target.value)}
+                            placeholder={selectedSubject.id}
+                            className={fieldClassName}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            type="button"
+                            className={cn("h-11 w-full rounded-xl text-sm font-semibold", primaryActionClassName)}
+                            onClick={saveSelectedSubjectDetails}
+                            disabled={busy}
+                          >
+                            Save Curriculum
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div>
                     <p className="text-base font-bold text-slate-950 dark:text-slate-50">Chapter details</p>
-                    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_120px_120px_minmax(220px,1fr)_150px]">
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_130px_minmax(170px,0.85fr)_110px_110px_minmax(200px,1fr)_150px]">
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold text-slate-500">Chapter title</label>
                         <Input
                           value={chapterTitleDraft}
                           onChange={(event) => setChapterTitleDraft(event.target.value)}
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Chapter code</label>
+                        <Input
+                          value={chapterCodeDraft}
+                          onChange={(event) => setChapterCodeDraft(event.target.value)}
+                          placeholder="CH-01"
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Unique identifier</label>
+                        <Input
+                          value={chapterUniqueIdentifierDraft}
+                          onChange={(event) => setChapterUniqueIdentifierDraft(event.target.value)}
+                          placeholder={selectedChapter.id}
                           className={fieldClassName}
                         />
                       </div>
@@ -2545,7 +2686,7 @@ export function CurriculumPortal({
                         event.preventDefault();
                         createNode("lesson", selectedChapter.id);
                       }}
-                      className="mt-4 grid gap-3 rounded-[22px] border border-[#edf2f8] bg-[#fbfdff] p-3 md:grid-cols-[110px_150px_minmax(0,1fr)_150px]"
+                      className="mt-4 grid gap-3 rounded-[22px] border border-[#edf2f8] bg-[#fbfdff] p-3 md:grid-cols-[90px_130px_160px_minmax(0,1fr)_120px]"
                     >
                       <Input
                         value={lessonWeekDraft}
@@ -2560,6 +2701,12 @@ export function CurriculumPortal({
                         className={compactFieldClassName}
                       />
                       <Input
+                        value={lessonUniqueIdentifierDraft}
+                        onChange={(event) => setLessonUniqueIdentifierDraft(event.target.value)}
+                        placeholder="Unique ID"
+                        className={compactFieldClassName}
+                      />
+                      <Input
                         value={drafts.lesson}
                         onChange={(event) => setDraft("lesson", event.target.value)}
                         placeholder="Lesson / module title"
@@ -2571,11 +2718,12 @@ export function CurriculumPortal({
                     </form>
 
                     <div className="mt-4 overflow-x-auto rounded-[22px] border border-[#edf2f8]">
-                      <div className="min-w-[680px]">
-                      <div className="grid grid-cols-[54px_82px_132px_minmax(0,1fr)_90px] gap-3 bg-[#f8fbff] px-4 py-3 text-xs font-semibold text-slate-500">
+                      <div className="min-w-[820px]">
+                      <div className="grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_90px] gap-3 bg-[#f8fbff] px-4 py-3 text-xs font-semibold text-slate-500">
                         <span />
                         <span>Week</span>
                         <span>Module code</span>
+                        <span>Unique ID</span>
                         <span>Lesson / Module title</span>
                         <span className="text-right">Actions</span>
                       </div>
@@ -2604,7 +2752,7 @@ export function CurriculumPortal({
                                 dropOnNode(lesson, lessons);
                               }}
                               className={cn(
-                                "grid grid-cols-[54px_82px_132px_minmax(0,1fr)_90px] items-center gap-3 border-t border-[#edf2f8] px-4 py-3 text-sm transition-colors",
+                                "grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_90px] items-center gap-3 border-t border-[#edf2f8] px-4 py-3 text-sm transition-colors",
                                 activeLesson ? "bg-[#f4f8ff]" : "bg-white dark:bg-slate-950"
                               )}
                             >
@@ -2646,6 +2794,18 @@ export function CurriculumPortal({
                                     className={compactFieldClassName}
                                   />
                                   <Input
+                                    value={lessonEditDraft?.uniqueIdentifier ?? ""}
+                                    onChange={(event) => updateLessonEditDraft("uniqueIdentifier", event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        void saveLessonEdit();
+                                      }
+                                    }}
+                                    placeholder="Unique ID"
+                                    className={compactFieldClassName}
+                                  />
+                                  <Input
                                     value={lessonEditDraft?.title ?? ""}
                                     onChange={(event) => updateLessonEditDraft("title", event.target.value)}
                                     onKeyDown={(event) => {
@@ -2663,6 +2823,9 @@ export function CurriculumPortal({
                                   <span className="text-slate-600 dark:text-slate-300">{text(lesson.metadata.week) || "-"}</span>
                                   <span className="inline-flex w-fit rounded-xl bg-[#f1f5f9] px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
                                     {text(lesson.metadata.lessonCode) || "Module"}
+                                  </span>
+                                  <span className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                    {text(lesson.metadata.uniqueIdentifier) || lesson.id}
                                   </span>
                                   <button
                                     type="button"

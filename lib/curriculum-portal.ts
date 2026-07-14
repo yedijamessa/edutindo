@@ -61,6 +61,8 @@ export interface CurriculumSubjectSummary {
   slug: string;
   position: number;
   description: string;
+  curriculumCode: string;
+  uniqueIdentifier: string;
   chapterCount: number;
   lessonCount: number;
   chapters: CurriculumChapterSummary[];
@@ -71,6 +73,8 @@ export interface CurriculumChapterSummary {
   title: string;
   slug: string;
   position: number;
+  chapterCode: string;
+  uniqueIdentifier: string;
   weekRange: string;
   lessonCount: number;
   preTestQuizId: string;
@@ -86,6 +90,7 @@ export interface CurriculumLessonSummary {
   position: number;
   week: string;
   lessonCode: string;
+  uniqueIdentifier: string;
 }
 
 export interface CurriculumChapterContext {
@@ -250,6 +255,8 @@ function normalizeMetadata(
   if (nodeType === "subject") {
     return {
       description: sanitizeText(input.description, 280),
+      curriculumCode: sanitizeText(input.curriculumCode, 80),
+      uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
     };
   }
 
@@ -262,6 +269,8 @@ function normalizeMetadata(
       : [];
 
     return {
+      chapterCode: sanitizeText(input.chapterCode, 80),
+      uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
       weekRange: sanitizeText(input.weekRange, 80),
       strand: sanitizeText(input.strand, 80),
       unitTitle: sanitizeText(input.unitTitle, 280),
@@ -277,6 +286,7 @@ function normalizeMetadata(
   return {
     week: sanitizeText(input.week, 40),
     lessonCode: sanitizeText(input.lessonCode, 40),
+    uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
     assignmentTags: normalizeAssignmentTags(input.assignmentTags),
   };
 }
@@ -1240,6 +1250,7 @@ function mapLesson(node: CurriculumNode): CurriculumLessonSummary {
     position: node.position,
     week: extractString(node.metadata.week),
     lessonCode: extractString(node.metadata.lessonCode),
+    uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
   };
 }
 
@@ -1260,6 +1271,8 @@ function mapChapter(node: CurriculumNode, lessonNodes?: CurriculumNode[]): Curri
     title: node.title,
     slug: node.slug,
     position: node.position,
+    chapterCode: extractString(node.metadata.chapterCode),
+    uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
     weekRange: extractString(node.metadata.weekRange),
     lessonCount: lessons.length,
     preTestQuizId: extractString(node.metadata.preTestQuizId),
@@ -1282,6 +1295,8 @@ function mapSubject(
     slug: node.slug,
     position: node.position,
     description: extractString(node.metadata.description),
+    curriculumCode: extractString(node.metadata.curriculumCode),
+    uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
     chapterCount: chapterSummaries.length,
     lessonCount,
     chapters: chapterSummaries,
@@ -1524,6 +1539,8 @@ export async function getCurriculumLessonContext(input: {
       title: chapterContext.chapter.title,
       slug: chapterContext.chapter.slug,
       position: chapterContext.chapter.position,
+      chapterCode: chapterContext.chapter.chapterCode,
+      uniqueIdentifier: chapterContext.chapter.uniqueIdentifier,
       weekRange: chapterContext.chapter.weekRange,
       lessonCount: chapterContext.chapter.lessonCount,
       preTestQuizId: chapterContext.chapter.preTestQuizId,

@@ -57,6 +57,8 @@ export async function PUT(req: NextRequest, context: Context) {
     const document = await saveModuleEditorDocument({
       moduleId,
       title: body?.title,
+      moduleCode: body?.moduleCode,
+      uniqueIdentifier: body?.uniqueIdentifier,
       pages: body?.pages,
       subjectSlug: body?.subjectSlug,
       subjectTitle: body?.subjectTitle,

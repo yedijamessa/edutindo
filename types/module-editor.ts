@@ -88,6 +88,8 @@ export interface ModuleEditorTarget {
 export interface ModuleEditorDocument {
   id: string;
   title: string;
+  moduleCode: string;
+  uniqueIdentifier: string;
   pages: ModuleEditorPage[];
   updatedAt: string | null;
   subjectSlug: string;
@@ -114,6 +116,8 @@ export interface ModuleLessonAssignment {
 export interface ModuleCatalogModuleSummary {
   moduleId: string;
   moduleTitle: string;
+  moduleCode: string;
+  uniqueIdentifier: string;
   pageCount: number;
   updatedAt: string;
   assignmentCount: number;
