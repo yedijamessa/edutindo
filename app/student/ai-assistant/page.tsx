@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react";
+import { generateAiChatReply, type AiChatMessage } from "@/lib/ai-services";
 import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,13 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Bot, Send, Sparkles, BookOpen, HelpCircle } from "lucide-react";
 
-// NOTE: In production, move these to environment variables (.env.local)
-// NEXT_PUBLIC_OPENAI_API_KEY=your_key_here
-// NEXT_PUBLIC_GEMINI_API_KEY=your_key_here
-
 export default function StudentAIAssistantPage() {
     const studentName = 'Sarah Johnson';
-    const [messages, setMessages] = useState([
+    const [messages, setMessages] = useState<Array<AiChatMessage & { id: number; timestamp: Date }>>([
         {
             id: 1,
             role: 'assistant',
@@ -40,23 +37,32 @@ export default function StudentAIAssistantPage() {
         setIsLoading(true);
 
         try {
-            // TODO: Implement actual API calls
-            // For OpenAI: https://platform.openai.com/docs/api-reference
-            // For Gemini: https://ai.google.dev/tutorials/rest_quickstart
+            const reply = await generateAiChatReply(
+                [...messages, userMessage].map((message) => ({
+                    role: message.role,
+                    content: message.content,
+                }))
+            );
 
-            // Simulated response for now
-            setTimeout(() => {
-                const aiResponse = {
-                    id: messages.length + 2,
-                    role: 'assistant' as const,
-                    content: `I understand you're asking about "${input}". Let me help you with that! (This is a demo response. The AI will automatically use the best available model.)`,
-                    timestamp: new Date(),
-                };
-                setMessages(prev => [...prev, aiResponse]);
-                setIsLoading(false);
-            }, 1000);
+            const aiResponse = {
+                id: messages.length + 2,
+                role: 'assistant' as const,
+                content: reply,
+                timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, aiResponse]);
         } catch (error) {
             console.error('Error calling AI API:', error);
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: prev.length + 2,
+                    role: 'assistant' as const,
+                    content: "I couldn't reach the AI service just now. Please try again in a moment.",
+                    timestamp: new Date(),
+                }
+            ]);
+        } finally {
             setIsLoading(false);
         }
     };

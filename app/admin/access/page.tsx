@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasAdminAccessControlAccess } from "@/lib/auth";
 import { AccessControl } from "./access-control";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAccessPage() {
   const user = await getCurrentUser();
+
+  if (!hasAdminAccessControlAccess(user)) {
+    redirect("/admin");
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">

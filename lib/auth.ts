@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import {
   PORTAL_OPTIONS,
   SESSION_COOKIE_NAME,
+  canManageAdminAccess,
   resolveAuthenticatedHomePath,
   type PortalKey,
 } from "@/lib/auth-shared";
@@ -796,6 +797,10 @@ export function hasAdminPortalAccess(user: Pick<AuthUser, "isAdmin" | "portals">
   return user.isAdmin || user.portals.includes("admin");
 }
 
+export function hasAdminAccessControlAccess(user: Pick<AuthUser, "email"> | null | undefined) {
+  return canManageAdminAccess(user?.email);
+}
+
 function sanitizePortals(input: string[]): PortalKey[] {
   const unique = Array.from(new Set(input.map((portal) => portal.toLowerCase().trim())));
   return unique.filter((portal): portal is PortalKey => PORTAL_SET.has(portal));
@@ -825,32 +830,6 @@ async function getAccountInviteRowByToken(tokenHash: string) {
   `;
 
   return result.rows[0] ?? null;
-}
-
-async function createUser(params: {
-  email: string;
-  firstName: string;
-  lastName: string;
-  passwordHash: string;
-  forceAdmin?: boolean;
-}) {
-  const id = randomUUID();
-  const isAdmin = Boolean(params.forceAdmin) || isAllowlistedAdmin(params.email);
-
-  await sql`
-    INSERT INTO auth_users (id, email, first_name, last_name, password_hash, email_verified, is_admin)
-    VALUES (${id}, ${params.email}, ${params.firstName}, ${params.lastName}, ${params.passwordHash}, FALSE, ${isAdmin})
-  `;
-
-  const defaultPortals: PortalKey[] = isAdmin ? [...PORTAL_OPTIONS] : [];
-  await setUserPortals(id, defaultPortals);
-
-  const userRow = await getUserRowById(id);
-  if (!userRow) {
-    throw new AuthError(500, "USER_CREATE_FAILED", "Failed to create user.");
-  }
-
-  return hydrateUser(userRow);
 }
 
 async function ensureAdminFlag(email: string, existingUser: AuthUserRow) {
@@ -1263,74 +1242,12 @@ export async function signupWithPassword(params: {
   lastName: string;
   password: string;
 }) {
-  await ensureAuthSchema();
-
-  const email = normalizeEmail(params.email);
-  const firstName = sanitizeName(params.firstName, "first name");
-  const lastName = sanitizeName(params.lastName, "last name");
-  const password = params.password;
-
-  if (!isValidEmail(email)) {
-    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
-  }
-
-  validatePassword(password);
-
-  const passwordHash = hashPassword(password);
-  const existingUser = await getUserRowByEmail(email);
-
-  if (existingUser?.email_verified && existingUser.password_hash) {
-    throw new AuthError(409, "ACCOUNT_EXISTS", "This email is already registered. Please log in.");
-  }
-
-  if (existingUser) {
-    const shouldBeAdmin = existingUser.is_admin || isAllowlistedAdmin(email);
-
-    await sql`
-      UPDATE auth_users
-      SET
-        first_name = ${firstName},
-        last_name = ${lastName},
-        password_hash = ${passwordHash},
-        is_admin = ${shouldBeAdmin},
-        email_verified = FALSE,
-        email_verified_at = NULL,
-        updated_at = NOW()
-      WHERE id = ${existingUser.id}
-    `;
-
-    await setUserPortals(existingUser.id, shouldBeAdmin ? [...PORTAL_OPTIONS] : []);
-    await sendVerificationEmailForUser(existingUser.id);
-
-    return {
-      ok: true as const,
-      status: "resent" as const,
-      message: "A new verification email was sent.",
-    };
-  }
-
-  const user = await createUser({
-    email,
-    firstName,
-    lastName,
-    passwordHash,
-  });
-
-  try {
-    await sendVerificationEmailForUser(user.id);
-  } catch (error) {
-    await sql`
-      DELETE FROM auth_users
-      WHERE id = ${user.id}
-    `;
-    throw error;
-  }
-
-  return {
-    ok: true as const,
-    status: "created" as const,
-    message: "Verification email sent. Please check your inbox.",
-  };
+  void params;
+  throw new AuthError(
+    403,
+    "INVITE_REQUIRED",
+    "Signups are invitation-only. Please use the invitation link sent by an admin."
+  );
 }
 
 export async function resendVerificationEmail(emailInput: string) {

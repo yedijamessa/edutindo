@@ -24,12 +24,21 @@ import {
   PencilLine,
   Plus,
   Quote,
+  LoaderCircle,
   Save,
+  Sparkles,
   Trash2,
   CircleHelp,
   Underline,
   type LucideIcon,
 } from "lucide-react";
+import {
+  recommendQuizForModule,
+  recommendQuizForPage,
+  recommendSectionExpansion,
+  type ModuleEditorQuizRecommendation,
+  type ModuleEditorSectionRecommendation,
+} from "@/lib/ai-services";
 import { ModuleDocumentView } from "@/components/lms/module-document-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -201,6 +210,62 @@ function isEssayQuiz(quizType: ModuleEditorQuizType) {
   return quizType === "essay";
 }
 
+function createQuizBlockFromRecommendation(
+  recommendation: ModuleEditorQuizRecommendation
+): ModuleEditorQuizBlock {
+  const optionEntries = (
+    recommendation.options.length > 0
+      ? recommendation.options
+      : getDefaultOptionsForQuizType(recommendation.quizType).map((option) => option.text)
+  ).map((text) => ({
+    id: createId(),
+    text,
+  }));
+  const recommendedCorrectOptionIds = recommendation.correctOptionIndexes
+    .map((index) => optionEntries[index]?.id)
+    .filter((value): value is string => Boolean(value));
+
+  return {
+    id: createId(),
+    type: "quiz",
+    quizType: recommendation.quizType,
+    prompt: recommendation.prompt,
+    options: optionEntries,
+    correctOptionIds: usesOptionAnswers(recommendation.quizType)
+      ? recommendedCorrectOptionIds.length > 0
+        ? recommendedCorrectOptionIds
+        : optionEntries[0]?.id
+          ? [optionEntries[0].id]
+          : []
+      : [],
+    acceptableAnswers:
+      recommendation.acceptableAnswers ?? getDefaultAcceptableAnswersForQuizType(recommendation.quizType),
+    matchingPairs:
+      recommendation.matchingPairs?.map((pair) => ({
+        id: createId(),
+        prompt: pair.prompt,
+        match: pair.match,
+      })) ?? (recommendation.quizType === "matching" ? createMatchingPairs() : []),
+    orderingItems:
+      recommendation.orderingItems?.map((text) => ({
+        id: createId(),
+        text,
+      })) ?? (recommendation.quizType === "ordering" ? createOrderingItems() : []),
+    explanation: recommendation.explanation,
+  };
+}
+
+function createSectionSuggestionBlock(
+  recommendation: ModuleEditorSectionRecommendation
+): ModuleEditorBlock {
+  return {
+    id: createId(),
+    type: "text",
+    title: recommendation.title,
+    body: recommendation.body,
+  };
+}
+
 function createPage(index: number): ModuleEditorPage {
   return {
     id: createId(),
@@ -280,6 +345,8 @@ type TextFormattingAction =
   | "bullet-list"
   | "numbered-list"
   | "quote";
+
+type AiAssistAction = "page-quiz" | "module-quiz" | "section";
 
 function wrapSelection(
   value: string,
@@ -397,6 +464,8 @@ export function ModuleEditor({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aiPendingAction, setAiPendingAction] = useState<AiAssistAction | null>(null);
+  const [aiInsight, setAiInsight] = useState("");
   const textAreaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   useEffect(() => {
@@ -412,6 +481,8 @@ export function ModuleEditor({
     setDirty(false);
     setMessage("");
     setError("");
+    setAiPendingAction(null);
+    setAiInsight("");
   }, [chapterSlug, initialDocument, initialModuleId, subjectSlug]);
 
   useEffect(() => {
@@ -446,14 +517,23 @@ export function ModuleEditor({
     }));
   };
 
+  const appendBlockToPage = (pageId: string, block: ModuleEditorBlock) => {
+    updatePages((current) =>
+      current.map((page) => (page.id === pageId ? { ...page, blocks: [...page.blocks, block] } : page))
+    );
+    setSelectedPageId(pageId);
+    window.requestAnimationFrame(() => {
+      if (block.type === "text") {
+        textAreaRefs.current[block.id]?.focus();
+      }
+    });
+  };
+
   const addBlockToSelectedPage = (factory: () => ModuleEditorBlock) => {
     if (!selectedPage) return;
 
     const nextBlock = factory();
-    updateSelectedPage((page) => ({ ...page, blocks: [...page.blocks, nextBlock] }));
-    window.requestAnimationFrame(() => {
-      textAreaRefs.current[nextBlock.id]?.focus();
-    });
+    appendBlockToPage(selectedPage.id, nextBlock);
   };
 
   const applyTextFormatting = (blockId: string, action: TextFormattingAction) => {
@@ -587,6 +667,68 @@ export function ModuleEditor({
       setError("Failed to save module.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const runAiAssist = async (action: AiAssistAction) => {
+    if (!selectedPage) return;
+
+    const pageId = selectedPage.id;
+    const pageLabel = selectedPage.title.trim() || `Page ${pageIndex + 1}`;
+    const moduleTitleForAi = title.trim() || chapterTitle || subjectTitle || "Untitled module";
+
+    setAiPendingAction(action);
+    setAiInsight("");
+    setMessage("");
+    setError("");
+
+    try {
+      if (action === "page-quiz") {
+        const recommendation = await recommendQuizForPage({
+          page: selectedPage,
+          pages,
+          moduleTitle: moduleTitleForAi,
+          subjectTitle,
+          chapterTitle,
+        });
+
+        appendBlockToPage(pageId, createQuizBlockFromRecommendation(recommendation));
+        setMessage(`AI added a quiz suggestion for ${pageLabel}.`);
+        setAiInsight(`Focused on this page: ${recommendation.focusTopic}`);
+        return;
+      }
+
+      if (action === "module-quiz") {
+        const recommendation = await recommendQuizForModule({
+          page: selectedPage,
+          pages,
+          moduleTitle: moduleTitleForAi,
+          subjectTitle,
+          chapterTitle,
+        });
+
+        appendBlockToPage(pageId, createQuizBlockFromRecommendation(recommendation));
+        setMessage(`AI added a module-level quiz suggestion using "${moduleTitleForAi}".`);
+        setAiInsight(`Focused on module title: ${recommendation.focusTopic}`);
+        return;
+      }
+
+      const recommendation = await recommendSectionExpansion({
+        page: selectedPage,
+        pages,
+        moduleTitle: moduleTitleForAi,
+        subjectTitle,
+        chapterTitle,
+      });
+
+      appendBlockToPage(pageId, createSectionSuggestionBlock(recommendation));
+      setMessage(`AI added a suggested section for ${pageLabel}.`);
+      setAiInsight(`Suggested expansion: ${recommendation.focusTopic}`);
+    } catch (aiError) {
+      console.error(aiError);
+      setError("AI recommendation failed. Please try again.");
+    } finally {
+      setAiPendingAction(null);
     }
   };
 
@@ -987,6 +1129,93 @@ export function ModuleEditor({
                     value={dirty ? "Unsaved" : updatedAt ? "Saved" : "Draft"}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
+              <CardHeader className="pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d9e4fb] bg-[#f4f8ff] text-[#2f6fff]">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Ask AI</CardTitle>
+                    <CardDescription className="text-sm leading-6 text-slate-500">
+                      Draft quiz ideas for this page, draft a quiz from the module title, or suggest what else should be explained.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                <div className="rounded-[22px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-3">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {selectedPage?.title.trim() || `Page ${pageIndex + 1}`}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Module focus: {title.trim() || chapterTitle || subjectTitle || "Untitled module"}
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto w-full justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  disabled={aiPendingAction !== null || !selectedPage}
+                  onClick={() => void runAiAssist("page-quiz")}
+                >
+                  {aiPendingAction === "page-quiz" ? (
+                    <LoaderCircle className="mr-3 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CircleHelp className="mr-3 h-4 w-4 text-[#2f6fff]" />
+                  )}
+                  <span className="flex flex-col items-start">
+                    <span className="font-semibold">Ask AI for a page quiz</span>
+                    <span className="text-xs text-slate-500">Adds a ready-to-edit quiz block based on this page.</span>
+                  </span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto w-full justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  disabled={aiPendingAction !== null || !selectedPage}
+                  onClick={() => void runAiAssist("module-quiz")}
+                >
+                  {aiPendingAction === "module-quiz" ? (
+                    <LoaderCircle className="mr-3 h-4 w-4 animate-spin" />
+                  ) : (
+                    <BookCopy className="mr-3 h-4 w-4 text-[#2f6fff]" />
+                  )}
+                  <span className="flex flex-col items-start">
+                    <span className="font-semibold">Ask AI for a module quiz</span>
+                    <span className="text-xs text-slate-500">Uses the module title so the quiz follows the main topic.</span>
+                  </span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto w-full justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  disabled={aiPendingAction !== null || !selectedPage}
+                  onClick={() => void runAiAssist("section")}
+                >
+                  {aiPendingAction === "section" ? (
+                    <LoaderCircle className="mr-3 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-3 h-4 w-4 text-[#2f6fff]" />
+                  )}
+                  <span className="flex flex-col items-start">
+                    <span className="font-semibold">Ask AI what else to explain</span>
+                    <span className="text-xs text-slate-500">Adds a suggested text section with missing angles to cover.</span>
+                  </span>
+                </Button>
+
+                {aiInsight ? (
+                  <div className="rounded-[20px] border border-[#dce7fb] bg-white px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Latest AI focus</p>
+                    <p className="mt-1 text-sm text-slate-600">{aiInsight}</p>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 

@@ -68,6 +68,8 @@ export function EmailPasswordAuthForm({
   const router = useRouter();
   const isInviteSignup = mode === "signup" && Boolean(inviteToken);
   const hasValidInvite = Boolean(inviteToken && invitePreview);
+  const isInvitationRequiredSignup = mode === "signup" && !isInviteSignup;
+  const canShowSignupFields = mode === "signup" && hasValidInvite;
 
   const [email, setEmail] = useState(invitePreview?.email || presetEmail || "");
   const [firstName, setFirstName] = useState(invitePreview?.firstName || "");
@@ -317,7 +319,7 @@ export function EmailPasswordAuthForm({
             {cardIcon}
           </div>
           <CardTitle className="text-2xl">
-            {isLogin ? "Log In" : isInviteSignup ? "Set Up Your Account" : "Create Account"}
+            {isLogin ? "Log In" : isInviteSignup ? "Set Up Your Account" : "Invitation Required"}
           </CardTitle>
           <CardDescription>
             {isLogin
@@ -326,11 +328,17 @@ export function EmailPasswordAuthForm({
                 ? hasValidInvite
                   ? "You were invited to Edutindo. Create your password to finish setting up your account."
                   : "This invitation link is not available anymore."
-                : "Enter your details. We will send a verification email before you can log in."}
+                : "Signups are invitation-only. Please use the invitation link sent by an admin."}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {isInvitationRequiredSignup && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              New accounts can only be created from an admin invitation link.
+            </div>
+          )}
+
           {isInviteSignup && invitePreview && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-medium text-slate-900">{invitePreview.email}</p>
@@ -345,7 +353,7 @@ export function EmailPasswordAuthForm({
             </div>
           )}
 
-          {!isLogin && (
+          {canShowSignupFields && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <label className="text-sm font-medium">First name</label>
@@ -368,19 +376,21 @@ export function EmailPasswordAuthForm({
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Email address</label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              readOnly={isInviteSignup || (isLogin && loginStep !== "email")}
-            />
-          </div>
+          {(isLogin || canShowSignupFields) && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email address</label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                readOnly={isInviteSignup || (isLogin && loginStep !== "email")}
+              />
+            </div>
+          )}
 
-          {!isLogin && (
+          {canShowSignupFields && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Password</label>
               <Input
@@ -420,7 +430,7 @@ export function EmailPasswordAuthForm({
             </div>
           )}
 
-          {!isLogin && (
+          {canShowSignupFields && (
             <Button
               className="w-full"
               onClick={submitSignup}
@@ -548,12 +558,7 @@ export function EmailPasswordAuthForm({
 
           <div className="pt-2 text-sm text-muted-foreground">
             {isLogin ? (
-              <>
-                No account yet?{" "}
-                <Link className="text-primary font-medium hover:underline" href="/signup">
-                  Sign up
-                </Link>
-              </>
+              "Need an account? Ask an admin for an invitation."
             ) : (
               <>
                 Already have an account?{" "}

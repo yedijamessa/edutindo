@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 
 interface AdminDashboardProps {
   adminEmail: string;
+  canManageAccessControls: boolean;
 }
 
 const adminTools = [
@@ -106,7 +107,11 @@ function AdminHeroArtwork() {
   );
 }
 
-export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
+export default function AdminDashboard({ adminEmail, canManageAccessControls }: AdminDashboardProps) {
+  const visibleAdminTools = adminTools.filter(
+    (tool) => tool.href !== "/admin/access" || canManageAccessControls
+  );
+
   return (
     <div className="space-y-6 lg:space-y-7">
       <section className="relative overflow-hidden rounded-[30px] border border-white/70 bg-white/88 p-5 shadow-[0_40px_90px_-64px_rgba(37,99,235,0.68)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/78 sm:p-7">
@@ -182,7 +187,7 @@ export default function AdminDashboard({ adminEmail }: AdminDashboardProps) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {adminTools.map((tool) => {
+          {visibleAdminTools.map((tool) => {
             const Icon = tool.icon;
 
             return (

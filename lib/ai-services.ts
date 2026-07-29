@@ -1,71 +1,116 @@
-// AI Service for generating content
-// In a real app, this would call OpenAI/Gemini API
+import type { ModuleEditorPage, ModuleEditorQuizType } from "@/types/module-editor";
+import type { Question, QuestionType } from "@/types/lms";
 
-import { Question, QuestionType } from "@/types/lms";
-
-interface GenerateQuizParams {
-    topic: string;
-    difficulty: 'easy' | 'medium' | 'hard';
-    questionCount: number;
-    types: QuestionType[];
+export interface GenerateQuizParams {
+  topic: string;
+  difficulty: "easy" | "medium" | "hard";
+  questionCount: number;
+  types: QuestionType[];
 }
 
-export async function generateQuizQuestions({
-    topic,
-    difficulty,
-    questionCount,
-    types
-}: GenerateQuizParams): Promise<Question[]> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+export interface ModuleEditorQuizRecommendation {
+  quizType: ModuleEditorQuizType;
+  focusTopic: string;
+  prompt: string;
+  options: string[];
+  correctOptionIndexes: number[];
+  acceptableAnswers?: string[];
+  matchingPairs?: Array<{ prompt: string; match: string }>;
+  orderingItems?: string[];
+  explanation: string;
+}
 
-    const questions: Question[] = [];
+export interface ModuleEditorSectionRecommendation {
+  focusTopic: string;
+  title: string;
+  body: string;
+}
 
-    for (let i = 0; i < questionCount; i++) {
-        const type = types[Math.floor(Math.random() * types.length)];
-        const id = `ai-q-${Date.now()}-${i}`;
+export interface ModuleEditorAiContext {
+  page?: ModuleEditorPage | null;
+  pages?: ModuleEditorPage[];
+  moduleTitle?: string;
+  subjectTitle?: string;
+  chapterTitle?: string;
+}
 
-        if (type === 'multiple-choice') {
-            questions.push({
-                id,
-                type: 'multiple-choice',
-                question: `What is a key concept in ${topic} related to ${difficulty} level? (Question ${i + 1})`,
-                options: [
-                    `Concept A related to ${topic}`,
-                    `Concept B related to ${topic}`,
-                    `Concept C related to ${topic}`,
-                    `Concept D related to ${topic}`
-                ],
-                correctAnswer: 0,
-                points: 10
-            });
-        } else if (type === 'true-false') {
-            questions.push({
-                id,
-                type: 'true-false',
-                question: `True or False: ${topic} is a fundamental part of modern science. (Question ${i + 1})`,
-                options: ['True', 'False'],
-                correctAnswer: 0,
-                points: 10
-            });
-        } else if (type === 'short-answer') {
-            questions.push({
-                id,
-                type: 'short-answer',
-                question: `Explain the importance of ${topic} in your own words. (Question ${i + 1})`,
-                correctAnswer: '',
-                points: 15
-            });
-        } else if (type === 'essay') {
-            questions.push({
-                id,
-                type: 'essay',
-                question: `Write a detailed essay about the history and future of ${topic}. (Question ${i + 1})`,
-                correctAnswer: '',
-                points: 20
-            });
-        }
-    }
+export interface AiChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
-    return questions;
+interface AiApiSuccess<T> {
+  ok: true;
+  data: T;
+  provider: string;
+  model: string;
+}
+
+interface AiApiFailure {
+  ok: false;
+  error: string;
+}
+
+type AiApiResponse<T> = AiApiSuccess<T> | AiApiFailure;
+
+async function postAiRequest<T>(payload: unknown): Promise<T> {
+  const response = await fetch("/api/ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = (await response.json().catch(() => null)) as AiApiResponse<T> | null;
+
+  if (!response.ok || !data || !data.ok) {
+    throw new Error(data && "error" in data ? data.error : "AI request failed.");
+  }
+
+  return data.data;
+}
+
+export async function generateQuizQuestions(params: GenerateQuizParams): Promise<Question[]> {
+  return postAiRequest<Question[]>({
+    task: "quiz-generator",
+    ...params,
+  });
+}
+
+export async function recommendQuizForPage(
+  context: ModuleEditorAiContext
+): Promise<ModuleEditorQuizRecommendation> {
+  return postAiRequest<ModuleEditorQuizRecommendation>({
+    task: "module-editor",
+    action: "page-quiz",
+    context,
+  });
+}
+
+export async function recommendQuizForModule(
+  context: ModuleEditorAiContext
+): Promise<ModuleEditorQuizRecommendation> {
+  return postAiRequest<ModuleEditorQuizRecommendation>({
+    task: "module-editor",
+    action: "module-quiz",
+    context,
+  });
+}
+
+export async function recommendSectionExpansion(
+  context: ModuleEditorAiContext
+): Promise<ModuleEditorSectionRecommendation> {
+  return postAiRequest<ModuleEditorSectionRecommendation>({
+    task: "module-editor",
+    action: "section",
+    context,
+  });
+}
+
+export async function generateAiChatReply(messages: AiChatMessage[]): Promise<string> {
+  const result = await postAiRequest<{ reply: string }>({
+    task: "chat",
+    messages,
+  });
+
+  return result.reply;
 }

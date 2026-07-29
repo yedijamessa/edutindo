@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AuthError,
   getUserFromSessionToken,
+  hasAdminAccessControlAccess,
   hasAdminPortalAccess,
   setUserPortals,
   setUserSchoolSlugs,
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest, context: Context) {
     }
 
     if (!hasAdminPortalAccess(requester)) {
+      return NextResponse.json({ ok: false, error: "Forbidden." }, { status: 403 });
+    }
+
+    if (!hasAdminAccessControlAccess(requester)) {
       return NextResponse.json({ ok: false, error: "Forbidden." }, { status: 403 });
     }
 

@@ -3,11 +3,13 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminDashboard from "./admin-dashboard";
 import { getCurrentUser } from "@/lib/auth";
+import { canManageAdminAccess } from "@/lib/auth-shared";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
+  const canManageAccessControls = canManageAdminAccess(user?.email);
 
   return (
     <div className="bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_48%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#020617_100%)]">
@@ -24,7 +26,10 @@ export default async function AdminPage() {
             </Link>
           </Button>
 
-          <AdminDashboard adminEmail={user?.email || "admin@edutindo.org"} />
+          <AdminDashboard
+            adminEmail={user?.email || "admin@edutindo.org"}
+            canManageAccessControls={canManageAccessControls}
+          />
         </div>
       </main>
     </div>

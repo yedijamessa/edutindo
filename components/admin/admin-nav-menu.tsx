@@ -29,8 +29,15 @@ const adminMenuItems = [
   { label: "Principal Portal", href: "/principal" },
 ];
 
-export function AdminNavMenu() {
+interface AdminNavMenuProps {
+  canManageAccessControls?: boolean;
+}
+
+export function AdminNavMenu({ canManageAccessControls = false }: AdminNavMenuProps) {
   const pathname = usePathname();
+  const visibleMenuItems = adminMenuItems.filter(
+    (item) => item.href !== "/admin/access" || canManageAccessControls
+  );
 
   return (
     <Dialog>
@@ -50,7 +57,7 @@ export function AdminNavMenu() {
           <DialogTitle className="text-base">Admin Navigation</DialogTitle>
         </DialogHeader>
         <nav className="grid flex-1 content-start gap-1 overflow-y-auto p-3">
-          {adminMenuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const isActive =
               item.href === "/admin"
                 ? pathname === "/admin"

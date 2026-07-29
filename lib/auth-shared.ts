@@ -3,6 +3,18 @@ export type PortalKey = (typeof PORTAL_OPTIONS)[number];
 
 export const SESSION_COOKIE_NAME = "edutindo_session";
 
+export const ADMIN_ACCESS_CONTROL_EMAILS = [
+  "ymsp@edutindo.org",
+  "it@edutindo.org",
+  "admin@edutindo.org",
+] as const;
+
+const ADMIN_ACCESS_CONTROL_EMAIL_SET = new Set<string>(ADMIN_ACCESS_CONTROL_EMAILS);
+
+export function canManageAdminAccess(email: string | null | undefined) {
+  return ADMIN_ACCESS_CONTROL_EMAIL_SET.has((email ?? "").trim().toLowerCase());
+}
+
 const NON_ADMIN_PORTAL_PRIORITY: Exclude<PortalKey, "admin">[] = [
   "student",
   "teacher",

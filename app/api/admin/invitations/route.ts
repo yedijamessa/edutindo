@@ -3,6 +3,7 @@ import {
   AuthError,
   createAccountInvite,
   getUserFromSessionToken,
+  hasAdminAccessControlAccess,
   hasAdminPortalAccess,
 } from "@/lib/auth";
 import { listCurriculumSchools } from "@/lib/curriculum-portal";
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!hasAdminPortalAccess(requester)) {
+      return NextResponse.json({ ok: false, error: "Forbidden." }, { status: 403 });
+    }
+
+    if (!hasAdminAccessControlAccess(requester)) {
       return NextResponse.json({ ok: false, error: "Forbidden." }, { status: 403 });
     }
 

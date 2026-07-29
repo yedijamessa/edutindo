@@ -6,6 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { Menu, X, ArrowLeft } from "lucide-react"
 import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
+import { canManageAdminAccess } from "@/lib/auth-shared"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
 import { ModeToggle } from "../mode-toggle"
@@ -27,6 +28,7 @@ const subtleHeaderButtonClassName =
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isAdminUser, setIsAdminUser] = React.useState(false)
+    const [canManageAccessControls, setCanManageAccessControls] = React.useState(false)
     const pathname = usePathname()
     const isLegacyFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isFocusedScienceRoute = isLegacyFocusedScienceRoute || isCurriculumLessonFocusRoute(pathname)
@@ -49,10 +51,14 @@ export function Navbar() {
                         (data?.user?.isAdmin || data?.user?.portals?.includes("admin"))
                     )
                 )
+                setCanManageAccessControls(
+                    Boolean(data?.authenticated && canManageAdminAccess(data?.user?.email))
+                )
             } catch (error) {
                 console.error("navbar auth state load error:", error)
                 if (isMounted) {
                     setIsAdminUser(false)
+                    setCanManageAccessControls(false)
                 }
             }
         }
@@ -72,7 +78,7 @@ export function Navbar() {
         <header className={cn("sticky top-0 z-50 w-full", headerSurfaceClassName)}>
             <div className="container-custom flex h-[4.5rem] items-center justify-between">
                 <div className="flex items-center gap-2">
-                    {isAdminRoute && <AdminNavMenu />}
+                    {isAdminRoute && <AdminNavMenu canManageAccessControls={canManageAccessControls} />}
                     <Link href="/" className="group flex items-center">
                         <Image
                             src="/logo-edutindo.png"

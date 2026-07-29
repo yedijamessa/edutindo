@@ -16,7 +16,9 @@ It covers:
 - Donor workflow
 - A short appendix for the Principal portal, because it exists in the product even though it was not part of the requested role list
 
-This guide is based on the current implementation in the repository as reviewed on 2026-05-08.
+This guide is based on the current implementation in the repository as reviewed on 2026-07-29.
+
+For a shorter operational walkthrough of invitation signup, `/admin` entry, Content Sandbox, and Admin Portals, see `docs/admin-signup-and-portal-guide.md`.
 
 ## Status legend
 
@@ -37,7 +39,7 @@ At a high level, the product currently includes these experiences:
 | Area | Main routes | Purpose | Status |
 | --- | --- | --- | --- |
 | Public site | `/`, `/about`, `/contact`, `/get-involved`, `/donate` | Present the foundation, collect enquiries, and support fundraising | `Live` / `Hybrid` |
-| Auth | `/login`, `/signup`, `/demo-access` | Account creation, email verification, login, demo portal access | `Live` |
+| Auth | `/login`, `/signup`, `/demo-access` | Invitation-only account setup, login, demo portal access | `Live` |
 | Dashboard router | `/dashboard` | Decides which portal a logged-in user should enter | `Live` |
 | Student portal | `/student/*` | Learning, quizzes, notes, progress, collaboration tools | `Hybrid` |
 | Teacher portal | `/teacher/*` | Materials, student monitoring, communication, scheduling | `Hybrid` |
@@ -60,7 +62,7 @@ The public website is the foundation layer. Its purpose is to explain Edutindo's
 | Get Involved | `/get-involved` | Volunteer/supporter form saved through backend API | `Live` |
 | Donate | `/donate` | Donation campaigns, equipment needs, donor submission, receipt upload | `Hybrid` |
 | Login | `/login` | Starts portal login flow | `Live` |
-| Sign up | `/signup` | Creates account and sends verification email | `Live` |
+| Sign up | `/signup`, `/signup?invite=...` | Blocks public signup unless the user has a valid admin invitation link | `Live` |
 | Demo access | `/demo-access` | Lets unauthenticated users enter non-admin portals using a shared code | `Live` |
 | Privacy / Terms | `/privacy`, `/terms` | Legal/supporting pages | `Live` |
 
@@ -85,24 +87,29 @@ The platform uses a role-based portal model instead of a single generic account 
 
 ### Account creation and login
 
-#### Standard user flow
+#### Invited user flow
 
-1. User signs up with first name, last name, email, and password.
-2. The system sends an email verification link.
-3. The user verifies email before login is allowed.
-4. On login, the first step only asks for email.
-5. If the account is a standard user, the next step is password entry.
-6. After successful login, the user is redirected to `/dashboard`, which then routes them to their primary portal.
+1. Approved admin opens `/admin/access`.
+2. Admin enters the person's email, name, school, and portal access.
+3. The system emails an invitation link.
+4. Invited user opens `/signup?invite=...`.
+5. User creates a password from the invitation page.
+6. The system creates the account, marks the email as verified, applies the assigned portals, and signs the user in.
+7. After successful setup, the user is redirected to `/dashboard`, which then routes them to their primary portal.
+
+Opening `/signup` without a valid invitation does not create an account. Public signup is blocked.
 
 #### Admin flow
 
 Admin login is different:
 
-1. The user enters email at `/login`.
+1. The user opens `/admin` or enters email at `/login`.
 2. If the email is in the admin allowlist or already marked admin, the system does not ask for password first.
 3. Instead, it emails a 6-digit one-time passcode.
 4. The admin submits the passcode.
 5. A session cookie is created and the admin is routed into the admin portal.
+
+Only `ymsp@edutindo.org`, `it@edutindo.org`, and `admin@edutindo.org` can open `/admin/access` and manage invitations or portal permissions.
 
 ### Portal assignment
 
@@ -680,4 +687,3 @@ If this platform were described honestly to a stakeholder today, the best summar
 If you need a short verbal explanation, this is the most accurate version:
 
 > Edutindo is a mission-led education website with a multi-role learning platform behind it. Public visitors can learn about the foundation, contact the team, get involved, or donate. Logged-in users are routed into role-specific portals for students, teachers, parents, principals, and admins. The strongest operational workflows today are admin access control, curriculum structure management, reusable lesson-module editing, and structured curriculum lesson delivery. Student tools are the most extensive, while some teacher, parent, and scheduling areas are still partly scaffolded or demo-based.
-

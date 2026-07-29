@@ -3,6 +3,7 @@ import { cn } from "@/components/ui/button";
 
 interface AdminSidebarProps {
   activeSection?: "dashboard" | "access" | "materials" | "curriculum";
+  canManageAccessControls?: boolean;
 }
 
 const baseLinkClass =
@@ -10,7 +11,7 @@ const baseLinkClass =
 
 const activeLinkClass = "bg-primary text-primary-foreground hover:bg-primary/90";
 
-export function AdminSidebar({ activeSection = "dashboard" }: AdminSidebarProps) {
+export function AdminSidebar({ activeSection = "dashboard", canManageAccessControls = false }: AdminSidebarProps) {
   return (
     <aside className="hidden lg:block w-64 border-r bg-card p-6 min-h-screen sticky top-0">
       <div className="mb-8">
@@ -23,12 +24,14 @@ export function AdminSidebar({ activeSection = "dashboard" }: AdminSidebarProps)
         >
           Admin Dashboard
         </Link>
-        <Link
-          className={cn(baseLinkClass, activeSection === "access" && activeLinkClass)}
-          href="/admin/access"
-        >
-          Admin Access Control
-        </Link>
+        {canManageAccessControls && (
+          <Link
+            className={cn(baseLinkClass, activeSection === "access" && activeLinkClass)}
+            href="/admin/access"
+          >
+            Admin Access Control
+          </Link>
+        )}
         <Link
           className={cn(baseLinkClass, activeSection === "materials" && activeLinkClass)}
           href="/admin/materials"
