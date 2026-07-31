@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BookOpen,
@@ -165,6 +166,7 @@ export function ContentSandboxClient({
   initialTree: SandboxNode[];
   initialModules: SandboxModule[];
 }) {
+  const router = useRouter();
   const [tree, setTree] = useState(initialTree);
   const [modules, setModules] = useState(initialModules);
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
@@ -373,11 +375,7 @@ export function ContentSandboxClient({
         chapter
       );
       await createLessonAndAssign(chapter, module, getAssignmentTags(selectedSchool, selectedYearSlug));
-      await refreshTree();
-      setModuleTitle("");
-      setModuleCode("");
-      setModuleUniqueId("");
-      setMessage("Module created and assigned to the selected chapter.");
+      router.push(`/admin/module-editor?moduleId=${encodeURIComponent(module.moduleId)}`);
     });
   }
 

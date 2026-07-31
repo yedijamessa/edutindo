@@ -58,17 +58,20 @@ export default async function AdminModuleEditorPage({ searchParams }: ModuleEdit
   const activeChapterTitle =
     activeChapter?.title || initialDocument?.chapterTitle || selectedCatalogModule?.chapterTitle || "";
   const shouldRenderEditor = Boolean(resolvedModuleId || (requestedNewMode && activeSubject && activeChapter));
+  const shouldShowSelector = !resolvedModuleId;
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#fdf8ee_0%,#f6f9ff_18%,#f3f7ff_100%)]">
       <main className="portal-page-width space-y-6 px-4 py-5 lg:px-6 lg:py-6">
-        <ModuleEditorSelector
-          subjects={catalog}
-          currentSubjectSlug={activeSubjectSlug}
-          currentChapterSlug={activeChapterSlug}
-          currentModuleId={resolvedModuleId}
-          creatingNew={requestedNewMode && !resolvedModuleId}
-        />
+        {shouldShowSelector ? (
+          <ModuleEditorSelector
+            subjects={catalog}
+            currentSubjectSlug={activeSubjectSlug}
+            currentChapterSlug={activeChapterSlug}
+            currentModuleId={resolvedModuleId}
+            creatingNew={requestedNewMode}
+          />
+        ) : null}
 
         {shouldRenderEditor ? (
           <ModuleEditor

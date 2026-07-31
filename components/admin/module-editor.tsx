@@ -736,6 +736,9 @@ export function ModuleEditor({
   const currentYear = new Date().getFullYear();
   const shellCardClassName =
     "border-[#e8eef8] bg-white/90 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.25)] backdrop-blur";
+  const aiAssistButtonClassName =
+    "h-auto w-full items-start justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff] [&_svg]:shrink-0";
+  const aiAssistLabelClassName = "flex min-w-0 flex-1 flex-col items-start whitespace-normal break-words";
 
   return (
     <div className="space-y-6">
@@ -1159,7 +1162,7 @@ export function ModuleEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto w-full justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  className={aiAssistButtonClassName}
                   disabled={aiPendingAction !== null || !selectedPage}
                   onClick={() => void runAiAssist("page-quiz")}
                 >
@@ -1168,7 +1171,7 @@ export function ModuleEditor({
                   ) : (
                     <CircleHelp className="mr-3 h-4 w-4 text-[#2f6fff]" />
                   )}
-                  <span className="flex flex-col items-start">
+                  <span className={aiAssistLabelClassName}>
                     <span className="font-semibold">Ask AI for a page quiz</span>
                     <span className="text-xs text-slate-500">Adds a ready-to-edit quiz block based on this page.</span>
                   </span>
@@ -1177,7 +1180,7 @@ export function ModuleEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto w-full justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  className={aiAssistButtonClassName}
                   disabled={aiPendingAction !== null || !selectedPage}
                   onClick={() => void runAiAssist("module-quiz")}
                 >
@@ -1186,7 +1189,7 @@ export function ModuleEditor({
                   ) : (
                     <BookCopy className="mr-3 h-4 w-4 text-[#2f6fff]" />
                   )}
-                  <span className="flex flex-col items-start">
+                  <span className={aiAssistLabelClassName}>
                     <span className="font-semibold">Ask AI for a module quiz</span>
                     <span className="text-xs text-slate-500">Uses the module title so the quiz follows the main topic.</span>
                   </span>
@@ -1195,7 +1198,7 @@ export function ModuleEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto w-full justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff]"
+                  className={aiAssistButtonClassName}
                   disabled={aiPendingAction !== null || !selectedPage}
                   onClick={() => void runAiAssist("section")}
                 >
@@ -1204,7 +1207,7 @@ export function ModuleEditor({
                   ) : (
                     <FileText className="mr-3 h-4 w-4 text-[#2f6fff]" />
                   )}
-                  <span className="flex flex-col items-start">
+                  <span className={aiAssistLabelClassName}>
                     <span className="font-semibold">Ask AI what else to explain</span>
                     <span className="text-xs text-slate-500">Adds a suggested text section with missing angles to cover.</span>
                   </span>
