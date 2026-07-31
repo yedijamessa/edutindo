@@ -17,6 +17,7 @@ import {
   Grid2X2,
   List,
   ListFilter,
+  Mail,
   Plus,
   Search,
   Settings,
@@ -265,6 +266,7 @@ function ModuleAssignmentDialog({
   error,
   onClose,
   onAssign,
+  onAssignStudent,
   onUnassign,
 }: {
   module: ModuleListEntry;
@@ -274,9 +276,15 @@ function ModuleAssignmentDialog({
   error: string;
   onClose: () => void;
   onAssign: (moduleId: string, lessonId: string) => Promise<boolean>;
+  onAssignStudent: (moduleId: string, lessonId: string, email: string) => Promise<string | null>;
   onUnassign: (lessonId: string) => Promise<boolean>;
 }) {
   const [search, setSearch] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
+  const [studentLessonId, setStudentLessonId] = useState(
+    module.assignments[0]?.lessonId ?? lessons[0]?.lessonId ?? ""
+  );
+  const [studentMessage, setStudentMessage] = useState("");
 
   const filteredLessons = useMemo(() => {
     const query = search.toLowerCase().trim();
@@ -327,6 +335,73 @@ function ModuleAssignmentDialog({
             )}
           </div>
         </div>
+
+        <form
+          className="rounded-[18px] border border-[#dce6ff] bg-white p-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setStudentMessage("");
+
+            const message = await onAssignStudent(module.moduleId, studentLessonId, studentEmail);
+            if (message) {
+              setStudentMessage(message);
+              setStudentEmail("");
+            }
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#eef4ff] text-[#2f6fff]">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900">Send to student</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Enter an email to send the lesson link. Existing users get Student portal access; new users receive an invite.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <input
+              type="email"
+              value={studentEmail}
+              onChange={(event) => {
+                setStudentEmail(event.target.value);
+                setStudentMessage("");
+              }}
+              placeholder="student@email.com"
+              className="h-11 rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff]"
+            />
+            <select
+              value={studentLessonId}
+              onChange={(event) => {
+                setStudentLessonId(event.target.value);
+                setStudentMessage("");
+              }}
+              className="h-11 rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm font-medium text-slate-700 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff]"
+            >
+              {lessons.map((lesson) => (
+                <option key={lesson.lessonId} value={lesson.lessonId}>
+                  {lesson.lessonTitle}
+                  {lesson.lessonCode ? ` (${lesson.lessonCode})` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={!studentEmail.trim() || !studentLessonId || Boolean(busyKey)}
+              className="inline-flex h-11 items-center justify-center rounded-[12px] bg-[#2f6fff] px-4 text-sm font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {busyKey === `student:${module.moduleId}` ? "Sending..." : "Send assignment"}
+            </button>
+          </div>
+
+          {studentMessage ? (
+            <p className="mt-3 rounded-[12px] border border-[#bbf7d0] bg-[#ecfdf3] px-3 py-2 text-xs font-semibold text-[#15803d]">
+              {studentMessage}
+            </p>
+          ) : null}
+        </form>
 
         <div className="flex items-center gap-2 rounded-[14px] border border-[#dce6ff] bg-[#f8fbff] px-3 py-2">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -633,6 +708,36 @@ export function ModuleLibraryClient({
     } catch (error) {
       console.error(error);
       setActionError(error instanceof Error ? error.message : "Failed to assign module.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function assignModuleToStudent(moduleId: string, lessonId: string, email: string) {
+    if (!moduleId || !lessonId || !email.trim()) return null;
+
+    setBusyKey(`student:${moduleId}`);
+    setActionError("");
+
+    try {
+      const response = await fetch("/api/admin/module-assignments/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleId, lessonId, email }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setActionError(data.error || "Failed to send lesson assignment.");
+        return null;
+      }
+
+      startTransition(() => router.refresh());
+      return String(data.message || "Lesson assignment sent.");
+    } catch (error) {
+      console.error(error);
+      setActionError("Failed to send lesson assignment.");
+      return null;
     } finally {
       setBusyKey(null);
     }
@@ -1174,6 +1279,7 @@ export function ModuleLibraryClient({
             setActionError("");
           }}
           onAssign={assignModule}
+          onAssignStudent={assignModuleToStudent}
           onUnassign={unassignLesson}
         />
       )}

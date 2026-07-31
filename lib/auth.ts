@@ -471,11 +471,25 @@ async function sendAccountInviteEmail(params: {
   token: string;
   invitedByName: string;
   portals: PortalKey[];
+  nextPath?: string;
+  assignment?: {
+    moduleTitle: string;
+    lessonTitle: string;
+  };
 }) {
   const candidates = buildSmtpCandidates();
-  const inviteUrl = `${getAppBaseUrl()}/signup?invite=${encodeURIComponent(params.token)}`;
+  const invitePath = params.nextPath ? sanitizeNextPath(params.nextPath, "/student") : null;
+  const inviteUrl = `${getAppBaseUrl()}/signup?invite=${encodeURIComponent(params.token)}${
+    invitePath ? `&next=${encodeURIComponent(invitePath)}` : ""
+  }`;
   const expiresHours = ACCOUNT_INVITE_EXPIRES_HOURS;
   const portalText = params.portals.length > 0 ? params.portals.join(", ") : "No portals assigned";
+  const assignmentText = params.assignment
+    ? `\nAssigned module: ${params.assignment.moduleTitle}\nLesson: ${params.assignment.lessonTitle}\n`
+    : "";
+  const assignmentHtml = params.assignment
+    ? `<p style="margin:0 0 12px;"><strong>Assigned module:</strong> ${params.assignment.moduleTitle}<br/><strong>Lesson:</strong> ${params.assignment.lessonTitle}</p>`
+    : "";
   let lastError: unknown = null;
 
   for (const smtp of candidates) {
@@ -498,6 +512,7 @@ async function sendAccountInviteEmail(params: {
           `Hi ${params.firstName},\n\n` +
           `${params.invitedByName} invited you to Edutindo.\n` +
           `Assigned access: ${portalText}\n\n` +
+          assignmentText +
           `Create your account and set your password here:\n${inviteUrl}\n\n` +
           `This invite expires in ${expiresHours} hours.\n\n` +
           "If you were not expecting this invite, you can ignore this email.",
@@ -506,6 +521,7 @@ async function sendAccountInviteEmail(params: {
             <h2 style="margin:0 0 12px;">You have been invited to Edutindo</h2>
             <p style="margin:0 0 12px;">Hi ${params.firstName}, ${params.invitedByName} invited you to join Edutindo.</p>
             <p style="margin:0 0 12px;"><strong>Assigned access:</strong> ${portalText}</p>
+            ${assignmentHtml}
             <p style="margin:0 0 16px;">
               <a
                 href="${inviteUrl}"
@@ -551,6 +567,94 @@ async function sendAccountInviteEmail(params: {
     500,
     "EMAIL_SEND_FAILED",
     "Failed to send invitation email. Check SMTP host/port and credentials."
+  );
+}
+
+export async function sendLessonAssignmentEmail(params: {
+  email: string;
+  firstName?: string;
+  moduleTitle: string;
+  lessonTitle: string;
+  lessonPath: string;
+  assignedByName: string;
+}) {
+  const candidates = buildSmtpCandidates();
+  const lessonPath = sanitizeNextPath(params.lessonPath, "/student/materials");
+  const lessonUrl = `${getAppBaseUrl()}${lessonPath}`;
+  let lastError: unknown = null;
+
+  for (const smtp of candidates) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: smtp.from,
+        to: params.email,
+        subject: `New Edutindo lesson: ${params.moduleTitle}`,
+        text:
+          `Hi ${params.firstName || "there"},\n\n` +
+          `${params.assignedByName} assigned a lesson for you on Edutindo.\n\n` +
+          `Module: ${params.moduleTitle}\n` +
+          `Lesson: ${params.lessonTitle}\n\n` +
+          `Open it here:\n${lessonUrl}\n\n` +
+          "You can also find it from your Student Portal under Learning Materials.",
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">
+            <h2 style="margin:0 0 12px;">New Edutindo lesson assigned</h2>
+            <p style="margin:0 0 12px;">Hi ${params.firstName || "there"}, ${params.assignedByName} assigned a lesson for you.</p>
+            <p style="margin:0 0 12px;"><strong>Module:</strong> ${params.moduleTitle}<br/><strong>Lesson:</strong> ${params.lessonTitle}</p>
+            <p style="margin:0 0 16px;">
+              <a
+                href="${lessonUrl}"
+                style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;"
+              >
+                Open Lesson
+              </a>
+            </p>
+            <p style="margin:0 0 8px;">Or copy this link into your browser:</p>
+            <p style="margin:0;word-break:break-all;color:#1d4ed8;">${lessonUrl}</p>
+          </div>
+        `,
+      });
+
+      const accepted = info.accepted ?? [];
+      const rejected = info.rejected ?? [];
+      const wasAccepted = accepted.some((entry) => recipientMatch(entry, params.email));
+      const wasRejected = rejected.some((entry) => recipientMatch(entry, params.email));
+
+      if (!wasAccepted || wasRejected) {
+        throw new Error(
+          `Recipient not accepted by SMTP server. accepted=${accepted.join(",")} rejected=${rejected.join(",")} response=${info.response ?? ""}`
+        );
+      }
+
+      console.info(
+        `[auth-email] lesson-assignment sent to=${params.email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} response=${info.response ?? ""} accepted=${accepted.join(",")} rejected=${rejected.join(",")}`
+      );
+
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[auth-email] lesson-assignment failed to=${params.email} via ${smtp.host}:${smtp.port} secure=${smtp.secure}`,
+        error
+      );
+    }
+  }
+
+  console.error("All SMTP candidates failed for lesson assignment email:", lastError);
+  throw new AuthError(
+    500,
+    "EMAIL_SEND_FAILED",
+    "Failed to send lesson assignment email. Check SMTP host/port and credentials."
   );
 }
 
@@ -1002,6 +1106,30 @@ export async function setUserSchoolSlugs(userId: string, schoolSlugs: string[]) 
   `;
 }
 
+export async function grantStudentAccessForExistingUser(params: {
+  email: string;
+  schoolSlug: string;
+}) {
+  await ensureAuthSchema();
+
+  const email = normalizeEmail(params.email);
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  const userRow = await getUserRowByEmail(email);
+  if (!userRow?.email_verified || !userRow.password_hash) {
+    return null;
+  }
+
+  const user = await hydrateUser(userRow);
+  await setUserPortals(user.id, Array.from(new Set([...user.portals, "student"])));
+  await setUserSchoolSlugs(user.id, Array.from(new Set([...user.schoolSlugs, params.schoolSlug.trim().toLowerCase()])));
+
+  const refreshedUserRow = await getUserRowById(user.id);
+  return refreshedUserRow ? hydrateUser(refreshedUserRow) : user;
+}
+
 export type AccountInvitePreview =
   | {
       ok: true;
@@ -1027,6 +1155,11 @@ export async function createAccountInvite(params: {
   schoolSlug?: string | null;
   invitedByUserId: string;
   invitedByName: string;
+  nextPath?: string;
+  assignment?: {
+    moduleTitle: string;
+    lessonTitle: string;
+  };
 }) {
   await ensureAuthSchema();
 
@@ -1092,6 +1225,8 @@ export async function createAccountInvite(params: {
     token: rawToken,
     invitedByName: params.invitedByName,
     portals,
+    nextPath: params.nextPath,
+    assignment: params.assignment,
   });
 
   return {

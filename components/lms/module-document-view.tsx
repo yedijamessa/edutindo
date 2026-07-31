@@ -1,5 +1,6 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -21,6 +22,7 @@ import {
   Search,
   User,
   Calculator,
+  XCircle,
 } from "lucide-react";
 import { ModuleMarkdown } from "@/components/module-markdown";
 import { cn } from "@/lib/utils";
@@ -53,6 +55,10 @@ function totalBlocks(document: ModuleEditorDocument) {
   return document.pages.reduce((sum, page) => sum + page.blocks.length, 0);
 }
 
+function normalizeAnswer(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,11 +72,23 @@ function QuestionBlock({
 }) {
   const [expanded, setExpanded] = useState(true);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [textAnswer, setTextAnswer] = useState("");
+  const [textAnswerSubmitted, setTextAnswerSubmitted] = useState(false);
 
   const hasAcceptedAnswers =
     showAnswers &&
     (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank") &&
     block.acceptableAnswers.some((a) => a.trim().length > 0);
+  const acceptedTextAnswers = block.acceptableAnswers.map(normalizeAnswer).filter(Boolean);
+  const isTextAnswerQuiz = block.quizType === "short-answer" || block.quizType === "fill-in-the-blank";
+  const canScoreTextAnswer = isTextAnswerQuiz && acceptedTextAnswers.length > 0;
+  const textAnswerCorrect = canScoreTextAnswer && acceptedTextAnswers.includes(normalizeAnswer(textAnswer));
+
+  function submitTextAnswer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!textAnswer.trim()) return;
+    setTextAnswerSubmitted(true);
+  }
 
   return (
     <div className="rounded-[20px] border border-[#ffedd5] bg-[#fffaf5]">
@@ -164,11 +182,58 @@ function QuestionBlock({
                   rows={4}
                 />
               ) : (
-                <input 
-                  type="text"
-                  placeholder="Type your answer here..."
-                  className="w-full rounded-[14px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff] transition-colors"
-                />
+                <form className="space-y-3" onSubmit={submitTextAnswer}>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                      type="text"
+                      value={textAnswer}
+                      onChange={(event) => {
+                        setTextAnswer(event.target.value);
+                        setTextAnswerSubmitted(false);
+                      }}
+                      placeholder="Type your answer here..."
+                      className={cn(
+                        "min-w-0 flex-1 rounded-[14px] border bg-[#f8fbff] px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 transition-colors focus:outline-none focus:ring-1",
+                        textAnswerSubmitted
+                          ? textAnswerCorrect
+                            ? "border-[#86efac] focus:border-[#16a34a] focus:ring-[#16a34a]"
+                            : "border-[#fca5a5] focus:border-[#dc2626] focus:ring-[#dc2626]"
+                          : "border-[#e5ecf8] focus:border-[#2f6fff] focus:ring-[#2f6fff]"
+                      )}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!textAnswer.trim()}
+                      className="inline-flex h-11 items-center justify-center rounded-[14px] bg-[#2f6fff] px-5 text-sm font-semibold text-white shadow-[0_16px_32px_-24px_rgba(37,99,235,0.85)] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                    >
+                      Submit
+                    </button>
+                  </div>
+
+                  {textAnswerSubmitted ? (
+                    canScoreTextAnswer ? (
+                      <div
+                        className={cn(
+                          "flex items-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm font-semibold",
+                          textAnswerCorrect
+                            ? "border-[#bbf7d0] bg-[#ecfdf3] text-[#15803d]"
+                            : "border-[#fecaca] bg-[#fff1f2] text-[#b91c1c]"
+                        )}
+                      >
+                        {textAnswerCorrect ? (
+                          <Check className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <XCircle className="h-4 w-4 shrink-0" />
+                        )}
+                        <span>{textAnswerCorrect ? "Correct." : "Not quite. Try again."}</span>
+                      </div>
+                    ) : (
+                      <div className="rounded-[14px] border border-[#dce7ff] bg-[#f0f6ff] px-4 py-2.5 text-sm font-semibold text-[#1e40af]">
+                        Answer submitted.
+                      </div>
+                    )
+                  ) : null}
+                </form>
               )}
             </div>
           )}
