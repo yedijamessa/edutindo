@@ -131,7 +131,7 @@ export default function PrivacyPolicyPage() {
                                 <div className="bg-muted p-4 rounded-lg mt-2">
                                     <p className="font-medium">Yayasan Edutindo</p>
                                     <p className="text-muted-foreground">Email: hello@edutindo.org</p>
-                                    <p className="text-muted-foreground">Address: [Your Address]</p>
+                                    
                                 </div>
                             </section>
                         </CardContent>

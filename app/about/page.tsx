@@ -108,8 +108,8 @@ const FOUNDERS: Founder[] = [
     name: "Grace Panggo",
     imageSrc: "/founders/grace-panggo.jpeg",
     imageAlt: "Grace Panggo",
-    imagePosition: "center 24%",
-    imageScale: 1.55,
+    imagePosition: "center 6%",
+    imageScale: 1.35,
     lines: [
       "BSc in Law, University of Indonesia",
       "2+ years as Corporate Lawyer / Cross-border Legal Advisor",
