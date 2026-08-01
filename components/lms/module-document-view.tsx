@@ -425,6 +425,7 @@ export function ModuleDocumentView({
   initialPageId,
   showChrome = true,
   hideSidebars = false,
+  hideStatusBar = false,
 }: {
   document: ModuleEditorDocument;
   showAnswers?: boolean;
@@ -432,6 +433,7 @@ export function ModuleDocumentView({
   initialPageId?: string;
   showChrome?: boolean;
   hideSidebars?: boolean;
+  hideStatusBar?: boolean;
 }) {
   const pages = document.pages;
   const [currentPage, setCurrentPage] = useState(() => {
@@ -454,7 +456,7 @@ export function ModuleDocumentView({
   return (
     <div className="flex flex-col gap-0">
       {/* ── Status bar ─────────────────────────────────────────────────────── */}
-      {showChrome && (
+      {showChrome && !hideStatusBar && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e5ecf8] bg-white px-5 py-3 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)]">
           <span className="inline-flex rounded-full bg-[#ff7a1a] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_16px_-10px_rgba(249,115,22,0.7)]">
             Saved Module

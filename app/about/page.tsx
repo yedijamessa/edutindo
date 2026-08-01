@@ -103,6 +103,18 @@ const FOUNDERS: Founder[] = [
       "Private Tutor (English)",
     ],
   },
+  {
+    role: "Legal",
+    name: "Grace Panggo",
+    imageSrc: "/founders/grace-panggo.jpeg",
+    imageAlt: "Grace Panggo",
+    imagePosition: "center 24%",
+    imageScale: 1.55,
+    lines: [
+      "BSc in Law, University of Indonesia",
+      "2+ years as Corporate Lawyer / Cross-border Legal Advisor",
+    ],
+  },
 ];
 
 function getInitials(name: string) {
@@ -115,6 +127,7 @@ function getInitials(name: string) {
 }
 
 function getFounderCardSpanClassName(index: number) {
+  if (FOUNDERS.length % 4 === 0) return "lg:col-span-3";
   if (index < 3) return "lg:col-span-4";
   return "lg:col-span-3";
 }

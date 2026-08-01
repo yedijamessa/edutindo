@@ -580,7 +580,11 @@ export async function sendLessonAssignmentEmail(params: {
 }) {
   const candidates = buildSmtpCandidates();
   const lessonPath = sanitizeNextPath(params.lessonPath, "/student/materials");
-  const lessonUrl = `${getAppBaseUrl()}${lessonPath}`;
+  const appBaseUrl = getAppBaseUrl();
+  const assignmentLoginUrl = `${appBaseUrl}/student-login?${new URLSearchParams({
+    email: params.email,
+    next: lessonPath,
+  }).toString()}`;
   let lastError: unknown = null;
 
   for (const smtp of candidates) {
@@ -600,27 +604,25 @@ export async function sendLessonAssignmentEmail(params: {
         to: params.email,
         subject: `New Edutindo lesson: ${params.moduleTitle}`,
         text:
-          `Hi ${params.firstName || "there"},\n\n` +
-          `${params.assignedByName} assigned a lesson for you on Edutindo.\n\n` +
+          "Hi! New Edutindo lesson assigned for you.\n\n" +
           `Module: ${params.moduleTitle}\n` +
           `Lesson: ${params.lessonTitle}\n\n` +
-          `Open it here:\n${lessonUrl}\n\n` +
+          `Open it here:\n${assignmentLoginUrl}\n\n` +
           "You can also find it from your Student Portal under Learning Materials.",
         html: `
           <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">
-            <h2 style="margin:0 0 12px;">New Edutindo lesson assigned</h2>
-            <p style="margin:0 0 12px;">Hi ${params.firstName || "there"}, ${params.assignedByName} assigned a lesson for you.</p>
+            <p style="margin:0 0 12px;">Hi! New Edutindo lesson assigned for you.</p>
             <p style="margin:0 0 12px;"><strong>Module:</strong> ${params.moduleTitle}<br/><strong>Lesson:</strong> ${params.lessonTitle}</p>
             <p style="margin:0 0 16px;">
               <a
-                href="${lessonUrl}"
+                href="${assignmentLoginUrl}"
                 style="display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;"
               >
                 Open Lesson
               </a>
             </p>
             <p style="margin:0 0 8px;">Or copy this link into your browser:</p>
-            <p style="margin:0;word-break:break-all;color:#1d4ed8;">${lessonUrl}</p>
+            <p style="margin:0;word-break:break-all;color:#1d4ed8;">${assignmentLoginUrl}</p>
           </div>
         `,
       });

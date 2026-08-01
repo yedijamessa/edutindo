@@ -156,6 +156,7 @@ export async function CurriculumLessonPage({
               document={moduleDocument}
               showAnswers={role !== "student"}
               hideSidebars={role === "student"}
+              hideStatusBar={role === "student"}
               meta={{
                 lessonCode: lesson.lessonCode ?? undefined,
                 chapterTitle: chapter.title,
