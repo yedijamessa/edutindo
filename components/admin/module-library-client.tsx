@@ -260,49 +260,31 @@ function LessonAssignmentDialog({
 
 function ModuleAssignmentDialog({
   module,
-  lessons,
-  moduleByLessonId,
   busyKey,
   error,
   onClose,
-  onAssign,
   onAssignStudent,
   onUnassign,
 }: {
   module: ModuleListEntry;
-  lessons: LessonStub[];
-  moduleByLessonId: Map<string, ModuleListEntry>;
   busyKey: string | null;
   error: string;
   onClose: () => void;
-  onAssign: (moduleId: string, lessonId: string) => Promise<boolean>;
   onAssignStudent: (moduleId: string, lessonId: string, email: string) => Promise<string | null>;
   onUnassign: (lessonId: string) => Promise<boolean>;
 }) {
-  const [search, setSearch] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
-  const [studentLessonId, setStudentLessonId] = useState(
-    module.assignments[0]?.lessonId ?? lessons[0]?.lessonId ?? ""
-  );
   const [studentMessage, setStudentMessage] = useState("");
-
-  const filteredLessons = useMemo(() => {
-    const query = search.toLowerCase().trim();
-    if (!query) return lessons;
-
-    return lessons.filter((lesson) =>
-      [
-        lesson.lessonTitle,
-        lesson.subjectTitle,
-        lesson.chapterTitle,
-        lesson.lessonCode,
-        lesson.week,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [lessons, search]);
+  const normalizeTitle = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
+  const moduleTitle = normalizeTitle(module.moduleTitle);
+  const studentAssignment =
+    module.assignments.find((assignment) => normalizeTitle(assignment.lessonTitle) === moduleTitle) ??
+    module.assignments.find((assignment) => {
+      const lessonTitle = normalizeTitle(assignment.lessonTitle);
+      return Boolean(lessonTitle) && (moduleTitle.includes(lessonTitle) || lessonTitle.includes(moduleTitle));
+    }) ??
+    module.assignments[0] ??
+    null;
 
   return (
     <DialogShell
@@ -342,7 +324,9 @@ function ModuleAssignmentDialog({
             event.preventDefault();
             setStudentMessage("");
 
-            const message = await onAssignStudent(module.moduleId, studentLessonId, studentEmail);
+            if (!studentAssignment) return;
+
+            const message = await onAssignStudent(module.moduleId, studentAssignment.lessonId, studentEmail);
             if (message) {
               setStudentMessage(message);
               setStudentEmail("");
@@ -372,24 +356,16 @@ function ModuleAssignmentDialog({
               placeholder="student@email.com"
               className="h-11 rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff]"
             />
-            <select
-              value={studentLessonId}
-              onChange={(event) => {
-                setStudentLessonId(event.target.value);
-                setStudentMessage("");
-              }}
-              className="h-11 rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm font-medium text-slate-700 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff]"
-            >
-              {lessons.map((lesson) => (
-                <option key={lesson.lessonId} value={lesson.lessonId}>
-                  {lesson.lessonTitle}
-                  {lesson.lessonCode ? ` (${lesson.lessonCode})` : ""}
-                </option>
-              ))}
-            </select>
+            <div className="flex h-11 min-w-0 items-center rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm font-medium text-slate-700">
+              <span className="truncate">
+                {studentAssignment
+                  ? studentAssignment.lessonTitle
+                  : "Assign this module to a lesson first"}
+              </span>
+            </div>
             <button
               type="submit"
-              disabled={!studentEmail.trim() || !studentLessonId || Boolean(busyKey)}
+              disabled={!studentEmail.trim() || !studentAssignment || Boolean(busyKey)}
               className="inline-flex h-11 items-center justify-center rounded-[12px] bg-[#2f6fff] px-4 text-sm font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-45"
             >
               {busyKey === `student:${module.moduleId}` ? "Sending..." : "Send assignment"}
@@ -402,62 +378,6 @@ function ModuleAssignmentDialog({
             </p>
           ) : null}
         </form>
-
-        <div className="flex items-center gap-2 rounded-[14px] border border-[#dce6ff] bg-[#f8fbff] px-3 py-2">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
-          <input
-            autoFocus
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search lessons..."
-            className="flex-1 bg-transparent text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none"
-          />
-        </div>
-
-        <div className="max-h-[26rem] space-y-2 overflow-y-auto">
-          {filteredLessons.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">No lessons found.</p>
-          ) : (
-            filteredLessons.map((lesson) => {
-              const assignedModule = moduleByLessonId.get(lesson.lessonId) ?? null;
-              const isCurrent = assignedModule?.moduleId === module.moduleId;
-              const isBusy = busyKey === `${module.moduleId}:${lesson.lessonId}`;
-
-              return (
-                <div
-                  key={lesson.lessonId}
-                  className={cn(
-                    "flex flex-wrap items-center justify-between gap-3 rounded-[18px] border px-4 py-3",
-                    isCurrent ? "border-[#b9cffd] bg-[#eef4ff]" : "border-[#e8eef8] bg-white"
-                  )}
-                >
-                  <div className="min-w-0">
-                    <LessonLabel lesson={lesson} />
-                    {assignedModule && !isCurrent && (
-                      <p className="mt-1 text-xs text-[#c2410c]">Currently using: {assignedModule.moduleTitle}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={Boolean(busyKey)}
-                    onClick={async () => {
-                      const didAssign = await onAssign(module.moduleId, lesson.lessonId);
-                      if (didAssign) onClose();
-                    }}
-                    className={cn(
-                      "rounded-full px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                      isCurrent
-                        ? "border border-[#b9cffd] bg-white text-[#2f6fff]"
-                        : "bg-[#2f6fff] text-white hover:bg-[#1d4ed8]"
-                    )}
-                  >
-                    {isCurrent ? "Assigned" : assignedModule ? (isBusy ? "Replacing..." : "Replace") : isBusy ? "Assigning..." : "Assign"}
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
 
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
       </div>
@@ -1270,15 +1190,12 @@ export function ModuleLibraryClient({
       {selectedModule && (
         <ModuleAssignmentDialog
           module={selectedModule}
-          lessons={lessons}
-          moduleByLessonId={moduleByLessonId}
           busyKey={busyKey}
           error={actionError}
           onClose={() => {
             setSelectedModule(null);
             setActionError("");
           }}
-          onAssign={assignModule}
           onAssignStudent={assignModuleToStudent}
           onUnassign={unassignLesson}
         />
