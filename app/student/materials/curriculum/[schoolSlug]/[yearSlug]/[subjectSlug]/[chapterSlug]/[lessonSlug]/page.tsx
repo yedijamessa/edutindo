@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { CurriculumLessonPage } from "@/components/lms/curriculum-lesson-page";
 import { getCurrentUser } from "@/lib/auth";
+import { listStudentAssignedModuleLessons } from "@/lib/module-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,14 @@ export default async function StudentSchoolCurriculumLessonPage({ params, search
 
   if (user?.schoolSlugs && user.schoolSlugs.length > 0 && !user.schoolSlugs.includes(schoolSlug)) {
     notFound();
+  }
+
+  const requestedHref = `/student/materials/curriculum/${schoolSlug}/${yearSlug}/${subjectSlug}/${chapterSlug}/${lessonSlug}`;
+  const assignedLessons = await listStudentAssignedModuleLessons(user);
+  const isAssignedToStudent = assignedLessons.some((lesson) => lesson.href === requestedHref);
+
+  if (!isAssignedToStudent) {
+    redirect("/student/materials");
   }
 
   return (

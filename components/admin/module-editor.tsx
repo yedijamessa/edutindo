@@ -336,6 +336,7 @@ type TextFormattingAction =
   | "quote";
 
 type AiAssistAction = "page-quiz" | "module-quiz" | "section";
+const IMAGE_ATTACHMENT_MAX_BYTES = 2.5 * 1024 * 1024;
 
 function wrapSelection(
   value: string,
@@ -479,6 +480,47 @@ export function ModuleEditor({
       ...page,
       blocks: page.blocks.map((block) => (block.id === blockId ? updater(block) : block)),
     }));
+  };
+
+  const attachImageToBlock = (blockId: string, file: File | null) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setMessage("");
+      setError("Please attach an image file.");
+      return;
+    }
+
+    if (file.size > IMAGE_ATTACHMENT_MAX_BYTES) {
+      setMessage("");
+      setError("Image attachment must be 2.5 MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imageUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!imageUrl) {
+        setMessage("");
+        setError("Could not read the image attachment.");
+        return;
+      }
+
+      updateBlock(blockId, (current) => ({
+        ...current,
+        type: "image",
+        imageUrl,
+        altText: current.type === "image" ? current.altText : "",
+        caption: current.type === "image" ? current.caption : "",
+      }));
+      setMessage("Image attached.");
+      setError("");
+    };
+    reader.onerror = () => {
+      setMessage("");
+      setError("Could not read the image attachment.");
+    };
+    reader.readAsDataURL(file);
   };
 
   const appendBlockToPage = (pageId: string, block: ModuleEditorBlock) => {
@@ -1279,21 +1321,64 @@ export function ModuleEditor({
                         {block.type === "image" && (
                           <div className="mt-4 grid gap-4">
                             <div className="space-y-2">
-                              <label className="text-sm font-semibold text-slate-700">Image URL</label>
-                              <Input
-                                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
-                                value={block.imageUrl}
-                                onChange={(event) =>
-                                  updateBlock(block.id, (current) => ({
-                                    ...current,
-                                    type: "image",
-                                    imageUrl: event.target.value,
-                                    altText: current.type === "image" ? current.altText : "",
-                                    caption: current.type === "image" ? current.caption : "",
-                                  }))
-                                }
-                                placeholder="https://..."
-                              />
+                              <label className="text-sm font-semibold text-slate-700">Photo Attachment</label>
+                              <div className="rounded-[20px] border border-dashed border-[#cfe0ff] bg-[#f8fbff] p-4">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+                                      <ImageIcon className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-bold text-slate-900">
+                                        {block.imageUrl ? "Photo attached" : "Attach a photo"}
+                                      </p>
+                                      <p className="text-xs font-medium text-slate-500">
+                                        JPG, PNG, GIF, or WebP. Max 2.5 MB.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#2f6fff] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]">
+                                      Choose Photo
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="sr-only"
+                                        onChange={(event) => {
+                                          attachImageToBlock(block.id, event.target.files?.[0] ?? null);
+                                          event.target.value = "";
+                                        }}
+                                      />
+                                    </label>
+                                    {block.imageUrl ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          updateBlock(block.id, (current) => ({
+                                            ...current,
+                                            type: "image",
+                                            imageUrl: "",
+                                            altText: current.type === "image" ? current.altText : "",
+                                            caption: current.type === "image" ? current.caption : "",
+                                          }))
+                                        }
+                                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#dfe7f5] bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-[#f7faff]"
+                                      >
+                                        Remove
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                {block.imageUrl ? (
+                                  <div className="mt-4 overflow-hidden rounded-[18px] border border-[#dfe7f5] bg-white">
+                                    <img
+                                      src={block.imageUrl}
+                                      alt={block.altText || block.caption || "Attached module image"}
+                                      className="max-h-[320px] w-full object-contain"
+                                    />
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-semibold text-slate-700">Alt Text</label>

@@ -21,6 +21,7 @@ const adminMenuItems = [
   { label: "Curriculum Portal", href: "/admin/curriculum" },
   { label: "Module Editor", href: "/admin/module-editor" },
   { label: "Module Library", href: "/admin/modules" },
+  { label: "Curriculum Assign Portal", href: "/curriculum-assign-portal" },
   { label: "Admin Logs", href: "/admin/logs" },
   { label: "Public Site", href: "/" },
   { label: "Student Portal", href: "/student" },

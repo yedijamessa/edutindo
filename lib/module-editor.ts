@@ -3,9 +3,12 @@ import "@/lib/server-only";
 import { randomUUID } from "crypto";
 import {
   ensureCurriculumReady,
+  getCurriculumLessonContext,
   getCurriculumNodeLineage,
   listCurriculumTree,
+  updateCurriculumNode,
   type CurriculumNode,
+  type CurriculumAssignmentTag,
 } from "@/lib/curriculum-portal";
 import { ensureAuthSchema, type AuthUser } from "@/lib/auth";
 import { sqlQuery as sql } from "@/lib/postgres-query";
@@ -49,6 +52,7 @@ type ModuleEditorAssignmentRow = {
 type StudentLessonAssignmentRow = {
   lesson_id: string;
   module_id: string;
+  school_slug: string;
   assigned_at: Date;
 };
 
@@ -72,6 +76,29 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function normalizeAssignmentTags(value: unknown): CurriculumAssignmentTag[] {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  const tags: CurriculumAssignmentTag[] = [];
+
+  for (const item of value) {
+    if (!isObjectRecord(item)) continue;
+
+    const schoolSlug = sanitizeText(item.schoolSlug, 120).toLowerCase();
+    const yearSlug = sanitizeText(item.yearSlug, 120).toLowerCase();
+    if (!schoolSlug || !yearSlug) continue;
+
+    const key = `${schoolSlug}:${yearSlug}`;
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    tags.push({ schoolSlug, yearSlug });
+  }
+
+  return tags;
+}
+
 function sanitizeText(value: unknown, maxLength: number) {
   return String(value ?? "").trim().slice(0, maxLength);
 }
@@ -91,6 +118,10 @@ function slugifyCatalogValue(value: unknown) {
 function sanitizeUrl(value: unknown) {
   const cleaned = String(value ?? "").trim();
   if (!cleaned) return "";
+
+  if (/^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(cleaned)) {
+    return cleaned;
+  }
 
   try {
     const parsed = new URL(cleaned);
@@ -878,7 +909,7 @@ export async function listStudentAssignedModuleLessons(
 
   const email = user.email.trim().toLowerCase();
   const assignmentResult = await sql<StudentLessonAssignmentRow>`
-    SELECT lesson_id, module_id, assigned_at
+    SELECT lesson_id, module_id, school_slug, assigned_at
     FROM auth_student_lesson_assignments
     WHERE user_id = ${user.id} OR email = ${email}
     ORDER BY assigned_at DESC
@@ -903,6 +934,45 @@ export async function listStudentAssignedModuleLessons(
 
     const subject = lesson.subjectTitle || module.subjectTitle || "General";
     const chapter = lesson.chapterTitle || module.chapterTitle;
+    const schoolSlug = row.school_slug || lesson.schoolSlug;
+    const lessonHref = `/student/materials/curriculum/${schoolSlug}/${lesson.yearSlug}/${lesson.subjectSlug}/${lesson.chapterSlug}/${lesson.lessonSlug}`;
+    let lessonContext = await getCurriculumLessonContext({
+      schoolSlug,
+      yearSlug: lesson.yearSlug,
+      subjectSlug: lesson.subjectSlug,
+      chapterSlug: lesson.chapterSlug,
+      lessonSlug: lesson.lessonSlug,
+    });
+
+    if (!lessonContext && schoolSlug && lesson.yearSlug) {
+      const target = await getModuleEditorTarget(row.lesson_id);
+      const currentTags = normalizeAssignmentTags(target?.metadata.assignmentTags);
+      const tagKey = `${schoolSlug}:${lesson.yearSlug}`;
+      const nextTags = currentTags.some((tag) => `${tag.schoolSlug}:${tag.yearSlug}` === tagKey)
+        ? currentTags
+        : [...currentTags, { schoolSlug, yearSlug: lesson.yearSlug }];
+
+      if (target && nextTags.length !== currentTags.length) {
+        await updateCurriculumNode({
+          nodeId: row.lesson_id,
+          title: target.title,
+          metadata: {
+            ...target.metadata,
+            assignmentTags: nextTags,
+          },
+        });
+
+        lessonContext = await getCurriculumLessonContext({
+          schoolSlug,
+          yearSlug: lesson.yearSlug,
+          subjectSlug: lesson.subjectSlug,
+          chapterSlug: lesson.chapterSlug,
+          lessonSlug: lesson.lessonSlug,
+        });
+      }
+    }
+
+    if (!lessonContext) continue;
 
     lessonsByKey.set(key, {
       id: lesson.lessonId,
@@ -914,7 +984,7 @@ export async function listStudentAssignedModuleLessons(
       subjectSlug: lesson.subjectSlug || module.subjectSlug,
       chapterTitle: chapter,
       description: chapter ? `${subject} / ${chapter}` : `${subject} lesson`,
-      href: `/student/materials/curriculum/${lesson.schoolSlug}/${lesson.yearSlug}/${lesson.subjectSlug}/${lesson.chapterSlug}/${lesson.lessonSlug}`,
+      href: lessonHref,
       createdAt: row.assigned_at.toISOString(),
     });
   }

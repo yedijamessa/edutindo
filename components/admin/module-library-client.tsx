@@ -13,6 +13,7 @@ import {
   CircleAlert,
   CircleHelp,
   Clock3,
+  Download,
   ExternalLink,
   Grid2X2,
   List,
@@ -988,6 +989,16 @@ export function ModuleLibraryClient({
                                   <Users className="h-3.5 w-3.5" />
                                   Assign Lessons
                                 </button>
+                                {(["pdf", "docx", "odt"] as const).map((format) => (
+                                  <a
+                                    key={format}
+                                    href={`/admin/modules/${encodeURIComponent(module.moduleId)}/export?format=${format}`}
+                                    className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e4ecfb] px-3 py-2 text-xs font-semibold uppercase text-[#53688f] hover:bg-[#f7faff] hover:text-[#2f6fff]"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    {format}
+                                  </a>
+                                ))}
                                 <button
                                   type="button"
                                   disabled={busyKey === `delete:${module.moduleId}` || isPending}

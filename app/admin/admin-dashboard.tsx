@@ -77,6 +77,7 @@ const creationTools = [
 ];
 
 const crossPortalLinks = [
+  { title: "Curriculum Assign Portal", href: "/curriculum-assign-portal" },
   { title: "Student Portal", href: "/student" },
   { title: "Teacher Portal", href: "/teacher" },
   { title: "Parent Portal", href: "/parent" },
@@ -237,13 +238,13 @@ export default function AdminDashboard({ adminEmail, canManageAccessControls }: 
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {crossPortalLinks.map((item) => (
             <Button
               key={item.href}
               asChild
               variant="outline"
-              className="h-11 justify-center rounded-full border-[#d9e0ec] bg-white/90 text-[15px] font-medium text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-900"
+              className="h-auto min-h-11 justify-center whitespace-normal rounded-full border-[#d9e0ec] bg-white/90 px-4 py-2 text-center text-[15px] font-medium leading-snug text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-900"
             >
               <Link href={item.href}>{item.title}</Link>
             </Button>

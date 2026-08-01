@@ -26,6 +26,7 @@ interface NavItem {
     title: string;
     href: string;
     icon: React.ComponentType<{ className?: string }>;
+    inProgress?: boolean;
 }
 
 interface SidebarNavProps {
@@ -36,21 +37,21 @@ const studentNav: NavItem[] = [
     { title: 'Dashboard', href: '/student', icon: LayoutDashboard },
     { title: 'Materials', href: '/student/materials', icon: BookOpen },
     { title: 'Learning Path', href: '/student/learning-path', icon: GitBranch },
-    { title: 'Quizzes', href: '/student/quizzes', icon: HelpCircle },
-    { title: 'Notes', href: '/student/notes', icon: StickyNote },
-    { title: 'Progress', href: '/student/progress', icon: BarChart3 },
-    { title: 'Announcements', href: '/student/announcements', icon: Sparkles },
-    { title: 'Digital Locker', href: '/student/locker', icon: HardDrive },
-    { title: 'Tutoring', href: '/student/tutoring', icon: Users },
-    { title: 'Whiteboard', href: '/student/whiteboard', icon: Palette },
-    { title: 'Annotations', href: '/student/annotations', icon: MessageCircle },
-    { title: 'Oral Exam', href: '/student/oral-exam', icon: Video },
-    { title: 'Gamification', href: '/student/gamification', icon: Trophy },
-    { title: 'Mind Map', href: '/student/mindmap', icon: GitBranch },
-    { title: 'AI Assistant', href: '/student/ai-assistant', icon: Sparkles },
-    { title: 'Calendar', href: '/student/calendar', icon: Calendar },
-    { title: 'Meeting Room', href: '/student/meeting', icon: Video },
-    { title: 'Book Room', href: '/student/booking', icon: DoorOpen },
+    { title: 'Quizzes', href: '/student/quizzes', icon: HelpCircle, inProgress: true },
+    { title: 'Notes', href: '/student/notes', icon: StickyNote, inProgress: true },
+    { title: 'Progress', href: '/student/progress', icon: BarChart3, inProgress: true },
+    { title: 'Announcements', href: '/student/announcements', icon: Sparkles, inProgress: true },
+    { title: 'Digital Locker', href: '/student/locker', icon: HardDrive, inProgress: true },
+    { title: 'Tutoring', href: '/student/tutoring', icon: Users, inProgress: true },
+    { title: 'Whiteboard', href: '/student/whiteboard', icon: Palette, inProgress: true },
+    { title: 'Annotations', href: '/student/annotations', icon: MessageCircle, inProgress: true },
+    { title: 'Oral Exam', href: '/student/oral-exam', icon: Video, inProgress: true },
+    { title: 'Gamification', href: '/student/gamification', icon: Trophy, inProgress: true },
+    { title: 'Mind Map', href: '/student/mindmap', icon: GitBranch, inProgress: true },
+    { title: 'AI Assistant', href: '/student/ai-assistant', icon: Sparkles, inProgress: true },
+    { title: 'Calendar', href: '/student/calendar', icon: Calendar, inProgress: true },
+    { title: 'Meeting Room', href: '/student/meeting', icon: Video, inProgress: true },
+    { title: 'Book Room', href: '/student/booking', icon: DoorOpen, inProgress: true },
 ];
 
 const teacherNav: NavItem[] = [
@@ -115,12 +116,17 @@ export function SidebarNav({ role }: SidebarNavProps) {
                                     : "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                                 role === "student"
                                     ? isActive
-                                        ? "bg-[#eef4ff] text-[#2f6fff]"
-                                        : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-800"
+                                        ? item.inProgress
+                                            ? "border border-amber-200 bg-amber-100 text-amber-900"
+                                            : "bg-[#eef4ff] text-[#2f6fff]"
+                                        : item.inProgress
+                                            ? "border border-amber-100 bg-amber-50 text-amber-900/80 hover:border-amber-200 hover:bg-amber-100 hover:text-amber-950"
+                                            : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-800"
                                     : isActive
                                         ? "bg-primary text-primary-foreground"
                                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                             )}
+                            title={item.inProgress ? `${item.title} is in progress` : item.title}
                         >
                             <Icon className={role === "student" ? "h-4 w-4" : "h-5 w-5"} />
                             {item.title}

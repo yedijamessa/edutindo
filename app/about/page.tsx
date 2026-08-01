@@ -58,7 +58,7 @@ const FOUNDERS: Founder[] = [
   },
   {
     role: "President/Chair",
-    name: "Dr Sasza Chyntara Nabilla",
+    name: "Dr Sasza Nabilla",
     imageSrc: "/founders/sasza.jpeg",
     imageAlt: "Dr Sasza Chyntara Nabilla",
     lines: [
