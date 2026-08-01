@@ -36,6 +36,12 @@ const adminTools = [
     icon: NotebookTabs,
   },
   {
+    title: "Module Library",
+    href: "/admin/modules",
+    description: "Assign reusable modules to lessons and send selected modules to students.",
+    icon: Layers3,
+  },
+  {
     title: "Admin Access Control",
     href: "/admin/access",
     description: "Manage which users can open each portal.",

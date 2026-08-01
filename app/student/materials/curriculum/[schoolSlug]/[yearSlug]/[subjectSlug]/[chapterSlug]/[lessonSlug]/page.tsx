@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CurriculumLessonPage } from "@/components/lms/curriculum-lesson-page";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -12,11 +12,31 @@ type LessonPageProps = {
     chapterSlug: string;
     lessonSlug: string;
   }>;
+  searchParams: Promise<{ assignedEmail?: string }>;
 };
 
-export default async function StudentSchoolCurriculumLessonPage({ params }: LessonPageProps) {
+function normalizeAssignedEmail(value: string | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+export default async function StudentSchoolCurriculumLessonPage({ params, searchParams }: LessonPageProps) {
   const { schoolSlug, yearSlug, subjectSlug, chapterSlug, lessonSlug } = await params;
+  const { assignedEmail } = await searchParams;
   const user = await getCurrentUser();
+  const normalizedAssignedEmail = normalizeAssignedEmail(assignedEmail);
+
+  if (normalizedAssignedEmail && user?.email.toLowerCase() !== normalizedAssignedEmail) {
+    const nextPath =
+      `/student/materials/curriculum/${schoolSlug}/${yearSlug}/${subjectSlug}/${chapterSlug}/${lessonSlug}` +
+      `?assignedEmail=${encodeURIComponent(normalizedAssignedEmail)}`;
+
+    redirect(
+      `/student-login?${new URLSearchParams({
+        email: normalizedAssignedEmail,
+        next: nextPath,
+      }).toString()}`
+    );
+  }
 
   if (user?.schoolSlugs && user.schoolSlugs.length > 0 && !user.schoolSlugs.includes(schoolSlug)) {
     notFound();

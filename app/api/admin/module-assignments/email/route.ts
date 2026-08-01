@@ -5,6 +5,7 @@ import {
   getUserFromSessionToken,
   grantStudentAccessForExistingUser,
   hasAdminPortalAccess,
+  recordStudentLessonAssignment,
   sendLessonAssignmentEmail,
 } from "@/lib/auth";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-shared";
@@ -151,6 +152,15 @@ export async function POST(req: NextRequest) {
         assignedByName,
       });
 
+      await recordStudentLessonAssignment({
+        email: existingStudent.email,
+        userId: existingStudent.id,
+        schoolSlug: scope.schoolSlug,
+        lessonId,
+        moduleId,
+        assignedByUserId: access.user.id,
+      });
+
       return NextResponse.json({
         ok: true,
         message: `Lesson assigned and sent to ${existingStudent.email}.`,
@@ -170,6 +180,14 @@ export async function POST(req: NextRequest) {
         moduleTitle: moduleDocument.title,
         lessonTitle: target.title,
       },
+    });
+
+    await recordStudentLessonAssignment({
+      email,
+      schoolSlug: scope.schoolSlug,
+      lessonId,
+      moduleId,
+      assignedByUserId: access.user.id,
     });
 
     return NextResponse.json({

@@ -581,9 +581,12 @@ export async function sendLessonAssignmentEmail(params: {
   const candidates = buildSmtpCandidates();
   const lessonPath = sanitizeNextPath(params.lessonPath, "/student/materials");
   const appBaseUrl = getAppBaseUrl();
+  const recipientLessonPath = `${lessonPath}${lessonPath.includes("?") ? "&" : "?"}${new URLSearchParams({
+    assignedEmail: params.email,
+  }).toString()}`;
   const assignmentLoginUrl = `${appBaseUrl}/student-login?${new URLSearchParams({
     email: params.email,
-    next: lessonPath,
+    next: recipientLessonPath,
   }).toString()}`;
   let lastError: unknown = null;
 
@@ -605,14 +608,13 @@ export async function sendLessonAssignmentEmail(params: {
         subject: `New Edutindo lesson: ${params.moduleTitle}`,
         text:
           "Hi! New Edutindo lesson assigned for you.\n\n" +
-          `Module: ${params.moduleTitle}\n` +
-          `Lesson: ${params.lessonTitle}\n\n` +
+          `Module: ${params.moduleTitle}\n\n` +
           `Open it here:\n${assignmentLoginUrl}\n\n` +
           "You can also find it from your Student Portal under Learning Materials.",
         html: `
           <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">
             <p style="margin:0 0 12px;">Hi! New Edutindo lesson assigned for you.</p>
-            <p style="margin:0 0 12px;"><strong>Module:</strong> ${params.moduleTitle}<br/><strong>Lesson:</strong> ${params.lessonTitle}</p>
+            <p style="margin:0 0 12px;"><strong>Module:</strong> ${params.moduleTitle}</p>
             <p style="margin:0 0 16px;">
               <a
                 href="${assignmentLoginUrl}"
@@ -770,6 +772,30 @@ export async function ensureAuthSchema() {
       await sql`
         CREATE INDEX IF NOT EXISTS auth_user_schools_user_idx
         ON auth_user_schools (user_id);
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS auth_student_lesson_assignments (
+          id SERIAL PRIMARY KEY,
+          user_id TEXT REFERENCES auth_users(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          school_slug TEXT NOT NULL,
+          lesson_id TEXT NOT NULL,
+          module_id TEXT NOT NULL,
+          assigned_by_user_id TEXT REFERENCES auth_users(id) ON DELETE SET NULL,
+          assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE(email, lesson_id)
+        );
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS auth_student_lesson_assignments_user_idx
+        ON auth_student_lesson_assignments (user_id, assigned_at DESC);
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS auth_student_lesson_assignments_email_idx
+        ON auth_student_lesson_assignments (email, assigned_at DESC);
       `;
 
       await sql`
@@ -1132,6 +1158,60 @@ export async function grantStudentAccessForExistingUser(params: {
   return refreshedUserRow ? hydrateUser(refreshedUserRow) : user;
 }
 
+export async function recordStudentLessonAssignment(params: {
+  email: string;
+  userId?: string | null;
+  schoolSlug: string;
+  lessonId: string;
+  moduleId: string;
+  assignedByUserId?: string | null;
+}) {
+  await ensureAuthSchema();
+
+  const email = normalizeEmail(params.email);
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  const schoolSlug = params.schoolSlug.trim().toLowerCase();
+  const userId = params.userId?.trim() || null;
+  const lessonId = params.lessonId.trim();
+  const moduleId = params.moduleId.trim();
+  const assignedByUserId = params.assignedByUserId?.trim() || null;
+
+  if (!schoolSlug || !lessonId || !moduleId) {
+    throw new AuthError(400, "INVALID_ASSIGNMENT", "Lesson assignment is incomplete.");
+  }
+
+  await sql`
+    INSERT INTO auth_student_lesson_assignments (
+      user_id,
+      email,
+      school_slug,
+      lesson_id,
+      module_id,
+      assigned_by_user_id,
+      assigned_at
+    )
+    VALUES (
+      ${userId},
+      ${email},
+      ${schoolSlug},
+      ${lessonId},
+      ${moduleId},
+      ${assignedByUserId},
+      NOW()
+    )
+    ON CONFLICT (email, lesson_id)
+    DO UPDATE SET
+      user_id = COALESCE(EXCLUDED.user_id, auth_student_lesson_assignments.user_id),
+      school_slug = EXCLUDED.school_slug,
+      module_id = EXCLUDED.module_id,
+      assigned_by_user_id = EXCLUDED.assigned_by_user_id,
+      assigned_at = NOW()
+  `;
+}
+
 export type AccountInvitePreview =
   | {
       ok: true;
@@ -1358,6 +1438,12 @@ export async function acceptAccountInvite(params: {
 
   await setUserPortals(resolvedUserId, portals);
   await setUserSchoolSlug(resolvedUserId, invite.school_slug ?? null);
+
+  await sql`
+    UPDATE auth_student_lesson_assignments
+    SET user_id = ${resolvedUserId}
+    WHERE email = ${invite.email}
+  `;
 
   await sql`
     UPDATE auth_account_invites

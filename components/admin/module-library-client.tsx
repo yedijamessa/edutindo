@@ -75,13 +75,21 @@ function LessonLabel({ lesson }: { lesson: LessonStub }) {
   );
 }
 
-function ModuleLabel({ module }: { module: ModuleListEntry }) {
+function ModuleLabel({
+  module,
+  showAssignmentCount = true,
+}: {
+  module: ModuleListEntry;
+  showAssignmentCount?: boolean;
+}) {
   return (
     <div className="min-w-0">
       <p className="truncate text-sm font-semibold text-slate-900">{module.moduleTitle}</p>
       <p className="truncate text-xs text-slate-400">
-        {module.pageCount} {module.pageCount === 1 ? "page" : "pages"} ·{" "}
-        {module.assignments.length} {module.assignments.length === 1 ? "lesson" : "lessons"}
+        {module.pageCount} {module.pageCount === 1 ? "page" : "pages"}
+        {showAssignmentCount
+          ? ` · ${module.assignments.length} ${module.assignments.length === 1 ? "lesson" : "lessons"}`
+          : ""}
       </p>
     </div>
   );
@@ -264,14 +272,12 @@ function ModuleAssignmentDialog({
   error,
   onClose,
   onAssignStudent,
-  onUnassign,
 }: {
   module: ModuleListEntry;
   busyKey: string | null;
   error: string;
   onClose: () => void;
   onAssignStudent: (moduleId: string, lessonId: string, email: string) => Promise<string | null>;
-  onUnassign: (lessonId: string) => Promise<boolean>;
 }) {
   const [studentEmail, setStudentEmail] = useState("");
   const [studentMessage, setStudentMessage] = useState("");
@@ -294,28 +300,7 @@ function ModuleAssignmentDialog({
     >
       <div className="space-y-5 px-6 py-5">
         <div className="rounded-[18px] border border-[#e8eef8] bg-[#f8fbff] p-4">
-          <ModuleLabel module={module} />
-          <div className="mt-3 flex flex-wrap gap-2">
-            {module.assignments.length === 0 ? (
-              <Badge className="bg-[#fff4e8] text-[#c2410c]">Unassigned</Badge>
-            ) : (
-              module.assignments.map((assignment) => (
-                <button
-                  key={assignment.lessonId}
-                  type="button"
-                  onClick={async () => {
-                    const didUnassign = await onUnassign(assignment.lessonId);
-                    if (didUnassign) onClose();
-                  }}
-                  disabled={busyKey === `unassign:${assignment.lessonId}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-[#dce6ff] bg-white px-3 py-1 text-xs font-semibold text-[#2f6fff] hover:bg-[#f0f6ff] disabled:opacity-40"
-                >
-                  <span>{assignment.lessonTitle}</span>
-                  <Unlink className="h-3 w-3" />
-                </button>
-              ))
-            )}
-          </div>
+          <ModuleLabel module={module} showAssignmentCount={false} />
         </div>
 
         <form
@@ -1197,7 +1182,6 @@ export function ModuleLibraryClient({
             setActionError("");
           }}
           onAssignStudent={assignModuleToStudent}
-          onUnassign={unassignLesson}
         />
       )}
     </div>

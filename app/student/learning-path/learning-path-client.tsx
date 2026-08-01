@@ -1,174 +1,111 @@
-"use client"
+"use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Material } from "@/types/lms";
-import { GitBranch, Lock, CheckCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { ArrowRight, CheckCircle, GitBranch } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { StudentAssignedModuleLesson } from "@/lib/module-editor";
 
 interface LearningPathClientProps {
-    unlockedMaterials: Material[];
-    lockedMaterials: Material[];
+  assignedLessons: StudentAssignedModuleLesson[];
 }
 
-export default function LearningPathClient({ unlockedMaterials, lockedMaterials }: LearningPathClientProps) {
-    const [filter, setFilter] = useState<string>('all');
+export default function LearningPathClient({ assignedLessons }: LearningPathClientProps) {
+  const [filter, setFilter] = useState("all");
+  const subjects = Array.from(new Set(assignedLessons.map((lesson) => lesson.subject).filter(Boolean)));
+  const filteredLessons =
+    filter === "all" ? assignedLessons : assignedLessons.filter((lesson) => lesson.subject === filter);
 
-    const subjects = Array.from(new Set([...unlockedMaterials, ...lockedMaterials].map(m => m.subject)));
-
-    const filteredUnlocked = filter === 'all'
-        ? unlockedMaterials
-        : unlockedMaterials.filter(m => m.subject === filter);
-
-    const filteredLocked = filter === 'all'
-        ? lockedMaterials
-        : lockedMaterials.filter(m => m.subject === filter);
-
-    return (
-        <div className="portal-page-width space-y-6">
-            <div className="flex items-center gap-3">
-                <GitBranch className="w-8 h-8 text-primary" />
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Learning Path</h1>
-                    <p className="text-muted-foreground mt-1">Progress through courses by completing prerequisites</p>
-                </div>
-            </div>
-
-            {/* Subject Filter */}
-            <div className="flex gap-2 flex-wrap">
-                <Button
-                    variant={filter === 'all' ? 'default' : 'outline'}
-                    onClick={() => setFilter('all')}
-                >
-                    All Subjects
-                </Button>
-                {subjects.map(subject => (
-                    <Button
-                        key={subject}
-                        variant={filter === subject ? 'default' : 'outline'}
-                        onClick={() => setFilter(subject)}
-                    >
-                        {subject}
-                    </Button>
-                ))}
-            </div>
-
-            {/* Progress Stats */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-3xl font-bold">{unlockedMaterials.length}</div>
-                            <p className="text-sm text-muted-foreground">Unlocked Courses</p>
-                        </div>
-                        <div>
-                            <div className="text-3xl font-bold">{lockedMaterials.length}</div>
-                            <p className="text-sm text-muted-foreground">Locked Courses</p>
-                        </div>
-                        <div>
-                            <div className="text-3xl font-bold">
-                                {Math.round((unlockedMaterials.length / (unlockedMaterials.length + lockedMaterials.length)) * 100)}%
-                            </div>
-                            <p className="text-sm text-muted-foreground">Progress</p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Unlocked Materials */}
-            {filteredUnlocked.length > 0 && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                        <h2 className="text-2xl font-bold">Unlocked Courses</h2>
-                        <Badge variant="secondary">{filteredUnlocked.length}</Badge>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {filteredUnlocked.map(material => (
-                            <Card key={material.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500">
-                                <CardHeader>
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <Badge variant="outline" className="mb-2">{material.subject}</Badge>
-                                            <CardTitle className="text-lg">{material.title}</CardTitle>
-                                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                                                {material.description}
-                                            </p>
-                                        </div>
-                                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 ml-2" />
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <Link href={`/student/materials/${material.id}`}>
-                                        <Button className="w-full">
-                                            Continue Learning
-                                            <ArrowRight className="w-4 h-4 ml-2" />
-                                        </Button>
-                                    </Link>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Locked Materials */}
-            {filteredLocked.length > 0 && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <Lock className="w-5 h-5 text-muted-foreground" />
-                        <h2 className="text-2xl font-bold">Locked Courses</h2>
-                        <Badge variant="secondary">{filteredLocked.length}</Badge>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {filteredLocked.map(material => (
-                            <Card key={material.id} className="opacity-75 border-l-4 border-l-gray-300">
-                                <CardHeader>
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <Badge variant="outline" className="mb-2">{material.subject}</Badge>
-                                            <CardTitle className="text-lg">{material.title}</CardTitle>
-                                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                                                {material.description}
-                                            </p>
-                                        </div>
-                                        <Lock className="w-5 h-5 text-muted-foreground flex-shrink-0 ml-2" />
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    {material.prerequisites && material.prerequisites.length > 0 && (
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">Prerequisites:</p>
-                                            {material.prerequisites.map((prereq, index) => (
-                                                <div key={index} className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <ArrowRight className="w-3 h-3" />
-                                                    Complete quiz with {prereq.requiredQuizScore}% or higher
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    <Button className="w-full" disabled>
-                                        <Lock className="w-4 h-4 mr-2" />
-                                        Locked
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {filteredUnlocked.length === 0 && filteredLocked.length === 0 && (
-                <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                        No courses found for this subject
-                    </CardContent>
-                </Card>
-            )}
+  return (
+    <div className="portal-page-width space-y-6">
+      <div className="flex items-center gap-3">
+        <GitBranch className="h-8 w-8 text-[#2f6fff]" />
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Learning Path</h1>
+          <p className="mt-1 text-slate-500">Lessons assigned directly to this student.</p>
         </div>
-    );
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
+          All Subjects
+        </Button>
+        {subjects.map((subject) => (
+          <Button
+            key={subject}
+            variant={filter === subject ? "default" : "outline"}
+            onClick={() => setFilter(subject)}
+          >
+            {subject}
+          </Button>
+        ))}
+      </div>
+
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-3xl font-bold">{assignedLessons.length}</div>
+              <p className="text-sm text-muted-foreground">Assigned Lessons</p>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">{subjects.length}</div>
+              <p className="text-sm text-muted-foreground">Assigned Subjects</p>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">0%</div>
+              <p className="text-sm text-muted-foreground">Progress</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {filteredLessons.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <h2 className="text-2xl font-bold">Assigned Lessons</h2>
+            <Badge variant="secondary">{filteredLessons.length}</Badge>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredLessons.map((lesson) => (
+              <Card key={lesson.id} className="border-l-4 border-l-green-500 transition-shadow hover:shadow-lg">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                      <Badge variant="outline" className="mb-2">
+                        {lesson.subject}
+                      </Badge>
+                      <CardTitle className="text-lg">{lesson.moduleTitle}</CardTitle>
+                      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                        {lesson.description}
+                      </p>
+                    </div>
+                    <CheckCircle className="ml-2 h-5 w-5 flex-shrink-0 text-green-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full">
+                    <Link href={lesson.href}>
+                      Continue Learning
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No assigned lessons found for this student.
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

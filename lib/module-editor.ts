@@ -7,6 +7,7 @@ import {
   listCurriculumTree,
   type CurriculumNode,
 } from "@/lib/curriculum-portal";
+import { ensureAuthSchema, type AuthUser } from "@/lib/auth";
 import { sqlQuery as sql } from "@/lib/postgres-query";
 import type {
   ModuleEditorBlock,
@@ -43,6 +44,26 @@ type ModuleEditorAssignmentRow = {
   lesson_id: string;
   module_id: string;
   assigned_at: Date;
+};
+
+type StudentLessonAssignmentRow = {
+  lesson_id: string;
+  module_id: string;
+  assigned_at: Date;
+};
+
+export type StudentAssignedModuleLesson = {
+  id: string;
+  moduleId: string;
+  moduleTitle: string;
+  lessonId: string;
+  lessonTitle: string;
+  subject: string;
+  subjectSlug: string;
+  chapterTitle: string;
+  description: string;
+  href: string;
+  createdAt: string;
 };
 
 let moduleEditorSchemaReady: Promise<void> | null = null;
@@ -846,6 +867,59 @@ export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
       assignments,
     };
   });
+}
+
+export async function listStudentAssignedModuleLessons(
+  user: Pick<AuthUser, "id" | "email"> | null | undefined
+): Promise<StudentAssignedModuleLesson[]> {
+  if (!user) return [];
+
+  await Promise.all([ensureAuthSchema(), ensureModuleEditorSchema()]);
+
+  const email = user.email.trim().toLowerCase();
+  const assignmentResult = await sql<StudentLessonAssignmentRow>`
+    SELECT lesson_id, module_id, assigned_at
+    FROM auth_student_lesson_assignments
+    WHERE user_id = ${user.id} OR email = ${email}
+    ORDER BY assigned_at DESC
+  `;
+
+  if (assignmentResult.rows.length === 0) {
+    return [];
+  }
+
+  const modules = await listModuleDocuments();
+  const lessonsByKey = new Map<string, StudentAssignedModuleLesson>();
+
+  for (const row of assignmentResult.rows) {
+    const module = modules.find((item) => item.moduleId === row.module_id);
+    if (!module) continue;
+
+    const lesson = module.assignments.find((item) => item.lessonId === row.lesson_id);
+    if (!lesson) continue;
+
+    const key = `${row.module_id}:${row.lesson_id}`;
+    if (lessonsByKey.has(key)) continue;
+
+    const subject = lesson.subjectTitle || module.subjectTitle || "General";
+    const chapter = lesson.chapterTitle || module.chapterTitle;
+
+    lessonsByKey.set(key, {
+      id: lesson.lessonId,
+      moduleId: module.moduleId,
+      moduleTitle: module.moduleTitle,
+      lessonId: lesson.lessonId,
+      lessonTitle: lesson.lessonTitle,
+      subject,
+      subjectSlug: lesson.subjectSlug || module.subjectSlug,
+      chapterTitle: chapter,
+      description: chapter ? `${subject} / ${chapter}` : `${subject} lesson`,
+      href: `/student/materials/curriculum/${lesson.schoolSlug}/${lesson.yearSlug}/${lesson.subjectSlug}/${lesson.chapterSlug}/${lesson.lessonSlug}`,
+      createdAt: row.assigned_at.toISOString(),
+    });
+  }
+
+  return Array.from(lessonsByKey.values());
 }
 
 function sortCurriculumNodesByPosition<T extends { position: number; title: string }>(nodes: T[]) {
