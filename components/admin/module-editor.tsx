@@ -4,28 +4,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowUpRight,
   ArrowUp,
   ArrowDown,
   Bold,
-  BookCopy,
-  Cloud,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock,
   Eye,
   FileText,
   Image as ImageIcon,
+  Info,
   Italic,
-  Layers3,
   Link2,
   List,
   ListOrdered,
   MoreVertical,
-  NotebookPen,
-  PencilLine,
   Plus,
   Quote,
   LoaderCircle,
-  Save,
   Sparkles,
   Trash2,
   CircleHelp,
@@ -40,7 +39,6 @@ import {
   type ModuleEditorSectionRecommendation,
 } from "@/lib/ai-services";
 import { ModuleDocumentView } from "@/components/lms/module-document-view";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -285,15 +283,6 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1) {
   return next;
 }
 
-function formatTimestamp(value: string | null) {
-  if (!value) return "Not saved yet";
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Saved";
-
-  return parsed.toLocaleString();
-}
-
 function createInitialPages() {
   return [createPage(1)];
 }
@@ -396,31 +385,6 @@ function getEstimatedReadTime(page: ModuleEditorPage | null) {
   const words = getPageWordCount(page);
   const minutes = Math.max(1, Math.ceil(words / 180));
   return `~ ${minutes} min`;
-}
-
-function MetaItem({
-  icon: Icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="flex min-w-[12rem] items-start gap-3 px-1 py-1.5">
-      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-[#e5ebf6] bg-[#f8fbff] text-[#7d8fb3]">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-400">{label}</p>
-        <p className="truncate text-sm font-semibold text-slate-900">{value}</p>
-        {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
-      </div>
-    </div>
-  );
 }
 
 function SummaryRow({
@@ -534,6 +498,12 @@ export function ModuleEditor({
 
     const nextBlock = factory();
     appendBlockToPage(selectedPage.id, nextBlock);
+  };
+
+  const addNextPage = () => {
+    const nextPage = createPage(pages.length + 1);
+    updatePages((current) => [...current, nextPage]);
+    setSelectedPageId(nextPage.id);
   };
 
   const applyTextFormatting = (blockId: string, action: TextFormattingAction) => {
@@ -733,158 +703,88 @@ export function ModuleEditor({
   };
 
   const pageIndex = selectedPage ? pages.findIndex((page) => page.id === selectedPage.id) : -1;
-  const currentYear = new Date().getFullYear();
   const shellCardClassName =
     "border-[#e8eef8] bg-white/90 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.25)] backdrop-blur";
   const aiAssistButtonClassName =
-    "h-auto w-full items-start justify-start rounded-[22px] border-[#d7e4ff] bg-white px-4 py-3 text-left text-slate-700 shadow-none hover:bg-[#f7faff] [&_svg]:shrink-0";
+    "flex w-full items-center gap-3 border-b border-[#eef3fb] bg-white px-4 py-3.5 text-left text-slate-800 transition-colors last:border-b-0 hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:shrink-0";
   const aiAssistLabelClassName = "flex min-w-0 flex-1 flex-col items-start whitespace-normal break-words";
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-[36px] border border-white/80 bg-[radial-gradient(circle_at_top,#fff7ea_0%,#f8fbff_22%,#f3f7ff_100%)] p-4 shadow-[0_40px_120px_-72px_rgba(15,23,42,0.35)] lg:p-6">
-        <section className="rounded-[30px] border border-[#edf2fb] bg-white/85 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] lg:px-7">
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#dbe6ff] bg-[#f4f8ff] text-[#3568f5] shadow-[0_18px_36px_-30px_rgba(53,104,245,0.7)]">
-                <PencilLine className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="rounded-full bg-[#fff0e4] px-3 py-1 text-[#f27b2f] shadow-none hover:bg-[#fff0e4]">
-                    Module Editor
-                  </Badge>
-                  <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
-                    Reusable Content
-                  </Badge>
-                  {subjectTitle ? (
-                    <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
-                      {subjectTitle}
-                    </Badge>
-                  ) : null}
-                  {chapterTitle ? (
-                    <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
-                      {chapterTitle}
-                    </Badge>
-                  ) : null}
-                  <Badge variant="outline" className="rounded-full border-[#d9e4fb] bg-white px-3 py-1 text-[#5f7297]">
-                    {pages.length} page{pages.length === 1 ? "" : "s"}
-                  </Badge>
-                </div>
-                <h1 className="mt-3 text-[2.15rem] font-black tracking-tight text-slate-950">Module Editor</h1>
-                <p className="mt-1 max-w-3xl text-[15px] leading-7 text-slate-500">
-                  Build page-by-page content with text, images, and quizzes, then save it to the materials catalog.
-                  Curriculum can place this module anywhere later.
-                </p>
-              </div>
+    <div className="space-y-0">
+      <div className="overflow-hidden rounded-[28px] border border-[#dbe6f7] bg-[#f8fbff] shadow-[0_34px_110px_-80px_rgba(15,23,42,0.34)]">
+        <section className="border-b border-[#dbe6f7] bg-white/95 px-4 py-3 lg:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-4">
+              <Link
+                href="/admin/materials"
+                aria-label="Back to materials"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[#cfe0ff] bg-[#eef4ff] text-[#2f6fff] shadow-[0_12px_28px_-24px_rgba(47,111,255,0.78)]"
+              >
+                <BookOpen className="h-5 w-5" />
+              </Link>
+              <nav className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-medium text-[#41506a]">
+                <span>Modules</span>
+                <ChevronRight className="h-4 w-4 text-[#7f91b0]" />
+                <input
+                  aria-label="Module title"
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setDirty(true);
+                    setMessage("");
+                    setError("");
+                  }}
+                  placeholder="Untitled module"
+                  className="h-7 w-[20rem] max-w-[45vw] rounded-[8px] bg-transparent px-1 text-sm font-medium text-[#41506a] outline-none transition-colors placeholder:text-[#7f91b0] focus:bg-[#f3f7ff] focus:ring-1 focus:ring-[#cfe0ff]"
+                />
+                <ChevronRight className="h-4 w-4 text-[#7f91b0]" />
+                <span>Pages</span>
+                <ChevronRight className="h-4 w-4 text-[#7f91b0]" />
+                <span className="font-semibold text-slate-950">
+                  {selectedPage ? `Page ${pageIndex + 1}` : "No page"}
+                </span>
+              </nav>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
-                asChild
+                type="button"
                 variant="outline"
-                className="h-11 rounded-2xl border-[#dce6f7] bg-white px-5 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                onClick={() => setPreviewOpen(true)}
+                disabled={!selectedPage}
+                className="h-10 rounded-[12px] border-[#d6e0f1] bg-white px-4 text-[#34435f] shadow-none hover:bg-[#f7faff]"
               >
-                <Link href="/admin/materials">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Materials
-                </Link>
+                <ArrowUpRight className="mr-2 h-4 w-4" />
+                Open Preview
               </Button>
               <Button
+                type="button"
                 onClick={() => void saveDocument()}
                 disabled={saving}
-                className="h-11 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-6 text-white shadow-[0_22px_42px_-26px_rgba(37,99,235,0.88)] hover:brightness-105"
+                variant="outline"
+                className="h-10 rounded-[12px] border-[#cfe0ff] bg-[#f3f7ff] px-4 font-semibold text-[#2f6fff] shadow-none hover:bg-[#eef4ff]"
               >
-                <Save className="mr-2 h-4 w-4" />
-                {saving ? "Saving..." : "Save Module"}
+                {saving ? (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                {saving ? "Saving..." : dirty ? "Save" : updatedAt ? "Saved" : "Draft"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-[12px] text-[#34435f] hover:bg-[#eef4ff]"
+                aria-label="More module actions"
+              >
+                <MoreVertical className="h-5 w-5" />
               </Button>
             </div>
           </div>
-        </section>
 
-        <section className="mt-5 rounded-[28px] border border-[#e8eef8] bg-white/90 px-4 py-3 shadow-[0_30px_60px_-55px_rgba(15,23,42,0.35)] backdrop-blur lg:px-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <MetaItem icon={Layers3} label="Module Type" value="Reusable Module" hint="Created free and unassigned." />
-            <MetaItem
-              icon={NotebookPen}
-              label="Pages"
-              value={`${pages.length} total page${pages.length === 1 ? "" : "s"}`}
-              hint={selectedPage ? `Editing page ${pageIndex + 1}` : "No page selected"}
-            />
-            <MetaItem
-              icon={BookCopy}
-              label="Catalog Path"
-              value={
-                subjectTitle && chapterTitle
-                  ? `${subjectTitle} / ${chapterTitle}`
-                  : subjectTitle || chapterTitle || "Choose subject and chapter"
-              }
-              hint="This is the materials catalog location for this module."
-            />
-            <MetaItem
-              icon={FileText}
-              label="Document Title"
-              value={title.trim() || "Untitled module"}
-              hint="This is the module name shown in the library."
-            />
-            <MetaItem
-              icon={Cloud}
-              label="Last Saved"
-              value={formatTimestamp(updatedAt)}
-              hint={moduleId ? "Reusable module ready for curriculum placement." : "Draft has not been saved yet."}
-            />
-          </div>
-          <div className="mt-4 grid gap-3 border-t border-[#edf2fb] pt-4 md:grid-cols-[minmax(0,1fr)_160px_minmax(180px,0.7fr)]">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500">Module title</label>
-              <Input
-                value={title}
-                onChange={(event) => {
-                  setTitle(event.target.value);
-                  setDirty(true);
-                  setMessage("");
-                  setError("");
-                }}
-                placeholder="Module title"
-                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500">Module code</label>
-              <Input
-                value={moduleCode}
-                onChange={(event) => {
-                  setModuleCode(event.target.value);
-                  setDirty(true);
-                  setMessage("");
-                  setError("");
-                }}
-                placeholder="MOD-01"
-                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500">Unique identifier</label>
-              <Input
-                value={uniqueIdentifier}
-                onChange={(event) => {
-                  setUniqueIdentifier(event.target.value);
-                  setDirty(true);
-                  setMessage("");
-                  setError("");
-                }}
-                placeholder={moduleId || "Auto ID after save"}
-                className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
-              />
-            </div>
-          </div>
-          {(dirty || message || error) && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#edf2fb] pt-3 text-sm">
-              {dirty && (
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-medium text-amber-700">
-                  Unsaved changes
-                </span>
-              )}
+          {(message || error) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               {message && (
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
                   {message}
@@ -899,39 +799,28 @@ export function ModuleEditor({
           )}
         </section>
 
-        <div className="mt-5 space-y-5">
-          <div className="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)_21rem]">
-          <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Pages</CardTitle>
-              <CardDescription className="text-sm leading-6 text-slate-500">
-                Each page becomes one step in the saved module flow.
+        <div className="space-y-5 p-4 lg:p-5">
+          <div className="grid gap-5 xl:grid-cols-[20rem_minmax(0,1fr)_26rem]">
+          <Card className={cn(shellCardClassName, "rounded-[22px]")}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-[1.25rem] font-bold tracking-tight text-slate-950">Pages</CardTitle>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-9 rounded-[10px] px-2.5 font-semibold text-[#2f6fff] hover:bg-[#eef4ff]"
+                  onClick={addNextPage}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Page
+                </Button>
+              </div>
+              <CardDescription className="pt-1 text-sm leading-6 text-[#536785]">
+                Students move page by page. Each page is a step in the flow.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                variant="outline"
-                className="h-11 w-full rounded-2xl border-[#d7e4ff] bg-white text-[#2f6fff] shadow-none hover:bg-[#f3f8ff]"
-                onClick={() => {
-                  const nextPage = createPage(pages.length + 1);
-                  updatePages((current) => [...current, nextPage]);
-                  setSelectedPageId(nextPage.id);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Next Page
-              </Button>
-
-              <div>
-                <p className="text-sm font-semibold text-slate-500">
-                  {selectedPage ? `${pageIndex + 1} of ${pages.length} pages` : `${pages.length} pages`}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">
-                  Students move page by page. Create a new page here when you want the next screen to start.
-                </p>
-              </div>
-
-              <div className="max-h-[27rem] space-y-2 overflow-y-auto pr-1">
+              <div className="max-h-[24rem] space-y-2 overflow-y-auto pr-1">
                 {pages.map((page, index) => (
                   <div
                     key={page.id}
@@ -945,124 +834,84 @@ export function ModuleEditor({
                     role="button"
                     tabIndex={0}
                     className={cn(
-                      "group rounded-[22px] border px-3 py-3.5 text-left transition-all",
+                      "group rounded-[16px] border px-3 py-3 text-left transition-all",
                       page.id === selectedPageId
-                        ? "border-[#cfe0ff] bg-[#edf4ff] shadow-[0_18px_40px_-30px_rgba(47,111,255,0.55)]"
-                        : "border-[#edf2fb] bg-white hover:border-[#dce7fb] hover:bg-[#f9fbff]"
+                        ? "border-[#c8dcff] bg-[#edf4ff] shadow-[0_16px_36px_-30px_rgba(47,111,255,0.5)]"
+                        : "border-[#e6edf8] bg-white hover:border-[#d3e1f7] hover:bg-[#fbfdff]"
                     )}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-center gap-3">
                       <div
                         className={cn(
-                          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-bold",
-                          page.id === selectedPageId ? "bg-[#dce8ff] text-[#2f6fff]" : "bg-slate-100 text-slate-500"
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-sm font-bold",
+                          page.id === selectedPageId ? "bg-[#dce8ff] text-[#2f6fff]" : "bg-[#f1f5fb] text-[#536785]"
                         )}
                       >
                         {index + 1}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-900">{page.title || `Page ${index + 1}`}</p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">
+                          {page.title || `Page ${index + 1}`}
+                        </p>
+                        <p className="mt-1 text-xs text-[#637795]">
                           {page.blocks.length} block{page.blocks.length === 1 ? "" : "s"}
                         </p>
                       </div>
-                      <div className="flex items-center gap-0.5 opacity-100 xl:opacity-0 xl:group-hover:opacity-100">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-xl text-slate-500"
-                          onClick={(event) => {
-                            event.stopPropagation();
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0 rounded-[10px] text-[#536785] hover:bg-white/70 hover:text-[#2f6fff]"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (index === pages.length - 1) {
                             updatePages((current) => moveItem(current, index, -1));
-                          }}
-                          disabled={index === 0}
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-xl text-slate-500"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            updatePages((current) => moveItem(current, index, 1));
-                          }}
-                          disabled={index === pages.length - 1}
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-xl text-slate-500"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (pages.length <= 1) return;
-                            updatePages((current) => current.filter((item) => item.id !== page.id));
-                          }}
-                          disabled={pages.length <= 1}
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </div>
+                            return;
+                          }
+                          updatePages((current) => moveItem(current, index, 1));
+                        }}
+                        disabled={pages.length <= 1}
+                        aria-label="Move page"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-[20px] border border-dashed border-[#d6e2fb] bg-[#f8fbff] px-4 py-3">
-                <p className="text-sm font-semibold text-slate-700">Need the next student page?</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Click below to create the next page. Everything in the Blocks section stays on the currently selected page until you add another page.
-                </p>
-                <button
-                  type="button"
-                  className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-[#2f6fff]"
-                  onClick={() => {
-                    const nextPage = createPage(pages.length + 1);
-                    updatePages((current) => [...current, nextPage]);
-                    setSelectedPageId(nextPage.id);
-                  }}
-                >
+              <button
+                type="button"
+                className="flex w-full items-center gap-4 rounded-[16px] border border-dashed border-[#cfe0ff] bg-[#fbfdff] px-4 py-4 text-left transition-colors hover:bg-[#f3f8ff]"
+                onClick={addNextPage}
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#b9cffd] bg-white text-[#2f6fff]">
                   <Plus className="h-4 w-4" />
-                  Add Next Page
-                </button>
-              </div>
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-800">Need the next student page?</span>
+                  <span className="mt-1 block text-xs leading-5 text-[#637795]">
+                    Add another page to continue building your module flow.
+                  </span>
+                </span>
+              </button>
             </CardContent>
           </Card>
 
           {selectedPage ? (
-            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
+            <Card className={cn(shellCardClassName, "rounded-[22px]")}>
               <CardHeader className="pb-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Settings</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-slate-500">
-                      Set the label students will see before the content blocks.
-                    </CardDescription>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPreviewOpen(true)}
-                    disabled={!selectedPage}
-                    className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                  >
-                    <ArrowUpRight className="mr-2 h-4 w-4" />
-                    Open Preview
-                  </Button>
-                </div>
+                <CardTitle className="text-[1.25rem] font-bold tracking-tight text-slate-950">Page Settings</CardTitle>
+                <CardDescription className="text-sm leading-6 text-[#536785]">
+                  Set the label students will see before the content blocks.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700">Page Title</label>
                     <Input
-                      className="h-11 rounded-2xl border-[#dfe7f5] bg-white"
+                      className="h-11 rounded-[14px] border-[#dfe7f5] bg-white"
                       value={selectedPage.title}
                       onChange={(event) =>
                         updateSelectedPage((page) => ({ ...page, title: event.target.value }))
@@ -1076,7 +925,7 @@ export function ModuleEditor({
                     <div className="relative">
                       <List className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <select
-                        className="h-11 w-full appearance-none rounded-2xl border border-[#dfe7f5] bg-white pl-11 pr-4 text-sm text-slate-700 focus:outline-none"
+                        className="h-11 w-full appearance-none rounded-[14px] border border-[#dfe7f5] bg-white pl-11 pr-10 text-sm text-slate-700 focus:outline-none"
                         value={selectedPage.id}
                         onChange={(event) => setSelectedPageId(event.target.value)}
                       >
@@ -1086,6 +935,7 @@ export function ModuleEditor({
                           </option>
                         ))}
                       </select>
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-900" />
                     </div>
                   </div>
                 </div>
@@ -1096,7 +946,7 @@ export function ModuleEditor({
                     <span className="text-xs text-slate-400">{selectedPage.description.length}/500</span>
                   </div>
                   <Textarea
-                    className="min-h-[108px] rounded-[20px] border-[#dfe7f5] bg-white"
+                    className="min-h-[122px] rounded-[16px] border-[#dfe7f5] bg-white"
                     value={selectedPage.description}
                     onChange={(event) =>
                       updateSelectedPage((page) => ({ ...page, description: event.target.value.slice(0, 500) }))
@@ -1113,13 +963,13 @@ export function ModuleEditor({
             </Card>
           )}
 
-          <div className="space-y-5 xl:sticky xl:top-24 xl:self-start">
-            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Page Summary</CardTitle>
+          <div className="space-y-5 xl:sticky xl:top-5 xl:self-start">
+            <Card className={cn(shellCardClassName, "rounded-[22px]")}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[1.25rem] font-bold tracking-tight text-slate-950">Page Summary</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="overflow-hidden rounded-[22px] border border-[#e5ecf8] bg-white">
+                <div className="overflow-hidden rounded-[16px] border border-[#e5ecf8] bg-white">
                   <SummaryRow
                     icon={FileText}
                     label="Blocks on this page"
@@ -1127,94 +977,80 @@ export function ModuleEditor({
                   />
                   <SummaryRow icon={Eye} label="Estimated read time" value={getEstimatedReadTime(selectedPage)} />
                   <SummaryRow
-                    icon={Cloud}
+                    icon={Clock}
                     label="Last edited"
-                    value={dirty ? "Unsaved" : updatedAt ? "Saved" : "Draft"}
+                    value={dirty ? "Unsaved" : updatedAt ? "Just now" : "Draft"}
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className={cn(shellCardClassName, "rounded-[28px]")}>
-              <CardHeader className="pb-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d9e4fb] bg-[#f4f8ff] text-[#2f6fff]">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Ask AI</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-slate-500">
-                      Draft quiz ideas for this page, draft a quiz from the module title, or suggest what else should be explained.
-                    </CardDescription>
-                  </div>
+            <Card className={cn(shellCardClassName, "rounded-[22px]")}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-5 w-5 text-[#2f6fff]" />
+                  <CardTitle className="text-[1.25rem] font-bold tracking-tight text-slate-950">Ask AI</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <div className="rounded-[22px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-3">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {selectedPage?.title.trim() || `Page ${pageIndex + 1}`}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Module focus: {title.trim() || chapterTitle || subjectTitle || "Untitled module"}
-                  </p>
+              <CardContent className="pt-0">
+                <div className="overflow-hidden rounded-[16px] border border-[#e5ecf8] bg-white">
+                  <button
+                    type="button"
+                    className={aiAssistButtonClassName}
+                    disabled={aiPendingAction !== null || !selectedPage}
+                    onClick={() => void runAiAssist("page-quiz")}
+                  >
+                    {aiPendingAction === "page-quiz" ? (
+                      <LoaderCircle className="h-5 w-5 animate-spin text-[#2f6fff]" />
+                    ) : (
+                      <CircleHelp className="h-5 w-5 text-[#2f6fff]" />
+                    )}
+                    <span className={aiAssistLabelClassName}>
+                      <span className="font-semibold">Quiz from this page</span>
+                      <span className="text-xs text-[#536785]">Create a ready-to-edit quiz.</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#536785]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={aiAssistButtonClassName}
+                    disabled={aiPendingAction !== null || !selectedPage}
+                    onClick={() => void runAiAssist("module-quiz")}
+                  >
+                    {aiPendingAction === "module-quiz" ? (
+                      <LoaderCircle className="h-5 w-5 animate-spin text-[#2f6fff]" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-[#2f6fff]" />
+                    )}
+                    <span className={aiAssistLabelClassName}>
+                      <span className="font-semibold">Module quiz</span>
+                      <span className="text-xs text-[#536785]">Use the module title as the quiz topic.</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#536785]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={aiAssistButtonClassName}
+                    disabled={aiPendingAction !== null || !selectedPage}
+                    onClick={() => void runAiAssist("section")}
+                  >
+                    {aiPendingAction === "section" ? (
+                      <LoaderCircle className="h-5 w-5 animate-spin text-[#2f6fff]" />
+                    ) : (
+                      <Sparkles className="h-5 w-5 text-[#2f6fff]" />
+                    )}
+                    <span className={aiAssistLabelClassName}>
+                      <span className="font-semibold">What else to explain</span>
+                      <span className="text-xs text-[#536785]">Suggest content to fill gaps.</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#536785]" />
+                  </button>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={aiAssistButtonClassName}
-                  disabled={aiPendingAction !== null || !selectedPage}
-                  onClick={() => void runAiAssist("page-quiz")}
-                >
-                  {aiPendingAction === "page-quiz" ? (
-                    <LoaderCircle className="mr-3 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CircleHelp className="mr-3 h-4 w-4 text-[#2f6fff]" />
-                  )}
-                  <span className={aiAssistLabelClassName}>
-                    <span className="font-semibold">Ask AI for a page quiz</span>
-                    <span className="text-xs text-slate-500">Adds a ready-to-edit quiz block based on this page.</span>
-                  </span>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={aiAssistButtonClassName}
-                  disabled={aiPendingAction !== null || !selectedPage}
-                  onClick={() => void runAiAssist("module-quiz")}
-                >
-                  {aiPendingAction === "module-quiz" ? (
-                    <LoaderCircle className="mr-3 h-4 w-4 animate-spin" />
-                  ) : (
-                    <BookCopy className="mr-3 h-4 w-4 text-[#2f6fff]" />
-                  )}
-                  <span className={aiAssistLabelClassName}>
-                    <span className="font-semibold">Ask AI for a module quiz</span>
-                    <span className="text-xs text-slate-500">Uses the module title so the quiz follows the main topic.</span>
-                  </span>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={aiAssistButtonClassName}
-                  disabled={aiPendingAction !== null || !selectedPage}
-                  onClick={() => void runAiAssist("section")}
-                >
-                  {aiPendingAction === "section" ? (
-                    <LoaderCircle className="mr-3 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileText className="mr-3 h-4 w-4 text-[#2f6fff]" />
-                  )}
-                  <span className={aiAssistLabelClassName}>
-                    <span className="font-semibold">Ask AI what else to explain</span>
-                    <span className="text-xs text-slate-500">Adds a suggested text section with missing angles to cover.</span>
-                  </span>
-                </Button>
-
                 {aiInsight ? (
-                  <div className="rounded-[20px] border border-[#dce7fb] bg-white px-4 py-3">
+                  <div className="mt-3 rounded-[16px] border border-[#dce7fb] bg-[#f8fbff] px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Latest AI focus</p>
                     <p className="mt-1 text-sm text-slate-600">{aiInsight}</p>
                   </div>
@@ -1222,49 +1058,35 @@ export function ModuleEditor({
               </CardContent>
             </Card>
 
-            <Card className={cn(shellCardClassName, "rounded-[28px] overflow-hidden")}>
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-[1.45rem] font-bold tracking-tight text-slate-950">Live Preview</CardTitle>
-                    <CardDescription className="text-sm leading-6 text-slate-500">
-                      Updates instantly while you edit blocks on this page.
-                    </CardDescription>
+            <Card className={cn(shellCardClassName, "rounded-[22px]")}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#f1f5fb] text-[#536785]">
+                      <Eye className="h-5 w-5" />
+                    </span>
+                    <CardTitle className="text-[1.25rem] font-bold tracking-tight text-slate-950">Live Preview</CardTitle>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setPreviewOpen(true)}
-                    className="h-10 rounded-2xl border-[#dfe7f5] bg-white px-4 text-slate-700 shadow-none hover:bg-[#f7faff]"
+                    className="h-9 rounded-[12px] border-[#dfe7f5] bg-white px-3 text-[#34435f] shadow-none hover:bg-[#f7faff]"
                   >
-                    <ArrowUpRight className="mr-2 h-4 w-4" />
+                    <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
                     Full Preview
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="max-h-[70vh] overflow-y-auto rounded-[24px] border border-[#e5ecf8] bg-slate-50 p-3">
-                  <ModuleDocumentView
-                    key={selectedPage?.id || "inline-preview"}
-                    document={{
-                      id: moduleId || "draft-module",
-                      title: title || "Module draft",
-                      moduleCode,
-                      uniqueIdentifier,
-                      pages,
-                      updatedAt,
-                      subjectSlug: subjectSlug || "",
-                      subjectTitle,
-                      chapterSlug: chapterSlug || "",
-                      chapterTitle,
-                    }}
-                    initialPageId={selectedPage?.id}
-                  />
-                </div>
+                <p className="mt-4 text-sm leading-6 text-[#536785]">See updates instantly while you edit.</p>
               </CardContent>
             </Card>
           </div>
+          </div>
+
+          <div className="-mx-4 flex items-center gap-3 border-t border-[#dbe6f7] bg-white/80 px-4 py-3 text-sm text-[#536785] lg:-mx-5 lg:px-5">
+            <Info className="h-4 w-4 shrink-0" />
+            <span>{dirty ? "Changes are ready to save" : updatedAt ? "Changes are saved automatically" : "Draft has not been saved yet"}</span>
           </div>
 
           {selectedPage ? (
@@ -2053,7 +1875,6 @@ export function ModuleEditor({
           )}
         </div>
 
-        <p className="pt-8 text-center text-sm text-slate-400">© {currentYear} Yayasan Edutindo. All rights reserved.</p>
       </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -2083,6 +1904,7 @@ export function ModuleEditor({
                   chapterTitle,
                 }}
                 initialPageId={selectedPage?.id}
+                showChrome={false}
               />
             </div>
           </div>

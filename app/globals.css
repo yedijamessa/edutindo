@@ -49,6 +49,10 @@
 }
 
 /* Base Styles */
+html {
+  color-scheme: light;
+}
+
 body {
   @apply bg-background text-foreground antialiased font-sans;
 }

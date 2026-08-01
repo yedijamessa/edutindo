@@ -9,7 +9,6 @@ import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
 import { canManageAdminAccess } from "@/lib/auth-shared"
 import { Button } from "../ui/button"
 import { cn } from "../ui/button"
-import { ModeToggle } from "../mode-toggle"
 import { AuthNavActions } from "../auth/auth-nav-actions"
 import { AdminNavMenu } from "../admin/admin-nav-menu"
 
@@ -128,7 +127,6 @@ export function Navbar() {
                         </Button>
                     )}
                     <AuthNavActions />
-                    {!isDashboardRoute && <ModeToggle />}
                 </nav>
 
                 {/* Mobile Menu Button */}
@@ -201,9 +199,6 @@ export function Navbar() {
                             </Button>
                         )}
                         <AuthNavActions mobile onNavigate={() => setIsOpen(false)} />
-                        <div className="flex justify-center pt-2">
-                            <ModeToggle />
-                        </div>
                     </nav>
                 </div>
             )}

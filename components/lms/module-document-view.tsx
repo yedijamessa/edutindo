@@ -423,11 +423,13 @@ export function ModuleDocumentView({
   showAnswers = false,
   meta,
   initialPageId,
+  showChrome = true,
 }: {
   document: ModuleEditorDocument;
   showAnswers?: boolean;
   meta?: ModuleDocumentViewMeta;
   initialPageId?: string;
+  showChrome?: boolean;
 }) {
   const pages = document.pages;
   const [currentPage, setCurrentPage] = useState(() => {
@@ -449,43 +451,51 @@ export function ModuleDocumentView({
   return (
     <div className="flex flex-col gap-0">
       {/* ── Status bar ─────────────────────────────────────────────────────── */}
-      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e5ecf8] bg-white px-5 py-3 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)]">
-        <span className="inline-flex rounded-full bg-[#ff7a1a] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_16px_-10px_rgba(249,115,22,0.7)]">
-          Saved Module
-        </span>
-        <span className="inline-flex rounded-full border border-[#dce6ff] bg-[#f0f6ff] px-3 py-1 text-xs font-semibold text-[#2f6fff]">
-          {pages.length} {pages.length === 1 ? "page" : "pages"}
-        </span>
-        {/* View mode toggle — only shown for admin/teacher/curriculum, never for students */}
-        {showAnswers && (
-          <button
-            type="button"
-            onClick={() => setViewMode((v) => (v === "teacher" ? "student" : "teacher"))}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#dce6ff] bg-[#f0f6ff] px-3 py-1 text-xs font-semibold text-[#2f6fff] hover:bg-[#e4eeff] transition-colors"
-          >
-            <GraduationCap className="h-3.5 w-3.5" />
-            {viewMode === "teacher" ? "Teacher View" : "Student View"}
-          </button>
-        )}
-        <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
-          <Info className="h-3.5 w-3.5" />
-          {effectiveShowAnswers
-            ? "Answer keys and explanations are visible in this view."
-            : showAnswers
-              ? "Switch to Teacher View to see answer keys."
-              : "Complete questions and submit for scoring."}
+      {showChrome && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e5ecf8] bg-white px-5 py-3 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.28)]">
+          <span className="inline-flex rounded-full bg-[#ff7a1a] px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_16px_-10px_rgba(249,115,22,0.7)]">
+            Saved Module
+          </span>
+          <span className="inline-flex rounded-full border border-[#dce6ff] bg-[#f0f6ff] px-3 py-1 text-xs font-semibold text-[#2f6fff]">
+            {pages.length} {pages.length === 1 ? "page" : "pages"}
+          </span>
+          {/* View mode toggle — only shown for admin/teacher/curriculum, never for students */}
+          {showAnswers && (
+            <button
+              type="button"
+              onClick={() => setViewMode((v) => (v === "teacher" ? "student" : "teacher"))}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#dce6ff] bg-[#f0f6ff] px-3 py-1 text-xs font-semibold text-[#2f6fff] hover:bg-[#e4eeff] transition-colors"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              {viewMode === "teacher" ? "Teacher View" : "Student View"}
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
+            <Info className="h-3.5 w-3.5" />
+            {effectiveShowAnswers
+              ? "Answer keys and explanations are visible in this view."
+              : showAnswers
+                ? "Switch to Teacher View to see answer keys."
+                : "Complete questions and submit for scoring."}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Three-panel layout ─────────────────────────────────────────────── */}
-      <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)_240px] xl:grid-cols-[240px_minmax(0,1.35fr)_260px]">
+      <div
+        className={cn(
+          "grid gap-5",
+          showChrome && "lg:grid-cols-[220px_minmax(0,1fr)_240px] xl:grid-cols-[240px_minmax(0,1.35fr)_260px]"
+        )}
+      >
         {/* ── Left sidebar: Lesson Outline ─────────────────────────────────── */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-[5.5rem] rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
-            <p className="text-[0.9rem] font-semibold text-slate-900">Lesson Outline</p>
-            <p className="mt-0.5 text-xs text-slate-400">
-              {pages.length} {pages.length === 1 ? "page" : "pages"} / {totalBlocks(document)} blocks
-            </p>
+        {showChrome && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-[5.5rem] rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
+              <p className="text-[0.9rem] font-semibold text-slate-900">Lesson Outline</p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {pages.length} {pages.length === 1 ? "page" : "pages"} / {totalBlocks(document)} blocks
+              </p>
 
             {/* Progress bar */}
             <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#e8eef8]">
@@ -541,8 +551,9 @@ export function ModuleDocumentView({
               <LayoutList className="h-3.5 w-3.5" />
               View all pages
             </button>
-          </div>
-        </aside>
+            </div>
+          </aside>
+        )}
 
         {/* ── Center: Page content ─────────────────────────────────────────── */}
         <div className="min-w-0">
@@ -584,8 +595,9 @@ export function ModuleDocumentView({
         </div>
 
         {/* ── Right sidebar: Quick Panel ───────────────────────────────────── */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-[5.5rem] space-y-4">
+        {showChrome && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-[5.5rem] space-y-4">
             {/* Page Progress */}
             <div className="rounded-[24px] border border-[#e5ecf8] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.35)]">
               <p className="text-sm font-semibold text-slate-900">Quick Panel</p>
@@ -730,30 +742,33 @@ export function ModuleDocumentView({
                 </div>
               </div>
             )}
-          </div>
-        </aside>
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Mobile page switcher (shown only on small screens) */}
-      <div className="mt-5 lg:hidden">
-        <div className="flex flex-wrap gap-2">
-          {pages.map((p, i) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setCurrentPage(i)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
-                i === pageIndex
-                  ? "border-[#2f6fff] bg-[#2f6fff] text-white"
-                  : "border-[#d9e1ef] bg-white text-slate-600 hover:bg-[#f7faff]"
-              )}
-            >
-              {i + 1}. {p.title}
-            </button>
-          ))}
+      {showChrome && (
+        <div className="mt-5 lg:hidden">
+          <div className="flex flex-wrap gap-2">
+            {pages.map((p, i) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setCurrentPage(i)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                  i === pageIndex
+                    ? "border-[#2f6fff] bg-[#2f6fff] text-white"
+                    : "border-[#d9e1ef] bg-white text-slate-600 hover:bg-[#f7faff]"
+                )}
+              >
+                {i + 1}. {p.title}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
