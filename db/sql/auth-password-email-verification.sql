@@ -53,8 +53,14 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   token_hash TEXT NOT NULL UNIQUE,
   user_id TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
   expires_at TIMESTAMPTZ NOT NULL,
+  last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
+UPDATE auth_sessions SET last_activity_at = COALESCE(last_activity_at, created_at, NOW());
+ALTER TABLE auth_sessions ALTER COLUMN last_activity_at SET DEFAULT NOW();
+ALTER TABLE auth_sessions ALTER COLUMN last_activity_at SET NOT NULL;
 
 CREATE INDEX IF NOT EXISTS auth_sessions_user_idx
 ON auth_sessions (user_id);

@@ -90,4 +90,23 @@ ON curriculum_nodes (parent_id, node_type);
 CREATE INDEX IF NOT EXISTS curriculum_nodes_parent_slug_idx
 ON curriculum_nodes (parent_id, slug);
 
+CREATE TABLE IF NOT EXISTS curriculum_subject_visibility_requests (
+  id TEXT PRIMARY KEY,
+  school_slug TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  subject_title TEXT NOT NULL,
+  action TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  requested_by_user_id TEXT NOT NULL,
+  requested_by_email TEXT NOT NULL,
+  approved_by_user_id TEXT,
+  approved_by_email TEXT,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS curriculum_subject_visibility_requests_pending_idx
+ON curriculum_subject_visibility_requests (school_slug, status, created_at DESC);
+
 COMMIT;

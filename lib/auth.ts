@@ -100,6 +100,7 @@ const ADMIN_ALLOWLIST = new Set(
 
 const SESSION_MAX_DAYS = Number(process.env.AUTH_SESSION_MAX_DAYS ?? 14);
 const SESSION_MAX_SECONDS = SESSION_MAX_DAYS * 24 * 60 * 60;
+const SESSION_IDLE_TIMEOUT_SECONDS = Number(process.env.AUTH_SESSION_IDLE_TIMEOUT_SECONDS ?? 2 * 60 * 60);
 const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-auth-secret";
 const DEMO_PORTAL_CODE = process.env.DEMO_PORTAL_CODE ?? "123456";
 const DEMO_ACCESS_MAX_DAYS = Number(process.env.DEMO_ACCESS_MAX_DAYS ?? 7);
@@ -735,9 +736,15 @@ export async function ensureAuthSchema() {
           token_hash TEXT NOT NULL UNIQUE,
           user_id TEXT NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
           expires_at TIMESTAMPTZ NOT NULL,
+          last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
       `;
+
+      await sql`ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;`;
+      await sql`UPDATE auth_sessions SET last_activity_at = COALESCE(last_activity_at, created_at, NOW());`;
+      await sql`ALTER TABLE auth_sessions ALTER COLUMN last_activity_at SET DEFAULT NOW();`;
+      await sql`ALTER TABLE auth_sessions ALTER COLUMN last_activity_at SET NOT NULL;`;
 
       await sql`
         CREATE INDEX IF NOT EXISTS auth_sessions_user_idx
@@ -1729,15 +1736,17 @@ async function createSessionForUser(user: AuthUser) {
   const sessionToken = randomBytes(32).toString("hex");
   const sessionId = randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_MAX_SECONDS * 1000);
+  const lastActivityAt = new Date();
 
   await sql`
-    INSERT INTO auth_sessions (id, token_hash, user_id, expires_at)
-    VALUES (${sessionId}, ${hashSessionToken(sessionToken)}, ${user.id}, ${expiresAt.toISOString()})
+    INSERT INTO auth_sessions (id, token_hash, user_id, expires_at, last_activity_at)
+    VALUES (${sessionId}, ${hashSessionToken(sessionToken)}, ${user.id}, ${expiresAt.toISOString()}, ${lastActivityAt.toISOString()})
   `;
 
   await sql`
     DELETE FROM auth_sessions
     WHERE expires_at < NOW()
+      OR last_activity_at < ${new Date(Date.now() - SESSION_IDLE_TIMEOUT_SECONDS * 1000).toISOString()}
   `;
 
   return { user, sessionToken, expiresAt };
@@ -1753,16 +1762,34 @@ export async function getUserFromSessionToken(token: string | null | undefined) 
 
   await ensureAuthSchema();
 
+  const tokenHash = hashSessionToken(token);
+  const idleCutoff = new Date(Date.now() - SESSION_IDLE_TIMEOUT_SECONDS * 1000);
+
   const sessionResult = await sql<{ user_id: string }>`
     SELECT user_id
     FROM auth_sessions
-    WHERE token_hash = ${hashSessionToken(token)}
+    WHERE token_hash = ${tokenHash}
       AND expires_at > NOW()
+      AND last_activity_at > ${idleCutoff.toISOString()}
     LIMIT 1
   `;
 
   const session = sessionResult.rows[0];
-  if (!session) return null;
+  if (!session) {
+    await sql`
+      DELETE FROM auth_sessions
+      WHERE token_hash = ${tokenHash}
+        AND (expires_at <= NOW() OR last_activity_at <= ${idleCutoff.toISOString()})
+    `;
+
+    return null;
+  }
+
+  await sql`
+    UPDATE auth_sessions
+    SET last_activity_at = NOW()
+    WHERE token_hash = ${tokenHash}
+  `;
 
   const userRow = await getUserRowById(session.user_id);
   if (!userRow) return null;

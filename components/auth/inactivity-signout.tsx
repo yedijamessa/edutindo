@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const INACTIVITY_CHECK_INTERVAL_MS = 60 * 1000;
 const ACTIVITY_WRITE_THROTTLE_MS = 30 * 1000;
+const SERVER_ACTIVITY_PING_THROTTLE_MS = 5 * 60 * 1000;
 const LAST_ACTIVITY_STORAGE_KEY = "edutindo:last-activity-ts";
 
 export function InactivitySignOut() {
@@ -13,6 +14,7 @@ export function InactivitySignOut() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isAuthenticatedRef = useRef(false);
   const lastActivityWriteRef = useRef(0);
+  const lastServerActivityPingRef = useRef(0);
   const isSigningOutRef = useRef(false);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export function InactivitySignOut() {
         if (authenticated) {
           const now = Date.now();
           lastActivityWriteRef.current = now;
+          lastServerActivityPingRef.current = now;
           window.localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now));
         } else {
           window.localStorage.removeItem(LAST_ACTIVITY_STORAGE_KEY);
@@ -65,8 +68,29 @@ export function InactivitySignOut() {
       window.localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now));
     };
 
+    const pingServerActivity = async (force = false) => {
+      if (!isAuthenticatedRef.current || isSigningOutRef.current) return;
+
+      const now = Date.now();
+      if (!force && now - lastServerActivityPingRef.current < SERVER_ACTIVITY_PING_THROTTLE_MS) return;
+
+      lastServerActivityPingRef.current = now;
+
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.authenticated) {
+          await signOutForInactivity();
+        }
+      } catch {
+        // Network hiccups should not log users out while they are actively using the page.
+      }
+    };
+
     const handleUserActivity = () => {
       updateLastActivity(false);
+      void pingServerActivity(false);
     };
 
     const signOutForInactivity = async () => {
@@ -104,6 +128,7 @@ export function InactivitySignOut() {
     };
 
     updateLastActivity(true);
+    void pingServerActivity(true);
 
     const activityEvents: (keyof WindowEventMap)[] = [
       "mousedown",
