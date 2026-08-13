@@ -18,6 +18,8 @@ import {
   LibraryBig,
   Loader2,
   MoreVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   Rocket,
@@ -676,88 +678,6 @@ function AssessmentQuizDialog({
   );
 }
 
-interface AssignmentTagEditorProps {
-  title: string;
-  description: string;
-  tags: AssignmentTag[];
-  schools: CurriculumNode[];
-  busy: boolean;
-  onToggle: (schoolSlug: string, yearSlug: string) => void;
-  action?: ReactNode;
-}
-
-function AssignmentTagEditor({
-  title,
-  description,
-  tags,
-  schools,
-  busy,
-  onToggle,
-  action,
-}: AssignmentTagEditorProps) {
-  return (
-    <Card className={surfaceCardClassName}>
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-[1.35rem] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-              {title}
-            </CardTitle>
-            <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
-              {description}
-            </CardDescription>
-          </div>
-          {action}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {schools.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-400">
-            Add at least one school first so you can tag where this content is used.
-          </div>
-        ) : (
-          schools.map((school) => (
-            <div
-              key={school.id}
-              className="space-y-3 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.28)] dark:border-slate-800 dark:bg-slate-950"
-            >
-              <div>
-                <p className="font-semibold text-slate-900 dark:text-slate-50">{school.title}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Choose which year groups use this content.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {YEAR_OPTIONS.map((year) => {
-                  const active = hasAssignmentTag(tags, school.slug, year.slug);
-                  return (
-                    <Button
-                      key={`${school.id}-${year.slug}`}
-                      type="button"
-                      size="sm"
-                      variant={active ? "default" : "outline"}
-                      disabled={busy}
-                      onClick={() => onToggle(school.slug, year.slug)}
-                      className={cn(
-                        "h-9 px-4 text-xs font-semibold",
-                        active
-                          ? "bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-white shadow-[0_16px_34px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
-                          : secondaryPillButtonClassName
-                      )}
-                    >
-                      {year.title}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 function EmptySelectionCard({ children }: { children: ReactNode }) {
   return (
     <Card className={dashedSurfaceCardClassName}>
@@ -783,6 +703,7 @@ export function CurriculumPortal({
   const [selectedYearSlug, setSelectedYearSlug] = useState<string | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [collapsedBranches, setCollapsedBranches] = useState<Record<string, boolean>>({});
   const [chapterWeekDrafts, setChapterWeekDrafts] = useState<Record<string, ChapterWeekDraft>>({});
   const [subjectTitleDraft, setSubjectTitleDraft] = useState("");
@@ -1103,15 +1024,6 @@ export function CurriculumPortal({
     if (!selectedChapter) return null;
     return assessmentDrafts[selectedChapter.id] ?? parseAssessmentDraft(selectedChapter.metadata ?? {});
   }, [assessmentDrafts, selectedChapter]);
-
-  const selectedChapterTags = useMemo(
-    () => (selectedChapter ? parseAssignmentTags(selectedChapter.metadata ?? {}) : []),
-    [selectedChapter]
-  );
-  const selectedModuleTags = useMemo(
-    () => (selectedModule ? parseAssignmentTags(selectedModule.metadata ?? {}) : []),
-    [selectedModule]
-  );
 
   const sortedQuizzes = useMemo(
     () => [...quizzes].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
@@ -1680,9 +1592,6 @@ export function CurriculumPortal({
     },
   ];
   const workflowStep = selectedModule ? 4 : selectedChapter ? 3 : selectedSubject ? 2 : 1;
-  const selectedSchoolChapterTags = selectedSchool
-    ? selectedChapterTags.filter((tag) => tag.schoolSlug === selectedSchool.slug)
-    : [];
 
   return (
     <div className="space-y-5 text-slate-900">
@@ -1852,13 +1761,36 @@ export function CurriculumPortal({
             className={cn(
               "grid gap-5",
               compactMode
-                ? "xl:grid-cols-[380px_minmax(0,1fr)]"
-                : "xl:grid-cols-[340px_minmax(0,1fr)_320px]"
+                ? sidebarCollapsed
+                  ? "xl:grid-cols-[72px_minmax(0,1fr)]"
+                  : "xl:grid-cols-[380px_minmax(0,1fr)]"
+                : sidebarCollapsed
+                  ? "xl:grid-cols-[72px_minmax(0,1fr)_320px]"
+                  : "xl:grid-cols-[340px_minmax(0,1fr)_320px]"
             )}
           >
-            <aside className="rounded-[28px] border border-[#e0eaf7] bg-white/92 p-4 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] dark:border-slate-800 dark:bg-slate-900/88">
+            <aside
+              className={cn(
+                "rounded-[28px] border border-[#e0eaf7] bg-white/92 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] transition-all dark:border-slate-800 dark:bg-slate-900/88",
+                sidebarCollapsed ? "p-2" : "p-4"
+              )}
+            >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">Structure</h2>
+                {!sidebarCollapsed ? (
+                  <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">Structure</h2>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed((current) => !current)}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full border border-[#d8e4f7] text-slate-600 transition-colors hover:bg-[#eef4ff] hover:text-[#2f6fff]",
+                    sidebarCollapsed && "mx-auto"
+                  )}
+                  aria-label={sidebarCollapsed ? "Expand structure sidebar" : "Collapse structure sidebar"}
+                >
+                  {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </button>
+                {!sidebarCollapsed ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1873,8 +1805,27 @@ export function CurriculumPortal({
                 >
                   <Plus className="h-4 w-4" />
                 </button>
+                ) : null}
               </div>
 
+              {sidebarCollapsed ? (
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#2f6fff]">
+                    <School className="h-5 w-5" />
+                  </span>
+                  {selectedSubject ? (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f3f7ff] text-[#174ea6]">
+                      <FlaskConical className="h-5 w-5" />
+                    </span>
+                  ) : null}
+                  {selectedChapter ? (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f8fbff] text-slate-600">
+                      <BookOpen className="h-5 w-5" />
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+              <>
               <div className="mt-4 space-y-2">
                 {isLockedSubjectWorkspace ? (
                   <>
@@ -2497,23 +2448,8 @@ export function CurriculumPortal({
                   </>
                 )}
               </div>
-
-              <div className="mt-5 border-t border-[#edf2f8] pt-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  <span>Year tags</span>
-                  <CircleHelp className="h-3.5 w-3.5 text-slate-400" />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {YEAR_OPTIONS.map((year) => (
-                    <span
-                      key={year.slug}
-                      className="inline-flex h-9 items-center rounded-2xl border border-[#d8e4f7] bg-[#fbfdff] px-4 text-xs font-semibold text-[#2f6fff]"
-                    >
-                      {year.title}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              </>
+              )}
             </aside>
 
             <section className="rounded-[28px] border border-[#e0eaf7] bg-white/92 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.26)] dark:border-slate-800 dark:bg-slate-900/88">
@@ -2584,9 +2520,9 @@ export function CurriculumPortal({
 
                   <div>
                     <p className="text-base font-bold text-slate-950 dark:text-slate-50">Chapter details</p>
-                    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_130px_minmax(170px,0.85fr)_110px_110px_minmax(200px,1fr)_150px]">
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(220px,1.45fr)_130px_minmax(180px,0.9fr)_110px_110px_150px]">
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Chapter title</label>
+                        <label className="mb-1.5 block whitespace-nowrap text-xs font-semibold text-slate-500">Chapter title</label>
                         <Input
                           value={chapterTitleDraft}
                           onChange={(event) => setChapterTitleDraft(event.target.value)}
@@ -2626,34 +2562,6 @@ export function CurriculumPortal({
                           onChange={(event) => updateChapterWeekDraft(selectedChapter.id, "end", event.target.value)}
                           className={fieldClassName}
                         />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Year tags</label>
-                        <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-[#dde5f2] bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-950">
-                          {selectedSchool ? (
-                            YEAR_OPTIONS.map((year) => {
-                              const active = hasAssignmentTag(selectedChapterTags, selectedSchool.slug, year.slug);
-
-                              return (
-                                <button
-                                  key={year.slug}
-                                  type="button"
-                                  onClick={() => toggleAssignmentTag(selectedChapter, selectedSchool.slug, year.slug)}
-                                  className={cn(
-                                    "inline-flex h-8 items-center rounded-xl px-3 text-xs font-semibold transition-colors",
-                                    active
-                                      ? "bg-[#eef4ff] text-[#2f6fff]"
-                                      : "bg-[#f8fafc] text-slate-500 hover:text-slate-900"
-                                  )}
-                                >
-                                  {year.title}
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <span className="px-2 text-xs text-slate-400">Select a school first</span>
-                          )}
-                        </div>
                       </div>
                       <div className="flex items-end">
                         <Button
@@ -2987,20 +2895,8 @@ export function CurriculumPortal({
           </div>
 
           {!compactMode ? (
-          <div className="flex items-center gap-3 rounded-[24px] border border-[#dbe7fb] bg-white/82 px-5 py-4 text-sm text-[#2451a6] shadow-sm dark:border-slate-800 dark:bg-slate-900/88 dark:text-blue-200">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2f6fff] text-xs font-bold text-white">
-              i
-            </span>
-            <span>
-              Lesson tags override chapter tags. Use lesson tags only when a chapter is split across years.
-              {selectedSchoolChapterTags.length > 0 ? ` Current chapter tags: ${selectedSchoolChapterTags.length}.` : ""}
-            </span>
-          </div>
-          ) : null}
-
-          {!compactMode ? (
             <>
-              <div className="grid gap-4 xl:grid-cols-2">
+              <div className="grid gap-4">
                 {selectedChapter ? (
                   <Card className={surfaceCardClassName}>
                     <CardHeader className="space-y-3">
@@ -3010,8 +2906,7 @@ export function CurriculumPortal({
                             Chapter Settings
                           </CardTitle>
                           <CardDescription className="text-sm leading-6 text-slate-500 dark:text-slate-300">
-                            Set chapter-wide defaults like assessments and year tags. Lesson tags can override
-                            these.
+                            Set chapter-wide defaults like pre-test and post-test assessments.
                           </CardDescription>
                         </div>
                         <Button asChild variant="outline" className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}>
@@ -3131,41 +3026,7 @@ export function CurriculumPortal({
                 ) : (
                   <EmptySelectionCard>Select a chapter to manage assessments and chapter-wide settings.</EmptySelectionCard>
                 )}
-
-                {selectedModule ? (
-                  <AssignmentTagEditor
-                    title="Lesson Year Tags"
-                    description="Tag lessons to specific schools and years. These tags override chapter defaults."
-                    tags={selectedModuleTags}
-                    schools={schools}
-                    busy={busy}
-                    action={
-                      <Button asChild variant="outline" className={cn("h-9 px-4 text-xs font-medium", secondaryPillButtonClassName)}>
-                        <Link href={`/admin/modules?lessonId=${encodeURIComponent(selectedModule.id)}`}>
-                          <FilePenLine className="mr-2 h-4 w-4" />
-                          Manage Module Assignment
-                        </Link>
-                      </Button>
-                    }
-                    onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedModule, schoolSlug, yearSlug)}
-                  />
-                ) : (
-                  <EmptySelectionCard>Select a lesson to control year-level placement across schools.</EmptySelectionCard>
-                )}
               </div>
-
-              {selectedChapter ? (
-                <AssignmentTagEditor
-                  title="Chapter Year Tags"
-                  description="Use these when the whole chapter is assigned to a year. Modules can still override this."
-                  tags={selectedChapterTags}
-                  schools={schools}
-                  busy={busy}
-                  onToggle={(schoolSlug, yearSlug) => toggleAssignmentTag(selectedChapter, schoolSlug, yearSlug)}
-                />
-              ) : (
-                <EmptySelectionCard>Select a chapter to assign school and year tags across the full chapter.</EmptySelectionCard>
-              )}
             </>
           ) : null}
         </div>
