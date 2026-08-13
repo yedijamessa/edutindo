@@ -102,12 +102,20 @@ async function ensureSubjectVisibilityRequestSchema() {
 }
 
 function getAssignmentTags(metadata: Record<string, unknown>): CurriculumAssignmentTag[] {
-  if (!Array.isArray(metadata.assignmentTags)) return [];
+  return normalizeAssignmentTags(metadata.assignmentTags);
+}
+
+function getHiddenAssignmentTags(metadata: Record<string, unknown>): CurriculumAssignmentTag[] {
+  return normalizeAssignmentTags(metadata.hiddenAssignmentTags);
+}
+
+function normalizeAssignmentTags(input: unknown): CurriculumAssignmentTag[] {
+  if (!Array.isArray(input)) return [];
 
   const tags: CurriculumAssignmentTag[] = [];
   const seen = new Set<string>();
 
-  for (const item of metadata.assignmentTags) {
+  for (const item of input) {
     if (typeof item !== "object" || item === null || Array.isArray(item)) continue;
 
     const record = item as Record<string, unknown>;
@@ -142,6 +150,33 @@ function removeSchoolTags(tags: CurriculumAssignmentTag[], schoolSlug: string) {
   return tags.filter((tag) => tag.schoolSlug !== schoolSlug);
 }
 
+function getSchoolTags(tags: CurriculumAssignmentTag[], schoolSlug: string) {
+  return tags.filter((tag) => tag.schoolSlug === schoolSlug);
+}
+
+function getFallbackVisibilityTags(node: CurriculumNode, schoolSlug: string) {
+  const existingYearSlugs = getAssignmentTags(node.metadata)
+    .map((tag) => tag.yearSlug)
+    .filter((yearSlug, index, items) => items.indexOf(yearSlug) === index);
+
+  const yearSlugs =
+    existingYearSlugs.length > 0
+      ? existingYearSlugs
+      : [CURRICULUM_YEAR_OPTIONS[0]?.slug ?? "year-7"];
+
+  return yearSlugs.map((yearSlug) => ({ schoolSlug, yearSlug }));
+}
+
+function getVisibilityTagsToRestore(node: CurriculumNode, schoolSlug: string) {
+  const hiddenSchoolTags = getSchoolTags(getHiddenAssignmentTags(node.metadata), schoolSlug);
+  if (hiddenSchoolTags.length > 0) return hiddenSchoolTags;
+
+  const currentSchoolTags = getSchoolTags(getAssignmentTags(node.metadata), schoolSlug);
+  if (currentSchoolTags.length > 0) return currentSchoolTags;
+
+  return getFallbackVisibilityTags(node, schoolSlug);
+}
+
 function findSubject(tree: CurriculumNode[], subjectId: string) {
   return tree.find((node) => node.nodeType === "subject" && node.parentId === null && node.id === subjectId) ?? null;
 }
@@ -163,18 +198,19 @@ async function setSubjectVisibleForSchool(input: {
   actorUserId: string;
 }) {
   const { chapters, lessons } = getSubjectContentNodes(input.subject);
-  const yearTags = CURRICULUM_YEAR_OPTIONS.map((year) => ({
-    schoolSlug: input.schoolSlug,
-    yearSlug: year.slug,
-  }));
 
   for (const chapter of [...chapters, ...lessons]) {
+    const assignmentTags = getAssignmentTags(chapter.metadata);
+    const hiddenAssignmentTags = getHiddenAssignmentTags(chapter.metadata);
+    const restoredTags = getVisibilityTagsToRestore(chapter, input.schoolSlug);
+
     await updateCurriculumNode({
       nodeId: chapter.id,
       title: chapter.title,
       metadata: {
         ...chapter.metadata,
-        assignmentTags: mergeTags(getAssignmentTags(chapter.metadata), yearTags),
+        assignmentTags: mergeTags(assignmentTags, restoredTags),
+        hiddenAssignmentTags: removeSchoolTags(hiddenAssignmentTags, input.schoolSlug),
       },
       actorUserId: input.actorUserId,
     });
@@ -189,12 +225,20 @@ async function setSubjectHiddenForSchool(input: {
   const { chapters, lessons } = getSubjectContentNodes(input.subject);
 
   for (const node of [...chapters, ...lessons]) {
+    const assignmentTags = getAssignmentTags(node.metadata);
+    const hiddenAssignmentTags = getHiddenAssignmentTags(node.metadata);
+    const schoolTags = getSchoolTags(assignmentTags, input.schoolSlug);
+
     await updateCurriculumNode({
       nodeId: node.id,
       title: node.title,
       metadata: {
         ...node.metadata,
-        assignmentTags: removeSchoolTags(getAssignmentTags(node.metadata), input.schoolSlug),
+        assignmentTags: removeSchoolTags(assignmentTags, input.schoolSlug),
+        hiddenAssignmentTags: mergeTags(
+          removeSchoolTags(hiddenAssignmentTags, input.schoolSlug),
+          schoolTags
+        ),
       },
       actorUserId: input.actorUserId,
     });

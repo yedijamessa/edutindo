@@ -280,6 +280,7 @@ function normalizeMetadata(
       preTestEnabled: parseBoolean(input.preTestEnabled),
       postTestEnabled: parseBoolean(input.postTestEnabled),
       assignmentTags: normalizeAssignmentTags(input.assignmentTags),
+      hiddenAssignmentTags: normalizeAssignmentTags(input.hiddenAssignmentTags),
     };
   }
 
@@ -288,6 +289,7 @@ function normalizeMetadata(
     lessonCode: sanitizeText(input.lessonCode, 40),
     uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
     assignmentTags: normalizeAssignmentTags(input.assignmentTags),
+    hiddenAssignmentTags: normalizeAssignmentTags(input.hiddenAssignmentTags),
   };
 }
 
