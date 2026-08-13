@@ -104,6 +104,26 @@ function getModuleTopic(module: ModuleListEntry) {
   return module.assignments[0]?.chapterTitle || "General";
 }
 
+function getSchoolTitleFromBreadcrumbs(breadcrumbs: ModuleEditorBreadcrumb[]) {
+  return breadcrumbs.find((item) => item.nodeType === "school")?.title ?? "";
+}
+
+function getLessonSchoolTitle(lesson: LessonStub) {
+  return getSchoolTitleFromBreadcrumbs(lesson.breadcrumbs) || lesson.schoolSlug || "No school";
+}
+
+function getAssignmentSchoolTitle(assignment: ModuleListEntry["assignments"][number]) {
+  return getSchoolTitleFromBreadcrumbs(assignment.breadcrumbs) || assignment.schoolSlug || "No school";
+}
+
+function lessonMatchesSchool(lesson: LessonStub, schoolSlug: string) {
+  return schoolSlug === "all" || lesson.schoolSlug === schoolSlug;
+}
+
+function moduleMatchesSchool(module: ModuleListEntry, schoolSlug: string) {
+  return schoolSlug === "all" || module.assignments.some((assignment) => assignment.schoolSlug === schoolSlug);
+}
+
 function DialogShell({
   title,
   description,
@@ -384,6 +404,7 @@ export function ModuleLibraryClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [schoolFilter, setSchoolFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "assigned" | "unassigned">("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
@@ -413,9 +434,13 @@ export function ModuleLibraryClient({
   }, [modules, selectedTargetModuleId]);
 
   useEffect(() => {
-    const availableLessonIds = new Set(lessonsWithoutModule.map((lesson) => lesson.lessonId));
+    const availableLessonIds = new Set(
+      lessonsWithoutModule
+        .filter((lesson) => lessonMatchesSchool(lesson, schoolFilter))
+        .map((lesson) => lesson.lessonId)
+    );
     setSelectedLessonIds((current) => current.filter((lessonId) => availableLessonIds.has(lessonId)));
-  }, [lessonsWithoutModule]);
+  }, [lessonsWithoutModule, schoolFilter]);
 
   const moduleByLessonId = useMemo(() => {
     const map = new Map<string, ModuleListEntry>();
@@ -427,30 +452,80 @@ export function ModuleLibraryClient({
     return map;
   }, [modules]);
 
-  const subjectOptions = useMemo(() => {
-    const subjects = new Set<string>();
+  const schoolOptions = useMemo(() => {
+    const schools = new Map<string, string>();
 
     for (const lesson of lessons) {
-      if (lesson.subjectTitle) subjects.add(lesson.subjectTitle);
+      if (lesson.schoolSlug) schools.set(lesson.schoolSlug, getLessonSchoolTitle(lesson));
     }
 
     for (const module of modules) {
+      for (const assignment of module.assignments) {
+        if (assignment.schoolSlug) schools.set(assignment.schoolSlug, getAssignmentSchoolTitle(assignment));
+      }
+    }
+
+    return Array.from(schools.entries())
+      .map(([slug, title]) => ({ slug, title }))
+      .sort((left, right) => left.title.localeCompare(right.title));
+  }, [lessons, modules]);
+
+  const schoolScopedLessons = useMemo(
+    () => lessons.filter((lesson) => lessonMatchesSchool(lesson, schoolFilter)),
+    [lessons, schoolFilter]
+  );
+  const schoolScopedLessonsWithoutModule = useMemo(
+    () => lessonsWithoutModule.filter((lesson) => lessonMatchesSchool(lesson, schoolFilter)),
+    [lessonsWithoutModule, schoolFilter]
+  );
+  const schoolScopedModules = useMemo(
+    () => modules.filter((module) => moduleMatchesSchool(module, schoolFilter)),
+    [modules, schoolFilter]
+  );
+
+  const schoolScopedAssignedLessonCount = useMemo(() => {
+    const assignedLessonIds = new Set<string>();
+
+    for (const module of modules) {
+      for (const assignment of module.assignments) {
+        if (schoolFilter === "all" || assignment.schoolSlug === schoolFilter) {
+          assignedLessonIds.add(assignment.lessonId);
+        }
+      }
+    }
+
+    return assignedLessonIds.size;
+  }, [modules, schoolFilter]);
+
+  const subjectOptions = useMemo(() => {
+    const subjects = new Set<string>();
+
+    for (const lesson of schoolScopedLessons) {
+      if (lesson.subjectTitle) subjects.add(lesson.subjectTitle);
+    }
+
+    for (const module of schoolScopedModules) {
       for (const assignment of module.assignments) {
         if (assignment.subjectTitle) subjects.add(assignment.subjectTitle);
       }
     }
 
     return Array.from(subjects).sort((left, right) => left.localeCompare(right));
-  }, [lessons, modules]);
+  }, [schoolScopedLessons, schoolScopedModules]);
 
   const filteredModules = useMemo(() => {
     const query = search.toLowerCase().trim();
 
-    return modules
+    return schoolScopedModules
       .filter((module) => {
-      if (statusFilter === "assigned" && module.assignments.length === 0) return false;
-      if (statusFilter === "unassigned" && module.assignments.length > 0) return false;
-      if (subjectFilter !== "all" && !module.assignments.some((assignment) => assignment.subjectTitle === subjectFilter)) {
+      const scopedAssignments =
+        schoolFilter === "all"
+          ? module.assignments
+          : module.assignments.filter((assignment) => assignment.schoolSlug === schoolFilter);
+
+      if (statusFilter === "assigned" && scopedAssignments.length === 0) return false;
+      if (statusFilter === "unassigned" && scopedAssignments.length > 0) return false;
+      if (subjectFilter !== "all" && !scopedAssignments.some((assignment) => assignment.subjectTitle === subjectFilter)) {
         return false;
       }
 
@@ -462,6 +537,8 @@ export function ModuleLibraryClient({
           assignment.lessonTitle,
           assignment.subjectTitle,
           assignment.chapterTitle,
+          assignment.schoolSlug,
+          getAssignmentSchoolTitle(assignment),
           assignment.lessonCode,
         ]
           .join(" ")
@@ -475,17 +552,19 @@ export function ModuleLibraryClient({
         const rightTime = new Date(right.updatedAt).getTime();
         return sortOrder === "updated-asc" ? leftTime - rightTime : rightTime - leftTime;
       });
-  }, [modules, search, sortOrder, statusFilter, subjectFilter]);
+  }, [schoolFilter, schoolScopedModules, search, sortOrder, statusFilter, subjectFilter]);
 
   const visibleModules = showAllModules ? filteredModules : filteredModules.slice(0, 6);
 
   const filteredInboxLessons = useMemo(() => {
     const query = inboxSearch.toLowerCase().trim();
-    if (!query) return lessonsWithoutModule;
+    if (!query) return schoolScopedLessonsWithoutModule;
 
-    return lessonsWithoutModule.filter((lesson) =>
+    return schoolScopedLessonsWithoutModule.filter((lesson) =>
       [
         lesson.lessonTitle,
+        getLessonSchoolTitle(lesson),
+        lesson.schoolSlug,
         lesson.subjectTitle,
         lesson.chapterTitle,
         lesson.lessonCode,
@@ -495,13 +574,25 @@ export function ModuleLibraryClient({
         .toLowerCase()
         .includes(query)
     );
-  }, [inboxSearch, lessonsWithoutModule]);
+  }, [inboxSearch, schoolScopedLessonsWithoutModule]);
 
-  const assignedLessonCount = moduleByLessonId.size;
-  const latestUpdatedAt = modules.reduce<string | null>((latest, module) => {
+  const assignableModules = filteredModules.length > 0 ? filteredModules : schoolScopedModules;
+
+  const assignedLessonCount = schoolScopedAssignedLessonCount;
+  const latestUpdatedAt = schoolScopedModules.reduce<string | null>((latest, module) => {
     if (!latest) return module.updatedAt;
     return new Date(module.updatedAt).getTime() > new Date(latest).getTime() ? module.updatedAt : latest;
   }, null);
+
+  useEffect(() => {
+    if (subjectFilter === "all" || subjectOptions.includes(subjectFilter)) return;
+    setSubjectFilter("all");
+  }, [subjectFilter, subjectOptions]);
+
+  useEffect(() => {
+    if (selectedTargetModuleId && assignableModules.some((module) => module.moduleId === selectedTargetModuleId)) return;
+    setSelectedTargetModuleId(assignableModules[0]?.moduleId ?? "");
+  }, [assignableModules, selectedTargetModuleId]);
 
   function toggleInboxLesson(lessonId: string) {
     setSelectedLessonIds((current) =>
@@ -781,7 +872,7 @@ export function ModuleLibraryClient({
                   <CircleAlert className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-lg font-bold text-[#ea580c]">{lessonsWithoutModule.length} lessons</p>
+                  <p className="text-lg font-bold text-[#ea580c]">{schoolScopedLessonsWithoutModule.length} lessons</p>
                   <p className="font-semibold text-[#ea580c]">need assignment</p>
                   <p className="mt-1 text-sm text-[#8b5a28]">Help organize your content by assigning lessons to modules.</p>
                 </div>
@@ -798,7 +889,7 @@ export function ModuleLibraryClient({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-[#53688f]">Reusable Modules</p>
-                  <p className="text-2xl font-bold text-[#2f6fff]">{modules.length}</p>
+                  <p className="text-2xl font-bold text-[#2f6fff]">{schoolScopedModules.length}</p>
                   <p className="text-sm text-[#53688f]">Active modules</p>
                 </div>
               </div>
@@ -824,7 +915,7 @@ export function ModuleLibraryClient({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-[#53688f]">Unassigned Lessons</p>
-                  <p className="text-2xl font-bold text-[#ea580c]">{lessonsWithoutModule.length}</p>
+                  <p className="text-2xl font-bold text-[#ea580c]">{schoolScopedLessonsWithoutModule.length}</p>
                   <p className="text-sm text-[#53688f]">Need assignment</p>
                 </div>
               </div>
@@ -846,12 +937,33 @@ export function ModuleLibraryClient({
           </section>
 
           <section className="mt-5 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e4ecfb] bg-white p-2 shadow-sm">
+            <label className="relative min-w-[220px]">
+              <select
+                value={schoolFilter}
+                onChange={(event) => {
+                  setSchoolFilter(event.target.value);
+                  setSearch("");
+                  setInboxSearch("");
+                  setSelectedLessonIds([]);
+                  setShowAllModules(false);
+                }}
+                className="w-full appearance-none rounded-[14px] border border-[#e4ecfb] bg-white px-4 py-3 pr-10 text-sm font-semibold text-slate-700 focus:outline-none"
+              >
+                <option value="all">All Schools</option>
+                {schoolOptions.map((school) => (
+                  <option key={school.slug} value={school.slug}>
+                    {school.title}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </label>
             <label className="flex min-w-[250px] flex-1 items-center gap-2 rounded-[14px] border border-[#e4ecfb] px-4 py-3">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search modules..."
+                placeholder="Search modules in selected school..."
                 className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
               />
             </label>
@@ -897,10 +1009,13 @@ export function ModuleLibraryClient({
             <button
               type="button"
               onClick={() => {
+                setSchoolFilter("all");
                 setSearch("");
+                setInboxSearch("");
                 setStatusFilter("all");
                 setSubjectFilter("all");
                 setSortOrder("updated-desc");
+                setSelectedLessonIds([]);
                 setShowAllModules(false);
               }}
               className="px-4 py-3 text-sm font-semibold text-[#2f6fff] transition-colors hover:text-[#1d4ed8]"
@@ -1036,7 +1151,7 @@ export function ModuleLibraryClient({
               <div className="border-b border-[#eef3fb] px-5 py-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-bold">Assignment Inbox</h2>
-                  <Badge className="bg-[#fff4e8] text-[#ea580c]">{lessonsWithoutModule.length} unassigned lessons</Badge>
+                  <Badge className="bg-[#fff4e8] text-[#ea580c]">{schoolScopedLessonsWithoutModule.length} unassigned lessons</Badge>
                 </div>
                 <p className="mt-1 max-w-[320px] text-sm text-[#53688f]">
                   Choose a lesson and assign it to an existing module or create a new one.
@@ -1047,7 +1162,7 @@ export function ModuleLibraryClient({
                     <input
                       value={inboxSearch}
                       onChange={(event) => setInboxSearch(event.target.value)}
-                      placeholder="Search lessons..."
+                      placeholder="Search lessons in selected school..."
                       className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
                     />
                   </label>
@@ -1079,7 +1194,7 @@ export function ModuleLibraryClient({
                     {filteredInboxLessons.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-400">
-                          {lessonsWithoutModule.length === 0 ? "Every lesson has a module assigned." : "No lessons match your search."}
+                          {schoolScopedLessonsWithoutModule.length === 0 ? "Every lesson has a module assigned." : "No lessons match your search."}
                         </td>
                       </tr>
                     ) : (
@@ -1132,7 +1247,7 @@ export function ModuleLibraryClient({
                       onChange={(event) => setSelectedTargetModuleId(event.target.value)}
                       className="w-full appearance-none rounded-[12px] border border-[#e4ecfb] bg-white px-4 py-2.5 pr-9 font-medium text-slate-700 focus:outline-none"
                     >
-                      {modules.map((module) => (
+                      {assignableModules.map((module) => (
                         <option key={module.moduleId} value={module.moduleId}>
                           {module.moduleTitle}
                         </option>
@@ -1143,7 +1258,7 @@ export function ModuleLibraryClient({
                 </label>
                 <button
                   type="button"
-                  disabled={selectedLessonIds.length === 0 || !selectedTargetModuleId || Boolean(busyKey)}
+                  disabled={selectedLessonIds.length === 0 || !selectedTargetModuleId || assignableModules.length === 0 || Boolean(busyKey)}
                   onClick={() => void assignSelectedLessons()}
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(135deg,#2f6fff,#1d4ed8)] px-4 py-3 text-sm font-semibold text-white transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
                 >
