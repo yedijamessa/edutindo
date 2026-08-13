@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Clock3, Eye, EyeOff, Loader2, Trash2, X } from "lucide-react";
 import { Button, cn } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 type SubjectVisibilityAction = "show" | "hide" | "remove";
 
@@ -88,9 +87,6 @@ export function SchoolSubjectVisibilityClient({
     return map;
   }, [pendingRequests]);
 
-  const visibleSubjects = subjects.filter((subject) => subject.isVisible);
-  const hiddenSubjects = subjects.filter((subject) => !subject.isVisible);
-
   async function submitSubjectAction(subject: SubjectItem, action: SubjectVisibilityAction) {
     if (action === "remove") {
       const confirmed = window.confirm(`Remove "${subject.title}" from the curriculum?`);
@@ -154,130 +150,87 @@ export function SchoolSubjectVisibilityClient({
     }
   }
 
-  function renderSubjectCard(subject: SubjectItem) {
+  function renderSubjectRow(subject: SubjectItem) {
     const pending = pendingBySubject.get(subject.id) ?? [];
     const toggleAction: SubjectVisibilityAction = subject.isVisible ? "hide" : "show";
     const toggleBusy = busyKey === `${toggleAction}:${subject.id}`;
     const removeBusy = busyKey === `remove:${subject.id}`;
 
     return (
-      <Card
+      <tr
         key={subject.id}
-        className="rounded-[28px] border border-slate-200/80 bg-white/92 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.28)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/84"
+        className="border-t border-[#e7edf8] bg-white transition-colors hover:bg-[#f8fbff] dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
       >
-        <CardContent className="p-6">
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => void submitSubjectAction(subject, toggleAction)}
-              disabled={Boolean(busyKey)}
+        <td className="min-w-[220px] px-4 py-4 align-top">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
               className={cn(
-                "mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border",
                 subject.isVisible
                   ? "border-[#2f6fff] bg-[#eef4ff] text-[#2f6fff]"
                   : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
               )}
-              aria-label={`${subject.isVisible ? "Hide" : "Show"} ${subject.title}`}
+              aria-hidden="true"
             >
-              {toggleBusy ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : subject.isVisible ? (
-                <Check className="h-6 w-6" />
-              ) : (
-                <span className="h-5 w-5 rounded border-2 border-current" />
-              )}
-            </button>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-xl font-semibold text-slate-950 dark:text-slate-50">{subject.title}</p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
-                    {subject.chapterCount} chapters, {subject.lessonCount} lessons
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-semibold",
-                    subject.isVisible
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                  )}
-                >
-                  {subject.isVisible ? "Shown" : "Hidden"}
-                </span>
-              </div>
-
+              {subject.isVisible ? <Check className="h-4 w-4" /> : <span className="h-3.5 w-3.5 rounded border-2 border-current" />}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-slate-950 dark:text-slate-50">{subject.title}</p>
+              <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-300">
+                {subject.chapterCount} chapters, {subject.lessonCount} lessons
+              </p>
               {pending.length > 0 ? (
-                <div className="mt-4 space-y-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                <div className="mt-2 space-y-1 text-xs font-semibold text-amber-700">
                   {pending.map((request) => (
-                    <p key={request.id} className="flex items-center gap-2">
+                    <p key={request.id} className="flex items-center gap-1.5">
                       <Clock3 className="h-3.5 w-3.5 shrink-0" />
-                      Pending approval to {formatAction(request.action)}, requested by {request.requestedByEmail}.
+                      Pending {formatAction(request.action)}
                     </p>
                   ))}
                 </div>
               ) : null}
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Button asChild className="rounded-full">
-                  <Link href={`/admin/curriculum/${schoolSlug}/${subject.slug}`}>
-                    Open subject
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void submitSubjectAction(subject, toggleAction)}
-                  disabled={Boolean(busyKey)}
-                  className="rounded-full"
-                >
-                  {toggleBusy ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : subject.isVisible ? (
-                    <EyeOff className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Eye className="mr-2 h-4 w-4" />
-                  )}
-                  {subject.isVisible ? "Hide" : "Show"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void submitSubjectAction(subject, "remove")}
-                  disabled={Boolean(busyKey)}
-                  className="rounded-full border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
-                >
-                  {removeBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                  Remove
-                </Button>
-              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  function renderSection(title: string, description: string, items: SubjectItem[], empty: string) {
-    return (
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-950 dark:text-slate-50">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{description}</p>
-        </div>
-
-        {items.length === 0 ? (
-          <Card className="rounded-[28px] border border-dashed border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-900/70">
-            <CardContent className="p-6 text-sm text-slate-500 dark:text-slate-300">{empty}</CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map(renderSubjectCard)}</div>
-        )}
-      </section>
+        </td>
+        <td className="px-4 py-4 align-top">
+          <Button asChild className="h-9 rounded-full px-4 text-sm">
+            <Link href={`/admin/curriculum/${schoolSlug}/${subject.slug}`}>
+              Open subject
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </td>
+        <td className="px-4 py-4 align-top">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void submitSubjectAction(subject, toggleAction)}
+            disabled={Boolean(busyKey)}
+            className="h-9 rounded-full px-4 text-sm"
+          >
+            {toggleBusy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : subject.isVisible ? (
+              <EyeOff className="mr-2 h-4 w-4" />
+            ) : (
+              <Eye className="mr-2 h-4 w-4" />
+            )}
+            {subject.isVisible ? "Hide" : "Show"}
+          </Button>
+        </td>
+        <td className="px-4 py-4 align-top">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void submitSubjectAction(subject, "remove")}
+            disabled={Boolean(busyKey)}
+            className="h-9 rounded-full border-red-200 bg-red-50 px-4 text-sm text-red-700 hover:bg-red-100 hover:text-red-800"
+          >
+            {removeBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            Remove
+          </Button>
+        </td>
+      </tr>
     );
   }
 
@@ -356,19 +309,31 @@ export function SchoolSubjectVisibilityClient({
         </section>
       ) : null}
 
-      {renderSection(
-        "Selected Subject",
-        `Subjects currently shown for ${schoolTitle}.`,
-        visibleSubjects,
-        "No selected subjects yet for this school."
-      )}
-
-      {renderSection(
-        "Unselected Subject",
-        `Subjects currently hidden for ${schoolTitle}.`,
-        hiddenSubjects,
-        "All available subjects are already selected for this school."
-      )}
+      <section className="overflow-hidden rounded-[24px] border border-[#dbe5ff] bg-white/92 shadow-sm dark:border-slate-800 dark:bg-slate-900/84">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left">
+            <thead className="bg-[#f8fbff] text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+              <tr>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Open subject</th>
+                <th className="px-4 py-3">Hide</th>
+                <th className="px-4 py-3">Remove</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subjects.length === 0 ? (
+                <tr className="border-t border-[#e7edf8]">
+                  <td className="px-4 py-8 text-sm text-slate-500" colSpan={4}>
+                    No subjects available for {schoolTitle}.
+                  </td>
+                </tr>
+              ) : (
+                subjects.map(renderSubjectRow)
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

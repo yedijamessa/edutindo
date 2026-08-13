@@ -75,7 +75,12 @@ export default async function StudentDashboard() {
   return (
     <div className="min-h-screen bg-[#f4f8fc] text-slate-900">
       <div className="portal-page-width flex min-h-screen">
-        <StudentSidebarPanel heading={studentName} subheading="Student portal" detail={schoolTitle} />
+        <StudentSidebarPanel
+          heading={studentName}
+          subheading="Student portal"
+          detail={schoolTitle}
+          canOpenLockedItems={Boolean(user?.isAdmin)}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="border-b border-[#e5edf7] bg-white/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">

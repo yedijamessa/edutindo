@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/components/ui/button";
 import {
     LayoutDashboard,
@@ -19,7 +20,10 @@ import {
     HardDrive,
     MessageCircle,
     Palette,
-    School
+    School,
+    Lock,
+    Minimize2,
+    Maximize2,
 } from "lucide-react";
 
 interface NavItem {
@@ -31,6 +35,7 @@ interface NavItem {
 
 interface SidebarNavProps {
     role: 'student' | 'teacher' | 'parent' | 'principal';
+    canOpenLockedItems?: boolean;
 }
 
 const studentNav: NavItem[] = [
@@ -82,8 +87,9 @@ import { FocusTimer } from "@/components/lms/focus-timer";
 
 // ... (existing imports)
 
-export function SidebarNav({ role }: SidebarNavProps) {
+export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps) {
     const pathname = usePathname();
+    const [showLockedItems, setShowLockedItems] = useState(false);
 
     const navItems =
         role === 'student'
@@ -93,11 +99,19 @@ export function SidebarNav({ role }: SidebarNavProps) {
                 : role === 'principal'
                     ? principalNav
                     : parentNav;
+    const visibleNavItems =
+        role === "student" && !showLockedItems
+            ? navItems.filter((item) => !item.inProgress)
+            : navItems;
+
+    const handleLockedClick = () => {
+        window.alert("Still locked for user, please contact admin to unlock.");
+    };
 
     return (
         <>
             <nav className={role === "student" ? "space-y-1.5" : "space-y-1"}>
-                {navItems.map((item) => {
+                {visibleNavItems.map((item) => {
                     const Icon = item.icon;
                     // For dashboard routes (ending with /student, /teacher, /parent), use exact match
                     // For sub-routes, check if pathname starts with the href
@@ -106,34 +120,73 @@ export function SidebarNav({ role }: SidebarNavProps) {
                         ? pathname === item.href
                         : pathname === item.href || pathname.startsWith(item.href + '/');
 
-                    return (
+                    const lockedForUser = role === "student" && item.inProgress && !canOpenLockedItems;
+                    const className = cn(
+                        role === "student"
+                            ? "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition-colors"
+                            : "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        role === "student"
+                            ? item.inProgress
+                                ? canOpenLockedItems
+                                    ? isActive
+                                        ? "border border-emerald-200 bg-emerald-100 text-emerald-800"
+                                        : "border border-emerald-100 bg-emerald-50 text-emerald-800 hover:border-emerald-200 hover:bg-emerald-100"
+                                    : isActive
+                                        ? "border border-amber-200 bg-amber-100 text-amber-900"
+                                        : "border border-amber-100 bg-amber-50 text-amber-900/80 hover:border-amber-200 hover:bg-amber-100 hover:text-amber-950"
+                                : isActive
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                            : isActive
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    );
+
+                    const content = (
+                        <>
+                            <Icon className={role === "student" ? "h-4 w-4" : "h-5 w-5"} />
+                            {item.title}
+                            {lockedForUser ? <Lock className="ml-auto h-3.5 w-3.5" /> : null}
+                        </>
+                    );
+
+                    return lockedForUser ? (
+                        <button
+                            key={item.href}
+                            type="button"
+                            className={className}
+                            title={`${item.title} is locked`}
+                            onClick={handleLockedClick}
+                        >
+                            {content}
+                        </button>
+                    ) : (
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={cn(
-                                role === "student"
-                                    ? "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors"
-                                    : "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                                role === "student"
-                                    ? isActive
-                                        ? item.inProgress
-                                            ? "border border-amber-200 bg-amber-100 text-amber-900"
-                                            : "bg-[#eef4ff] text-[#2f6fff]"
-                                        : item.inProgress
-                                            ? "border border-amber-100 bg-amber-50 text-amber-900/80 hover:border-amber-200 hover:bg-amber-100 hover:text-amber-950"
-                                            : "text-slate-500 hover:bg-[#f7faff] hover:text-slate-800"
-                                    : isActive
-                                        ? "bg-primary text-primary-foreground"
-                                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                            )}
+                            className={className}
                             title={item.inProgress ? `${item.title} is in progress` : item.title}
                         >
-                            <Icon className={role === "student" ? "h-4 w-4" : "h-5 w-5"} />
-                            {item.title}
+                            {content}
                         </Link>
                     );
                 })}
             </nav>
+            {role === "student" ? (
+                <button
+                    type="button"
+                    onClick={() => setShowLockedItems((current) => !current)}
+                    className={cn(
+                        "mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-colors",
+                        showLockedItems
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            : "border-[#edf2f8] bg-white text-slate-500 hover:bg-[#f8fbff] hover:text-slate-700"
+                    )}
+                >
+                    {showLockedItems ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    {showLockedItems ? "Minimize tools" : "Maximize tools"}
+                </button>
+            ) : null}
             {role === 'student' && (
                 <div className="mt-6 border-t border-[#edf2f8] pt-5">
                     <FocusTimer />

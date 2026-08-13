@@ -4,12 +4,14 @@ interface StudentSidebarPanelProps {
   heading?: string;
   subheading?: string;
   detail?: string | null;
+  canOpenLockedItems?: boolean;
 }
 
 export function StudentSidebarPanel({
   heading = "Student Portal",
   subheading = "Navigation",
   detail = null,
+  canOpenLockedItems = false,
 }: StudentSidebarPanelProps) {
   return (
     <aside className="hidden w-[282px] shrink-0 border-r border-[#e5edf7] bg-white/90 lg:flex lg:flex-col">
@@ -20,7 +22,7 @@ export function StudentSidebarPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
-        <SidebarNav role="student" />
+        <SidebarNav role="student" canOpenLockedItems={canOpenLockedItems} />
       </div>
     </aside>
   );
