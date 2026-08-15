@@ -59,6 +59,12 @@ const studentNav: NavItem[] = [
     { title: 'Book Room', href: '/student/booking', icon: DoorOpen, inProgress: true },
 ];
 
+const greenStudentHrefs = new Set([
+    "/student",
+    "/student/materials",
+    "/student/learning-path",
+]);
+
 const teacherNav: NavItem[] = [
     { title: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
     { title: 'Materials', href: '/teacher/materials', icon: BookOpen },
@@ -121,6 +127,7 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
                         : pathname === item.href || pathname.startsWith(item.href + '/');
 
                     const lockedForUser = role === "student" && item.inProgress && !canOpenLockedItems;
+                    const isGreenStudentItem = role === "student" && greenStudentHrefs.has(item.href);
                     const className = cn(
                         role === "student"
                             ? "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition-colors"
@@ -129,14 +136,18 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
                             ? item.inProgress
                                 ? canOpenLockedItems
                                     ? isActive
-                                        ? "border border-emerald-200 bg-emerald-100 text-emerald-800"
-                                        : "border border-emerald-100 bg-emerald-50 text-emerald-800 hover:border-emerald-200 hover:bg-emerald-100"
+                                        ? "border border-amber-200 bg-amber-100 text-amber-900"
+                                        : "border border-amber-100 bg-amber-50 text-amber-900/80 hover:border-amber-200 hover:bg-amber-100 hover:text-amber-950"
                                     : isActive
                                         ? "border border-amber-200 bg-amber-100 text-amber-900"
                                         : "border border-amber-100 bg-amber-50 text-amber-900/80 hover:border-amber-200 hover:bg-amber-100 hover:text-amber-950"
-                                : isActive
+                                : isActive && isGreenStudentItem
                                     ? "bg-emerald-50 text-emerald-700"
-                                    : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                                    : isGreenStudentItem
+                                        ? "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                                        : isActive
+                                            ? "bg-amber-100 text-amber-900"
+                                            : "text-slate-500 hover:bg-amber-50 hover:text-amber-900"
                             : isActive
                                 ? "bg-primary text-primary-foreground"
                                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -184,7 +195,7 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
                     )}
                 >
                     {showLockedItems ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                    {showLockedItems ? "Minimize tools" : "Maximize tools"}
+                    {showLockedItems ? "Hide Other Features" : "Other Features"}
                 </button>
             ) : null}
             {role === 'student' && (
