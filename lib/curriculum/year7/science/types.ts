@@ -3,6 +3,7 @@ export interface Year7ScienceLesson {
   lessonCode: string;
   title: string;
   slug?: string;
+  isReadingWeek?: boolean;
 }
 
 export interface Year7ScienceChapter {

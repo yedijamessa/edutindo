@@ -47,6 +47,10 @@ export const getYear7ScienceLessonBySlugs = (chapterSlug: string, lessonSlug: st
   return { chapter, lesson };
 };
 
+export function isReadingWeekLesson(lesson: { title: string; isReadingWeek?: boolean }) {
+  return lesson.isReadingWeek === true || /\breading\s+week\b/i.test(lesson.title);
+}
+
 export const getYear7ScienceLessonRouteParams = () =>
   year7ScienceChapters.flatMap((chapter) =>
     chapter.lessons.flatMap((lesson) =>

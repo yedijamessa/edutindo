@@ -12,6 +12,7 @@ export const introductionChapter: Year7ScienceChapter = {
       week: "0",
       lessonCode: "0.1",
       title: "Reading week and LMS introduction",
+      isReadingWeek: true,
     },
     {
       week: "1",

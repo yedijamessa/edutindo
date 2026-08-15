@@ -1,7 +1,7 @@
 import "@/lib/server-only";
 
 import { randomUUID } from "crypto";
-import { year7ScienceChapters } from "@/lib/curriculum/year7/science";
+import { isReadingWeekLesson, year7ScienceChapters } from "@/lib/curriculum/year7/science";
 import { sqlQuery as sql } from "@/lib/postgres-query";
 
 export const DEFAULT_CURRICULUM_SCHOOL_TITLE = "EDUTINDO School";
@@ -288,6 +288,7 @@ function normalizeMetadata(
     week: sanitizeText(input.week, 40),
     lessonCode: sanitizeText(input.lessonCode, 40),
     uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
+    isReadingWeek: parseBoolean(input.isReadingWeek),
     assignmentTags: normalizeAssignmentTags(input.assignmentTags),
     hiddenAssignmentTags: normalizeAssignmentTags(input.hiddenAssignmentTags),
   };
@@ -927,6 +928,7 @@ async function seedDefaultCurriculumIfEmpty() {
           metadata: {
             week: lesson.week,
             lessonCode: lesson.lessonCode,
+            isReadingWeek: isReadingWeekLesson(lesson),
           },
         });
       }
@@ -987,6 +989,9 @@ export async function createCurriculumNode(input: {
   const metadata = normalizeMetadata(nodeType, input.metadata);
   if (nodeType === "year" && metadata.yearLevel == null) {
     metadata.yearLevel = parseYearLevelFromTitle(title);
+  }
+  if (nodeType === "lesson" && !metadata.isReadingWeek) {
+    metadata.isReadingWeek = isReadingWeekLesson({ title });
   }
   const actorUserId = normalizeId(input.actorUserId);
   const expectedParentType = parentTypeByNode[nodeType];
@@ -1110,6 +1115,9 @@ export async function updateCurriculumNode(input: {
   const metadata = normalizeMetadata(nodeType, input.metadata);
   if (nodeType === "year" && metadata.yearLevel == null) {
     metadata.yearLevel = parseYearLevelFromTitle(title);
+  }
+  if (nodeType === "lesson" && !metadata.isReadingWeek) {
+    metadata.isReadingWeek = isReadingWeekLesson({ title });
   }
 
   const duplicateSiblingId = await findSiblingWithSameTitle({

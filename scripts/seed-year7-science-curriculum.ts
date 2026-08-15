@@ -10,6 +10,7 @@ import {
   updateCurriculumNode,
 } from "@/lib/curriculum-portal";
 import {
+  isReadingWeekLesson,
   year7ScienceChapters,
   type Year7ScienceChapter,
   type Year7ScienceLesson,
@@ -144,6 +145,7 @@ function getLessonMetadata(lesson: Year7ScienceLesson, existingMetadata?: Record
   return {
     week: lesson.week,
     lessonCode: lesson.lessonCode,
+    isReadingWeek: isReadingWeekLesson(lesson),
     assignmentTags: getAssignmentTags(existingMetadata),
   };
 }
@@ -167,6 +169,35 @@ function createPage(title: string, description: string, blocks: ModuleEditorBloc
 }
 
 function buildLessonPages(chapter: Year7ScienceChapter, lesson: Year7ScienceLesson) {
+  if (isReadingWeekLesson(lesson)) {
+    return [
+      createPage(
+        lesson.title,
+        `Reading-week module for ${chapter.shortTitle}.`,
+        [
+          createTextBlock(
+            "Reading Week",
+            [
+              `Chapter: ${chapter.shortTitle}`,
+              `Lesson code: ${lesson.lessonCode}`,
+              `Suggested week: ${lesson.week}`,
+              "",
+              "Use this module for independent reading, LMS orientation, catch-up work, report writing, and reflection.",
+            ].join("\n")
+          ),
+          createTextBlock(
+            "Student Tasks",
+            [
+              "1. Review the assigned reading or prior lesson materials.",
+              "2. Complete any catch-up notes or report-writing tasks.",
+              "3. Write a short reflection on what you understand and what still needs support.",
+            ].join("\n")
+          ),
+        ]
+      ),
+    ];
+  }
+
   return [
     createPage(
       lesson.title,
@@ -299,14 +330,27 @@ async function reorderScienceChapters(subjectTree: CurriculumNode, ensuredChapte
 async function ensureLessonDocument(chapter: Year7ScienceChapter, lesson: Year7ScienceLesson, lessonNodeId: string) {
   const existingModuleId = await getAssignedModuleIdForLesson(lessonNodeId);
   const existingDocument = existingModuleId ? await getModuleEditorDocument(existingModuleId) : null;
-  if (existingDocument && !overwriteDocs) {
+  const shouldBackfillReadingWeekModule =
+    existingDocument &&
+    isReadingWeekLesson(lesson) &&
+    (!existingDocument.moduleCode ||
+      !existingDocument.subjectSlug ||
+      !existingDocument.chapterSlug ||
+      existingDocument.moduleCode !== lesson.lessonCode);
+
+  if (existingDocument && !overwriteDocs && !shouldBackfillReadingWeekModule) {
     return;
   }
 
   const savedDocument = await saveModuleEditorDocument({
     moduleId: existingDocument?.id ?? null,
     title: lesson.title,
-    pages: buildLessonPages(chapter, lesson),
+    moduleCode: lesson.lessonCode,
+    pages: existingDocument && !overwriteDocs ? existingDocument.pages : buildLessonPages(chapter, lesson),
+    subjectSlug: SCIENCE_SUBJECT_SLUG,
+    subjectTitle: SCIENCE_SUBJECT_TITLE,
+    chapterSlug: chapter.slug,
+    chapterTitle: chapter.shortTitle,
     actorUserId: ACTOR_USER_ID,
   });
 

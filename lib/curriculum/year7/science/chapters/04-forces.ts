@@ -42,6 +42,7 @@ export const forcesChapter: Year7ScienceChapter = {
       week: "26",
       lessonCode: "1.7",
       title: "Reading week and report writing",
+      isReadingWeek: true,
     },
     {
       week: "26",
