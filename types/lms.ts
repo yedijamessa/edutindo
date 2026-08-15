@@ -62,6 +62,33 @@ export interface QuizAttempt {
     timeSpent: number; // in minutes
 }
 
+export interface QuizQuestionReview {
+    questionId: string;
+    questionText: string;
+    questionType: QuestionType;
+    options?: string[];
+    correctAnswer: string | number;
+    studentAnswer: string | number | null;
+    isCorrect: boolean;
+    points: number;
+    earnedPoints: number;
+}
+
+export interface QuizAttemptReview {
+    attemptId: string;
+    quizId: string;
+    quizTitle: string;
+    materialId: string;
+    score: number;
+    earnedPoints: number;
+    totalPoints: number;
+    passed: boolean;
+    startedAt: Date;
+    completedAt: Date;
+    timeSpentSeconds: number;
+    questionResults: QuizQuestionReview[];
+}
+
 export interface Note {
     id: string;
     title: string;
@@ -82,9 +109,14 @@ export interface Progress {
     timeSpent: number; // in minutes
     quizScores?: {
         quizId: string;
+        quizTitle?: string;
         score: number;
         attempts: number;
         lastAttempt: Date;
+        earnedPoints?: number;
+        totalPoints?: number;
+        passed?: boolean;
+        attemptHistory?: QuizAttemptReview[];
     }[];
 }
 

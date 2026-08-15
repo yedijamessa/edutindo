@@ -5,10 +5,9 @@ import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Quiz } from "@/types/lms";
-import { ArrowLeft, Clock, Award } from "lucide-react";
+import { Quiz, type QuizAttemptReview } from "@/types/lms";
+import { ArrowLeft, Clock, Award, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
-import { saveQuizScore } from "@/lib/firestore-services";
 
 export default function QuizTaker({ quiz }: { quiz: Quiz }) {
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -16,6 +15,9 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
     const [submitted, setSubmitted] = useState(false);
     const [score, setScore] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [startedAt, setStartedAt] = useState(() => new Date().toISOString());
+    const [attemptReview, setAttemptReview] = useState<QuizAttemptReview | null>(null);
+    const [submitError, setSubmitError] = useState("");
 
     const handleAnswer = (questionIndex: number, answer: any) => {
         setAnswers({ ...answers, [questionIndex]: answer });
@@ -23,25 +25,33 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
 
     const handleSubmit = async () => {
         setIsSubmitting(true);
-        const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
-        const earnedPoints = quiz.questions.reduce((sum, q, index) => {
-            return sum + (answers[index] === q.correctAnswer ? q.points : 0);
-        }, 0);
-        const finalScore = Math.round((earnedPoints / totalPoints) * 100);
-        setScore(finalScore);
+        setSubmitError("");
 
         try {
-            // Save score to Firestore
-            // Using 'general' as materialId if not provided, or the quiz's materialId
-            const materialId = quiz.materialId || 'general';
-            await saveQuizScore('student-1', materialId, quiz.id, finalScore);
-        } catch (error) {
-            console.error('Error saving quiz score:', error);
-            // Continue to show results even if saving fails
-        }
+            const response = await fetch("/api/student/quiz-attempts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    quizId: quiz.id,
+                    answers,
+                    startedAt,
+                }),
+            });
+            const data = await response.json();
 
-        setSubmitted(true);
-        setIsSubmitting(false);
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || "Failed to submit quiz.");
+            }
+
+            setAttemptReview(data.attempt);
+            setScore(data.attempt.score);
+            setSubmitted(true);
+        } catch (error) {
+            console.error("Error saving quiz attempt:", error);
+            setSubmitError(error instanceof Error ? error.message : "Failed to submit quiz.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -65,6 +75,11 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
                                     <h2 className="text-3xl font-bold mb-2">Quiz Completed!</h2>
                                     <p className="text-muted-foreground mb-6">Great job on completing the quiz</p>
                                     <div className="text-6xl font-bold text-primary mb-6">{score}%</div>
+                                    {attemptReview && (
+                                        <p className="mb-4 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                            {attemptReview.earnedPoints}/{attemptReview.totalPoints} points recorded
+                                        </p>
+                                    )}
                                     <p className="text-lg mb-8">
                                         {score >= quiz.passingScore ? (
                                             <span className="text-green-600 dark:text-green-400">✓ Passed!</span>
@@ -80,12 +95,74 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
                                             setSubmitted(false);
                                             setAnswers({});
                                             setCurrentQuestion(0);
+                                            setAttemptReview(null);
+                                            setScore(0);
+                                            setStartedAt(new Date().toISOString());
+                                            setSubmitError("");
                                         }}>
                                             Retry Quiz
                                         </Button>
                                     </div>
                                 </CardContent>
                             </Card>
+
+                            {attemptReview && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Question Review</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {attemptReview.questionResults.map((result, index) => (
+                                            <div
+                                                key={result.questionId}
+                                                className="rounded-lg border bg-white p-4 dark:bg-slate-900"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                                            {index + 1}. {result.questionText}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {result.earnedPoints}/{result.points} points
+                                                        </p>
+                                                    </div>
+                                                    {result.isCorrect ? (
+                                                        <Badge className="bg-green-100 text-green-700">
+                                                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                                                            Correct
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge className="bg-red-100 text-red-700">
+                                                            <XCircle className="mr-1 h-3.5 w-3.5" />
+                                                            Review
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
+                                                    <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-950">
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                            Your answer
+                                                        </p>
+                                                        <p className="mt-1 text-slate-800 dark:text-slate-100">
+                                                            {result.studentAnswer ?? "No answer"}
+                                                        </p>
+                                                    </div>
+                                                    <div className="rounded-md bg-blue-50 p-3 dark:bg-blue-950/40">
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">
+                                                            Correct answer
+                                                        </p>
+                                                        <p className="mt-1 text-slate-800 dark:text-slate-100">
+                                                            {typeof result.correctAnswer === "number" && result.options?.[result.correctAnswer]
+                                                                ? result.options[result.correctAnswer]
+                                                                : result.correctAnswer}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                     </main>
                 </div>
@@ -209,12 +286,17 @@ export default function QuizTaker({ quiz }: { quiz: Quiz }) {
                             ) : (
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={Object.keys(answers).length !== quiz.questions.length}
+                                    disabled={Object.keys(answers).length !== quiz.questions.length || isSubmitting}
                                 >
-                                    Submit Quiz
+                                    {isSubmitting ? "Submitting..." : "Submit Quiz"}
                                 </Button>
                             )}
                         </div>
+                        {submitError && (
+                            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                                {submitError}
+                            </p>
+                        )}
                     </div>
                 </main>
             </div>

@@ -66,6 +66,15 @@ function getBreadcrumbSlug(breadcrumbs: ModuleEditorBreadcrumb[], nodeType: Modu
   return breadcrumbs.find((item) => item.nodeType === nodeType)?.slug ?? "";
 }
 
+function parseRecipientEmails(value: unknown) {
+  const rawItems = Array.isArray(value) ? value : String(value || "").split(/[\s,;]+/);
+  const emails = rawItems
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  return Array.from(new Set(emails));
+}
+
 function resolveAssignmentScope(target: NonNullable<Awaited<ReturnType<typeof getModuleEditorTarget>>>) {
   const metadataTags = normalizeAssignmentTags(target.metadata.assignmentTags);
   const firstTag = metadataTags[0] ?? null;
@@ -86,12 +95,12 @@ export async function POST(req: NextRequest) {
     if (access.response || !access.user) return access.response;
 
     const body = await req.json();
-    const email = String(body?.email || "").trim().toLowerCase();
+    const emails = parseRecipientEmails(body?.emails ?? body?.email);
     const moduleId = String(body?.moduleId || "").trim();
     const lessonId = String(body?.lessonId || "").trim();
 
-    if (!email) {
-      return NextResponse.json({ ok: false, error: "Enter a student email." }, { status: 400 });
+    if (emails.length === 0) {
+      return NextResponse.json({ ok: false, error: "Enter at least one student email." }, { status: 400 });
     }
 
     const [moduleDocument, target] = await Promise.all([
@@ -114,6 +123,21 @@ export async function POST(req: NextRequest) {
     }
 
     const scope = resolveAssignmentScope(target);
+    const recipients = [];
+
+    for (const email of emails) {
+      const existingStudent = await grantStudentAccessForExistingUser({
+        email,
+        schoolSlug: scope.schoolSlug,
+      });
+
+      recipients.push(
+        existingStudent
+          ? { type: "existing" as const, email: existingStudent.email, user: existingStudent }
+          : { type: "invite" as const, email, user: null }
+      );
+    }
+
     const tagKey = `${scope.schoolSlug}:${scope.yearSlug}`;
     const nextTags = scope.existingTags.some((tag) => `${tag.schoolSlug}:${tag.yearSlug}` === tagKey)
       ? scope.existingTags
@@ -137,64 +161,69 @@ export async function POST(req: NextRequest) {
     });
 
     const assignedByName = access.user.firstName || access.user.email;
-    const existingStudent = await grantStudentAccessForExistingUser({
-      email,
-      schoolSlug: scope.schoolSlug,
-    });
+    const sent: string[] = [];
+    const invited: string[] = [];
 
-    if (existingStudent) {
-      await sendLessonAssignmentEmail({
-        email: existingStudent.email,
-        firstName: existingStudent.firstName,
-        moduleTitle: moduleDocument.title,
-        lessonTitle: target.title,
-        lessonPath,
-        assignedByName,
+    for (const recipient of recipients) {
+      if (recipient.type === "existing") {
+        await sendLessonAssignmentEmail({
+          email: recipient.user.email,
+          firstName: recipient.user.firstName,
+          moduleTitle: moduleDocument.title,
+          lessonTitle: target.title,
+          lessonPath,
+          assignedByName,
+        });
+
+        await recordStudentLessonAssignment({
+          email: recipient.user.email,
+          userId: recipient.user.id,
+          schoolSlug: scope.schoolSlug,
+          lessonId,
+          moduleId,
+          assignedByUserId: access.user.id,
+        });
+
+        sent.push(recipient.user.email);
+        continue;
+      }
+
+      await createAccountInvite({
+        email: recipient.email,
+        portals: ["student"],
+        schoolSlug: scope.schoolSlug,
+        invitedByUserId: access.user.id,
+        invitedByName: assignedByName,
+        nextPath: lessonPath,
+        assignment: {
+          moduleTitle: moduleDocument.title,
+          lessonTitle: target.title,
+        },
       });
 
       await recordStudentLessonAssignment({
-        email: existingStudent.email,
-        userId: existingStudent.id,
+        email: recipient.email,
         schoolSlug: scope.schoolSlug,
         lessonId,
         moduleId,
         assignedByUserId: access.user.id,
       });
 
-      return NextResponse.json({
-        ok: true,
-        message: `Lesson assigned and sent to ${existingStudent.email}.`,
-        lessonPath,
-        status: "sent",
-      });
+      invited.push(recipient.email);
     }
 
-    await createAccountInvite({
-      email,
-      portals: ["student"],
-      schoolSlug: scope.schoolSlug,
-      invitedByUserId: access.user.id,
-      invitedByName: assignedByName,
-      nextPath: lessonPath,
-      assignment: {
-        moduleTitle: moduleDocument.title,
-        lessonTitle: target.title,
-      },
-    });
-
-    await recordStudentLessonAssignment({
-      email,
-      schoolSlug: scope.schoolSlug,
-      lessonId,
-      moduleId,
-      assignedByUserId: access.user.id,
-    });
+    const messageParts = [
+      sent.length > 0 ? `sent to ${sent.length} student${sent.length === 1 ? "" : "s"}` : "",
+      invited.length > 0 ? `invited ${invited.length} new student${invited.length === 1 ? "" : "s"}` : "",
+    ].filter(Boolean);
 
     return NextResponse.json({
       ok: true,
-      message: `Student invite sent to ${email}. The lesson will open after account setup.`,
+      message: `Lesson assignment ${messageParts.join(" and ")}.`,
       lessonPath,
-      status: "invited",
+      status: invited.length > 0 ? "invited" : "sent",
+      sent,
+      invited,
     });
   } catch (error) {
     if (error instanceof AuthError) {

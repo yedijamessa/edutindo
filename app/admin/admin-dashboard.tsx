@@ -1,15 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState, type DragEvent, type MouseEvent } from "react";
 import {
   BookOpen,
+  ChevronDown,
+  ClipboardList,
   FileClock,
   FolderPlus,
+  GripVertical,
   Layers3,
   LayoutGrid,
   NotebookTabs,
+  School,
   ShieldCheck,
+  type LucideIcon,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface AdminDashboardProps {
   adminEmail: string;
@@ -77,12 +84,237 @@ const creationTools = [
 ];
 
 const crossPortalLinks = [
-  { title: "Curriculum Assign Portal", href: "/curriculum-assign-portal" },
-  { title: "Student Portal", href: "/student" },
-  { title: "Teacher Portal", href: "/teacher" },
-  { title: "Parent Portal", href: "/parent" },
-  { title: "Principal Portal", href: "/principal" },
+  {
+    title: "Curriculum Assign Portal",
+    href: "/curriculum-assign-portal",
+    description: "Assign curriculum access across schools, years, and subjects.",
+    icon: ClipboardList,
+  },
+  {
+    title: "Student Portal",
+    href: "/student",
+    description: "Preview the learner workspace and material experience.",
+    icon: BookOpen,
+  },
+  {
+    title: "Teacher Portal",
+    href: "/teacher",
+    description: "Open teacher tools for materials, students, notes, and meetings.",
+    icon: Users,
+  },
+  {
+    title: "Parent Portal",
+    href: "/parent",
+    description: "View the parent-facing portal experience.",
+    icon: Users,
+  },
+  {
+    title: "Principal Portal",
+    href: "/principal",
+    description: "Open school leadership views for materials and bookings.",
+    icon: School,
+  },
 ];
+
+interface DashboardTool {
+  title: string;
+  href: string;
+  description: string;
+  icon: LucideIcon;
+}
+
+type DashboardGroupId = "content-sandbox" | "admin-portals" | "other-portals";
+
+interface DashboardGroup {
+  id: DashboardGroupId;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  tools: DashboardTool[];
+}
+
+type ToolOrderByGroup = Partial<Record<DashboardGroupId, string[]>>;
+
+function orderTools(tools: DashboardTool[], order?: string[]) {
+  if (!order?.length) return tools;
+
+  const toolsByHref = new Map(tools.map((tool) => [tool.href, tool]));
+  const orderedTools = order.flatMap((href) => {
+    const tool = toolsByHref.get(href);
+    if (!tool) return [];
+
+    toolsByHref.delete(href);
+    return [tool];
+  });
+
+  return [...orderedTools, ...toolsByHref.values()];
+}
+
+function getReorderedHrefs(
+  tools: DashboardTool[],
+  currentOrder: string[] | undefined,
+  draggedHref: string,
+  targetHref: string,
+  placement: "before" | "after"
+) {
+  const orderedHrefs = orderTools(tools, currentOrder).map((tool) => tool.href);
+  const draggedIndex = orderedHrefs.indexOf(draggedHref);
+  const targetIndex = orderedHrefs.indexOf(targetHref);
+
+  if (draggedIndex === -1 || targetIndex === -1 || draggedHref === targetHref) {
+    return orderedHrefs;
+  }
+
+  orderedHrefs.splice(draggedIndex, 1);
+  const nextTargetIndex = orderedHrefs.indexOf(targetHref);
+  orderedHrefs.splice(placement === "after" ? nextTargetIndex + 1 : nextTargetIndex, 0, draggedHref);
+
+  return orderedHrefs;
+}
+
+function AdminToolPanel({
+  group,
+  onReorder,
+}: {
+  group: DashboardGroup;
+  onReorder: (groupId: DashboardGroupId, draggedHref: string, targetHref: string, placement: "before" | "after") => void;
+}) {
+  const GroupIcon = group.icon;
+  const [loadingHref, setLoadingHref] = useState<string | null>(null);
+  const [draggedHref, setDraggedHref] = useState<string | null>(null);
+  const [dragTarget, setDragTarget] = useState<{ href: string; placement: "before" | "after" } | null>(null);
+
+  function handleToolClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return;
+    }
+
+    setLoadingHref(href);
+  }
+
+  function getDropPlacement(event: DragEvent<HTMLElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return event.clientY - bounds.top > bounds.height / 2 ? "after" : "before";
+  }
+
+  return (
+    <details className="group rounded-[28px] border border-slate-200/80 bg-white/94 shadow-[0_28px_70px_-54px_rgba(15,23,42,0.58)] transition-shadow duration-200 open:shadow-[0_34px_76px_-48px_rgba(37,99,235,0.34)] dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none">
+      <summary className="grid min-h-[12rem] cursor-pointer list-none grid-rows-[auto_1fr_auto] gap-4 p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 [&::-webkit-details-marker]:hidden sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#eef4ff_0%,#dfe8ff_100%)] text-[#2f6fff] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.32)_0%,rgba(37,99,235,0.16)_100%)] dark:text-blue-200">
+            <GroupIcon className="h-6 w-6" strokeWidth={1.9} />
+          </div>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d9e0ec] bg-white/85 text-slate-500 transition-transform duration-200 group-open:rotate-180 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+            <ChevronDown className="h-5 w-5" strokeWidth={2} />
+          </span>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-[1.5rem] font-semibold leading-tight tracking-tight text-slate-950 dark:text-slate-50">
+            {group.title}
+          </h2>
+          <p className="text-[14px] leading-6 text-slate-500 dark:text-slate-300">
+            {group.description}
+          </p>
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600 dark:text-blue-300">
+          {group.tools.length} {group.tools.length === 1 ? "menu" : "menus"}
+        </p>
+      </summary>
+
+      <div className="border-t border-slate-200/80 px-3 pb-3 dark:border-slate-800 sm:px-4 sm:pb-4">
+        <div className="grid gap-2 pt-3">
+          {group.tools.map((tool) => {
+            const ToolIcon = tool.icon;
+            const isLoading = loadingHref === tool.href;
+            const isDragging = draggedHref === tool.href;
+            const dropPlacement = dragTarget?.href === tool.href ? dragTarget.placement : null;
+
+            return (
+              <Link
+                key={tool.href + tool.title}
+                href={tool.href}
+                aria-busy={isLoading}
+                draggable
+                onDragStart={(event) => {
+                  setDraggedHref(tool.href);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", tool.href);
+                }}
+                onDragEnd={() => {
+                  setDraggedHref(null);
+                  setDragTarget(null);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setDragTarget({ href: tool.href, placement: getDropPlacement(event) });
+                }}
+                onDragLeave={() => {
+                  setDragTarget((current) => (current?.href === tool.href ? null : current));
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const draggedToolHref = event.dataTransfer.getData("text/plain") || draggedHref;
+                  const placement = getDropPlacement(event);
+
+                  setDraggedHref(null);
+                  setDragTarget(null);
+
+                  if (!draggedToolHref) return;
+                  onReorder(group.id, draggedToolHref, tool.href, placement);
+                }}
+                onClick={(event) => handleToolClick(event, tool.href)}
+                className={`grid cursor-grab grid-cols-[2.75rem_1fr_auto] gap-3 rounded-[18px] px-3 py-3 text-left transition-colors active:cursor-grabbing hover:bg-[#f7faff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-800/72 ${
+                  isLoading ? "bg-[#f7faff] dark:bg-slate-800/72" : ""
+                } ${isDragging ? "opacity-45" : ""} ${
+                  dropPlacement === "before"
+                    ? "shadow-[inset_0_3px_0_#2563eb]"
+                    : dropPlacement === "after"
+                      ? "shadow-[inset_0_-3px_0_#2563eb]"
+                      : ""
+                }`}
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#eef4ff] text-[#2f6fff] dark:bg-blue-950/42 dark:text-blue-200">
+                  <ToolIcon className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+                <span className="min-w-0 space-y-1">
+                  <span className="block text-[15px] font-semibold leading-tight text-slate-950 dark:text-slate-50">
+                    {tool.title}
+                  </span>
+                  <span className="block text-[13px] leading-5 text-slate-500 dark:text-slate-300">
+                    {tool.description}
+                  </span>
+                  {isLoading && (
+                    <span className="block pt-2" role="status" aria-live="polite">
+                      <span className="mb-1 flex items-center text-[12px] font-semibold uppercase tracking-[0.14em] text-blue-600 dark:text-blue-300">
+                        Loading
+                        <span className="admin-loading-dots ml-1" aria-hidden="true">
+                          <span>.</span>
+                          <span>.</span>
+                          <span>.</span>
+                        </span>
+                      </span>
+                      <span className="relative block h-1.5 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-950/70">
+                        <span className="admin-loading-bar absolute inset-y-0 left-0 w-1/2 rounded-full bg-[linear-gradient(90deg,#93c5fd_0%,#2563eb_52%,#1d4ed8_100%)]" />
+                      </span>
+                    </span>
+                  )}
+                </span>
+                <span
+                  className="flex h-9 w-5 items-center justify-center self-center text-slate-300 dark:text-slate-600"
+                  title="Drag to reorder"
+                  aria-hidden="true"
+                >
+                  <GripVertical className="h-4 w-4" strokeWidth={2} />
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </details>
+  );
+}
 
 function AdminHeroArtwork() {
   return (
@@ -115,9 +347,82 @@ function AdminHeroArtwork() {
 }
 
 export default function AdminDashboard({ adminEmail, canManageAccessControls }: AdminDashboardProps) {
+  const storageKey = `edutindo:admin-dashboard-tool-order:${adminEmail.toLowerCase()}`;
+  const [toolOrderByGroup, setToolOrderByGroup] = useState<ToolOrderByGroup>({});
+
+  useEffect(() => {
+    try {
+      const storedValue = window.localStorage.getItem(storageKey);
+      if (!storedValue) {
+        setToolOrderByGroup({});
+        return;
+      }
+
+      const parsedValue = JSON.parse(storedValue) as ToolOrderByGroup;
+      setToolOrderByGroup(parsedValue && typeof parsedValue === "object" ? parsedValue : {});
+    } catch {
+      setToolOrderByGroup({});
+    }
+  }, [storageKey]);
+
   const visibleAdminTools = adminTools.filter(
     (tool) => tool.href !== "/admin/access" || canManageAccessControls
   );
+  const dashboardGroups = [
+    {
+      id: "content-sandbox",
+      title: "Content Sandbox",
+      description: "Create and audit curriculum content from one place.",
+      icon: FolderPlus,
+      tools: orderTools(creationTools, toolOrderByGroup["content-sandbox"]),
+    },
+    {
+      id: "admin-portals",
+      title: "Admin Portals",
+      description: "Access and manage key areas of the Edutindo platform.",
+      icon: LayoutGrid,
+      tools: orderTools(visibleAdminTools, toolOrderByGroup["admin-portals"]),
+    },
+    {
+      id: "other-portals",
+      title: "Other Portals",
+      description: "Jump into the user-facing portals from the admin dashboard.",
+      icon: Users,
+      tools: orderTools(crossPortalLinks, toolOrderByGroup["other-portals"]),
+    },
+  ] satisfies DashboardGroup[];
+
+  const toolsByGroup = {
+    "content-sandbox": creationTools,
+    "admin-portals": visibleAdminTools,
+    "other-portals": crossPortalLinks,
+  } satisfies Record<DashboardGroupId, DashboardTool[]>;
+
+  function reorderTools(
+    groupId: DashboardGroupId,
+    draggedHref: string,
+    targetHref: string,
+    placement: "before" | "after"
+  ) {
+    setToolOrderByGroup((current) => {
+      const nextOrder = getReorderedHrefs(
+        toolsByGroup[groupId],
+        current[groupId],
+        draggedHref,
+        targetHref,
+        placement
+      );
+      const nextValue = { ...current, [groupId]: nextOrder };
+
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(nextValue));
+      } catch {
+        // Keep the reordered state for this session even if browser storage is unavailable.
+      }
+
+      return nextValue;
+    });
+  }
 
   return (
     <div className="space-y-6 lg:space-y-7">
@@ -143,113 +448,10 @@ export default function AdminDashboard({ adminEmail, canManageAccessControls }: 
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-            Content Sandbox
-          </h2>
-          <p className="text-[15px] text-slate-500 dark:text-slate-300">
-            Create and audit curriculum content from one place.
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {creationTools.map((tool) => {
-            const Icon = tool.icon;
-
-            return (
-              <article
-                key={tool.href + tool.title}
-                className="flex h-full min-h-[15.5rem] flex-col rounded-[28px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_-48px_rgba(15,23,42,0.5)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_32px_70px_-44px_rgba(37,99,235,0.36)] dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none"
-              >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#eef4ff_0%,#dfe8ff_100%)] text-[#2f6fff] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.32)_0%,rgba(37,99,235,0.16)_100%)] dark:text-blue-200">
-                  <Icon className="h-5 w-5" strokeWidth={1.9} />
-                </div>
-                <h3 className="text-[1.25rem] font-semibold leading-tight tracking-tight text-slate-950 dark:text-slate-50">
-                  {tool.title}
-                </h3>
-                <p className="mt-3 text-[14px] leading-6 text-slate-500 dark:text-slate-300">
-                  {tool.description}
-                </p>
-                <Button
-                  asChild
-                  className="mt-auto h-10 w-full rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-sm font-medium text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
-                >
-                  <Link href={tool.href}>Open</Link>
-                </Button>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-            Admin Portals
-          </h2>
-          <p className="text-[15px] text-slate-500 dark:text-slate-300">
-            Access and manage key areas of the Edutindo platform.
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {visibleAdminTools.map((tool) => {
-            const Icon = tool.icon;
-
-            return (
-              <article
-                key={tool.href}
-                className="flex h-full min-h-[18.5rem] flex-col rounded-[28px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_-48px_rgba(15,23,42,0.5)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_32px_70px_-44px_rgba(37,99,235,0.36)] dark:border-slate-800 dark:bg-slate-900/84 dark:shadow-none"
-              >
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#eef4ff_0%,#dfe8ff_100%)] text-[#2f6fff] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.32)_0%,rgba(37,99,235,0.16)_100%)] dark:text-blue-200">
-                  <Icon className="h-6 w-6" strokeWidth={1.9} />
-                </div>
-                <h3 className="text-[1.4rem] font-semibold leading-tight tracking-tight text-slate-950 dark:text-slate-50">
-                  {tool.title}
-                </h3>
-                <p className="mt-3 text-[15px] leading-7 text-slate-500 dark:text-slate-300">
-                  {tool.description}
-                </p>
-                <Button
-                  asChild
-                  className="mt-auto h-11 w-full rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] text-[15px] font-medium text-white shadow-[0_20px_40px_-24px_rgba(37,99,235,0.92)] hover:brightness-105"
-                >
-                  <Link href={tool.href}>Open</Link>
-                </Button>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-[30px] border border-white/70 bg-white/88 p-5 shadow-[0_40px_90px_-64px_rgba(37,99,235,0.58)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/78 sm:p-7">
-        <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#eef4ff_0%,#dfe8ff_100%)] text-[#2f6fff] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.32)_0%,rgba(37,99,235,0.16)_100%)] dark:text-blue-200">
-            <Users className="h-6 w-6" strokeWidth={1.9} />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-              Other Portals
-            </h2>
-            <p className="text-[15px] text-slate-500 dark:text-slate-300">
-              Jump into the user-facing portals from the admin dashboard.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {crossPortalLinks.map((item) => (
-            <Button
-              key={item.href}
-              asChild
-              variant="outline"
-              className="h-auto min-h-11 justify-center whitespace-normal rounded-full border-[#d9e0ec] bg-white/90 px-4 py-2 text-center text-[15px] font-medium leading-snug text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff] hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-900"
-            >
-              <Link href={item.href}>{item.title}</Link>
-            </Button>
-          ))}
-        </div>
+      <section className="grid items-start gap-4 lg:grid-cols-3">
+        {dashboardGroups.map((group) => (
+          <AdminToolPanel key={group.title} group={group} onReorder={reorderTools} />
+        ))}
       </section>
     </div>
   );

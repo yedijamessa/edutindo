@@ -88,9 +88,7 @@ function ModuleLabel({
       <p className="truncate text-sm font-semibold text-slate-900">{module.moduleTitle}</p>
       <p className="truncate text-xs text-slate-400">
         {module.pageCount} {module.pageCount === 1 ? "page" : "pages"}
-        {showAssignmentCount
-          ? ` · ${module.assignments.length} ${module.assignments.length === 1 ? "lesson" : "lessons"}`
-          : ""}
+        {showAssignmentCount ? ` · ${module.assignments.length}` : ""}
       </p>
     </div>
   );
@@ -289,28 +287,35 @@ function LessonAssignmentDialog({
 
 function ModuleAssignmentDialog({
   module,
+  selectedSchoolSlug,
   busyKey,
   error,
   onClose,
   onAssignStudent,
 }: {
   module: ModuleListEntry;
+  selectedSchoolSlug: string;
   busyKey: string | null;
   error: string;
   onClose: () => void;
   onAssignStudent: (moduleId: string, lessonId: string, email: string) => Promise<string | null>;
 }) {
-  const [studentEmail, setStudentEmail] = useState("");
+  const [studentEmails, setStudentEmails] = useState("");
   const [studentMessage, setStudentMessage] = useState("");
   const normalizeTitle = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
   const moduleTitle = normalizeTitle(module.moduleTitle);
+  const schoolAssignments =
+    selectedSchoolSlug === "all"
+      ? module.assignments
+      : module.assignments.filter((assignment) => assignment.schoolSlug === selectedSchoolSlug);
+  const candidateAssignments = schoolAssignments.length > 0 ? schoolAssignments : module.assignments;
   const studentAssignment =
-    module.assignments.find((assignment) => normalizeTitle(assignment.lessonTitle) === moduleTitle) ??
-    module.assignments.find((assignment) => {
+    candidateAssignments.find((assignment) => normalizeTitle(assignment.lessonTitle) === moduleTitle) ??
+    candidateAssignments.find((assignment) => {
       const lessonTitle = normalizeTitle(assignment.lessonTitle);
       return Boolean(lessonTitle) && (moduleTitle.includes(lessonTitle) || lessonTitle.includes(moduleTitle));
     }) ??
-    module.assignments[0] ??
+    candidateAssignments[0] ??
     null;
 
   return (
@@ -332,10 +337,10 @@ function ModuleAssignmentDialog({
 
             if (!studentAssignment) return;
 
-            const message = await onAssignStudent(module.moduleId, studentAssignment.lessonId, studentEmail);
+            const message = await onAssignStudent(module.moduleId, studentAssignment.lessonId, studentEmails);
             if (message) {
               setStudentMessage(message);
-              setStudentEmail("");
+              setStudentEmails("");
             }
           }}
         >
@@ -346,21 +351,21 @@ function ModuleAssignmentDialog({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-slate-900">Send to student</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Enter an email to send the lesson link. Existing users get Student portal access; new users receive an invite.
+                Enter one or more emails. Existing users must already be students in this school; new users receive an invite for this school.
               </p>
             </div>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <input
-              type="email"
-              value={studentEmail}
+            <textarea
+              value={studentEmails}
               onChange={(event) => {
-                setStudentEmail(event.target.value);
+                setStudentEmails(event.target.value);
                 setStudentMessage("");
               }}
-              placeholder="student@email.com"
-              className="h-11 rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff]"
+              placeholder="student1@email.com, student2@email.com"
+              rows={2}
+              className="min-h-11 rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff]"
             />
             <div className="flex h-11 min-w-0 items-center rounded-[12px] border border-[#e4ecfb] bg-[#f8fbff] px-4 text-sm font-medium text-slate-700">
               <span className="truncate">
@@ -371,7 +376,7 @@ function ModuleAssignmentDialog({
             </div>
             <button
               type="submit"
-              disabled={!studentEmail.trim() || !studentAssignment || Boolean(busyKey)}
+              disabled={!studentEmails.trim() || !studentAssignment || Boolean(busyKey)}
               className="inline-flex h-11 items-center justify-center rounded-[12px] bg-[#2f6fff] px-4 text-sm font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-45"
             >
               {busyKey === `student:${module.moduleId}` ? "Sending..." : "Send assignment"}
@@ -710,8 +715,8 @@ export function ModuleLibraryClient({
     }
   }
 
-  async function assignModuleToStudent(moduleId: string, lessonId: string, email: string) {
-    if (!moduleId || !lessonId || !email.trim()) return null;
+  async function assignModuleToStudent(moduleId: string, lessonId: string, emails: string) {
+    if (!moduleId || !lessonId || !emails.trim()) return null;
 
     setBusyKey(`student:${moduleId}`);
     setActionError("");
@@ -720,7 +725,7 @@ export function ModuleLibraryClient({
       const response = await fetch("/api/admin/module-assignments/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moduleId, lessonId, email }),
+        body: JSON.stringify({ moduleId, lessonId, emails }),
       });
       const data = await response.json();
 
@@ -1045,7 +1050,7 @@ export function ModuleLibraryClient({
                     <table className="w-full min-w-[900px] text-sm">
                       <thead>
                         <tr className="border-b border-[#eef3fb]">
-                          {["Module", "Subject / Topic", "Pages", "Linked Lessons", "Last Updated", "Actions"].map((heading) => (
+                          {["Module", "Subject / Topic", "Pages", "Lessons Using Module", "Last Updated", "Actions"].map((heading) => (
                             <th
                               key={heading}
                               className="px-5 py-3 text-left text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#62789e]"
@@ -1075,12 +1080,12 @@ export function ModuleLibraryClient({
                             </td>
                             <td className="px-5 py-3.5">
                               <Badge className="bg-[#ecfbf3] text-[#159a61]">
-                                {module.pageCount} {module.pageCount === 1 ? "page" : "pages"}
+                                {module.pageCount}
                               </Badge>
                             </td>
                             <td className="px-5 py-3.5">
                               <Badge className="bg-[#ecfbf3] text-[#159a61]">
-                                {module.assignments.length} {module.assignments.length === 1 ? "lesson" : "lessons"}
+                                {module.assignments.length}
                               </Badge>
                             </td>
                             <td className="px-5 py-3.5 text-[#62789e]">{formatDate(module.updatedAt)}</td>
@@ -1301,6 +1306,7 @@ export function ModuleLibraryClient({
       {selectedModule && (
         <ModuleAssignmentDialog
           module={selectedModule}
+          selectedSchoolSlug={schoolFilter}
           busyKey={busyKey}
           error={actionError}
           onClose={() => {

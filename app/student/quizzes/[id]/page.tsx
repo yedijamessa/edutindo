@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getQuizById } from "@/lib/db-services";
+import { getQuizById } from "@/lib/quiz-services";
 import QuizTaker from "./quiz-taker";
 
 

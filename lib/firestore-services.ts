@@ -34,7 +34,8 @@ import {
     TutoringOffer,
     TutoringRequest,
     Equipment,
-    Donation
+    Donation,
+    QuizAttemptReview,
 } from "@/types/lms";
 
 // ==================== MATERIALS ====================
@@ -126,11 +127,29 @@ export async function getStudentProgress(studentId: string): Promise<StudentProg
     const q = query(progressRef, where('studentId', '==', studentId));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as any),
-        lastAccessed: doc.data().lastAccessed?.toDate() || new Date(),
-    })) as StudentProgress[];
+    return snapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        const quizScores = Array.isArray(data.quizScores)
+            ? data.quizScores.map((score: any) => ({
+                ...score,
+                lastAttempt: score.lastAttempt?.toDate?.() || score.lastAttempt || new Date(),
+                attemptHistory: Array.isArray(score.attemptHistory)
+                    ? score.attemptHistory.map((attempt: any) => ({
+                        ...attempt,
+                        startedAt: attempt.startedAt?.toDate?.() || attempt.startedAt || new Date(),
+                        completedAt: attempt.completedAt?.toDate?.() || attempt.completedAt || new Date(),
+                    }))
+                    : [],
+            }))
+            : [];
+
+        return {
+            id: doc.id,
+            ...data,
+            quizScores,
+            lastAccessed: data.lastAccessed?.toDate() || new Date(),
+        };
+    }) as StudentProgress[];
 }
 
 export async function updateProgress(
@@ -181,6 +200,62 @@ export async function saveQuizScore(
     await setDoc(docRef, {
         studentId,
         materialId,
+        quizScores: existingScores,
+        lastAccessed: Timestamp.now(),
+    }, { merge: true });
+}
+
+export async function saveQuizAttempt(
+    studentId: string,
+    attempt: QuizAttemptReview
+): Promise<void> {
+    const progressId = `${studentId}_${attempt.materialId}`;
+    const docRef = doc(db, 'progress', progressId);
+    const docSnap = await getDoc(docRef);
+
+    const existingScores = docSnap.exists() ? docSnap.data().quizScores || [] : [];
+    const quizScoreIndex = existingScores.findIndex((score: any) => score.quizId === attempt.quizId);
+    const storedAttempt = {
+        ...attempt,
+        startedAt: Timestamp.fromDate(attempt.startedAt),
+        completedAt: Timestamp.fromDate(attempt.completedAt),
+    };
+
+    if (quizScoreIndex >= 0) {
+        const currentScore = existingScores[quizScoreIndex];
+        const attemptHistory = Array.isArray(currentScore.attemptHistory) ? currentScore.attemptHistory : [];
+
+        existingScores[quizScoreIndex] = {
+            ...currentScore,
+            quizId: attempt.quizId,
+            quizTitle: attempt.quizTitle,
+            materialId: attempt.materialId,
+            score: attempt.score,
+            earnedPoints: attempt.earnedPoints,
+            totalPoints: attempt.totalPoints,
+            passed: attempt.passed,
+            attempts: (currentScore.attempts || 0) + 1,
+            lastAttempt: Timestamp.fromDate(attempt.completedAt),
+            attemptHistory: [...attemptHistory, storedAttempt],
+        };
+    } else {
+        existingScores.push({
+            quizId: attempt.quizId,
+            quizTitle: attempt.quizTitle,
+            materialId: attempt.materialId,
+            score: attempt.score,
+            earnedPoints: attempt.earnedPoints,
+            totalPoints: attempt.totalPoints,
+            passed: attempt.passed,
+            attempts: 1,
+            lastAttempt: Timestamp.fromDate(attempt.completedAt),
+            attemptHistory: [storedAttempt],
+        });
+    }
+
+    await setDoc(docRef, {
+        studentId,
+        materialId: attempt.materialId,
         quizScores: existingScores,
         lastAccessed: Timestamp.now(),
     }, { merge: true });
@@ -801,4 +876,3 @@ export async function getRecentDonors(limitCount: number = 10): Promise<Donation
         confirmedAt: doc.data().confirmedAt?.toDate() || undefined,
     })) as Donation[];
 }
-

@@ -24,6 +24,35 @@ function mapLessonTargetToStub(target: Awaited<ReturnType<typeof listModuleEdito
   };
 }
 
+function getLessonDedupeKey(lesson: LessonStub) {
+  return [
+    lesson.lessonId,
+    lesson.lessonSlug,
+    lesson.lessonTitle.trim().toLowerCase(),
+    lesson.subjectSlug,
+    lesson.chapterSlug,
+    lesson.schoolSlug,
+    lesson.yearSlug,
+    lesson.week,
+    lesson.lessonCode,
+  ].join("|");
+}
+
+function dedupeLessons(lessons: LessonStub[]) {
+  const seenKeys = new Set<string>();
+  const uniqueLessons: LessonStub[] = [];
+
+  for (const lesson of lessons) {
+    const key = getLessonDedupeKey(lesson);
+    if (seenKeys.has(key)) continue;
+
+    seenKeys.add(key);
+    uniqueLessons.push(lesson);
+  }
+
+  return uniqueLessons;
+}
+
 export default async function AdminModulesPage({ searchParams }: AdminModulesPageProps) {
   const { lessonId } = await searchParams;
   const [modules, allTargets] = await Promise.all([
@@ -34,17 +63,18 @@ export default async function AdminModulesPage({ searchParams }: AdminModulesPag
   const lessons = allTargets
     .filter((target) => target.nodeType === "lesson")
     .map(mapLessonTargetToStub);
+  const uniqueLessons = dedupeLessons(lessons);
 
   const assignedLessonIds = new Set(
     modules.flatMap((module) => module.assignments.map((assignment) => assignment.lessonId))
   );
-  const lessonsWithoutModule = lessons.filter((lesson) => !assignedLessonIds.has(lesson.lessonId));
+  const lessonsWithoutModule = uniqueLessons.filter((lesson) => !assignedLessonIds.has(lesson.lessonId));
   const initialLessonId = (lessonId || "").trim() || null;
 
   return (
     <ModuleLibraryClient
       modules={modules}
-      lessons={lessons}
+      lessons={uniqueLessons}
       lessonsWithoutModule={lessonsWithoutModule}
       initialLessonId={initialLessonId}
     />

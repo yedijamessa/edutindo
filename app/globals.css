@@ -48,6 +48,44 @@
   @apply w-full max-w-none;
 }
 
+@keyframes admin-loading-bar {
+  0% {
+    transform: translateX(-115%);
+  }
+
+  100% {
+    transform: translateX(230%);
+  }
+}
+
+@keyframes admin-loading-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
+.admin-loading-bar {
+  animation: admin-loading-bar 1.05s ease-in-out infinite;
+}
+
+.admin-loading-dots span {
+  animation: admin-loading-dot 1s ease-in-out infinite;
+}
+
+.admin-loading-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.admin-loading-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
 /* Base Styles */
 html {
   color-scheme: light;

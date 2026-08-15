@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, School } from "lucide-react";
+import { AdminBreadcrumb } from "@/components/admin/admin-breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCurriculumSchools } from "@/lib/curriculum-portal";
@@ -13,6 +14,13 @@ export default async function AdminCurriculumPage() {
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f3f8ff_44%,#fbfdff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#020617_100%)]">
       <main className="portal-page-width px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-16">
         <div className="space-y-5">
+          <AdminBreadcrumb
+            items={[
+              { label: "Home", href: "/admin" },
+              { label: "Curriculum" },
+            ]}
+          />
+
           <Card className="rounded-[28px] border border-slate-200/80 bg-white/92 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.38)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/84">
             <CardHeader>
               <CardTitle className="text-3xl">Select School</CardTitle>

@@ -1158,11 +1158,25 @@ export async function grantStudentAccessForExistingUser(params: {
   }
 
   const user = await hydrateUser(userRow);
-  await setUserPortals(user.id, Array.from(new Set([...user.portals, "student"])));
-  await setUserSchoolSlugs(user.id, Array.from(new Set([...user.schoolSlugs, params.schoolSlug.trim().toLowerCase()])));
+  const schoolSlug = params.schoolSlug.trim().toLowerCase();
 
-  const refreshedUserRow = await getUserRowById(user.id);
-  return refreshedUserRow ? hydrateUser(refreshedUserRow) : user;
+  if (!user.portals.includes("student")) {
+    throw new AuthError(
+      403,
+      "STUDENT_ACCESS_REQUIRED",
+      `${email} is not a student yet. Add Student portal access in Admin Access first.`
+    );
+  }
+
+  if (!user.schoolSlugs.includes(schoolSlug)) {
+    throw new AuthError(
+      403,
+      "STUDENT_SCHOOL_LOCKED",
+      `${email} is not assigned to ${schoolSlug}. Add this school in Admin Access first.`
+    );
+  }
+
+  return user;
 }
 
 export async function recordStudentLessonAssignment(params: {

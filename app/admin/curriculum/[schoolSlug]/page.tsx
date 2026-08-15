@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { AdminBreadcrumb } from "@/components/admin/admin-breadcrumb";
 import { SchoolSubjectVisibilityClient } from "@/components/admin/school-subject-visibility-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +73,14 @@ export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolC
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f3f8ff_44%,#fbfdff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#020617_100%)]">
       <main className="portal-page-width px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-16">
         <div className="space-y-5">
+          <AdminBreadcrumb
+            items={[
+              { label: "Home", href: "/admin" },
+              { label: "Curriculum", href: "/admin/curriculum" },
+              { label: school.title },
+            ]}
+          />
+
           <Button asChild variant="outline" className="rounded-full">
             <Link href="/admin/curriculum">
               <ArrowLeft className="mr-2 h-4 w-4" />
