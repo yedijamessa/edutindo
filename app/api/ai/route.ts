@@ -63,7 +63,17 @@ const MODULE_EDITOR_QUIZ_SCHEMA = {
     },
     explanation: { type: "string" },
   },
-  required: ["quizType", "focusTopic", "prompt", "options", "correctOptionIndexes", "explanation"],
+  required: [
+    "quizType",
+    "focusTopic",
+    "prompt",
+    "options",
+    "correctOptionIndexes",
+    "acceptableAnswers",
+    "matchingPairs",
+    "orderingItems",
+    "explanation",
+  ],
 } as const;
 
 const MODULE_EDITOR_SECTION_SCHEMA = {
@@ -98,7 +108,7 @@ const QUIZ_GENERATION_SCHEMA = {
           },
           points: { type: "integer" },
         },
-        required: ["question", "type", "correctAnswer", "points"],
+        required: ["question", "type", "options", "correctAnswer", "points"],
       },
     },
   },

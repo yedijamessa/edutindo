@@ -9,7 +9,7 @@ import {
   canApproveCurriculumSubjectVisibility,
   listPendingCurriculumSubjectVisibilityRequests,
 } from "@/lib/curriculum-subject-visibility";
-import { listCurriculumSchools, listCurriculumTree, type CurriculumNode } from "@/lib/curriculum-portal";
+import { listCurriculumSchools, listCurriculumTree } from "@/lib/curriculum-portal";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -17,19 +17,6 @@ export const dynamic = "force-dynamic";
 type AdminSchoolCurriculumPageProps = {
   params: Promise<{ schoolSlug: string }>;
 };
-
-function countSubjectChildren(subject: CurriculumNode) {
-  const chapters = subject.children.filter((node) => node.nodeType === "chapter");
-  const lessonCount = chapters.reduce(
-    (total, chapter) => total + chapter.children.filter((node) => node.nodeType === "lesson").length,
-    0
-  );
-
-  return {
-    chapterCount: chapters.length,
-    lessonCount,
-  };
-}
 
 export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolCurriculumPageProps) {
   const { schoolSlug } = await params;
@@ -50,10 +37,28 @@ export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolC
     .filter((subject, index, collection) => collection.findIndex((item) => item.slug === subject.slug) === index)
     .sort((left, right) => left.title.localeCompare(right.title));
   const selectedSubjectSlugs = new Set(selectedSubjects.map((subject) => subject.slug));
+  const selectedSubjectCounts = school.years
+    .flatMap((year) => year.subjects)
+    .reduce((countsBySlug, subject) => {
+      const current = countsBySlug.get(subject.slug) ?? {
+        chapterCount: 0,
+        lessonCount: 0,
+      };
+
+      countsBySlug.set(subject.slug, {
+        chapterCount: current.chapterCount + subject.chapterCount,
+        lessonCount: current.lessonCount + subject.lessonCount,
+      });
+
+      return countsBySlug;
+    }, new Map<string, { chapterCount: number; lessonCount: number }>());
   const allSubjects = tree
     .filter((node) => node.nodeType === "subject" && node.parentId === null)
     .map((subject) => {
-      const counts = countSubjectChildren(subject);
+      const counts = selectedSubjectCounts.get(subject.slug) ?? {
+        chapterCount: 0,
+        lessonCount: 0,
+      };
       return {
         id: subject.id,
         title: subject.title,

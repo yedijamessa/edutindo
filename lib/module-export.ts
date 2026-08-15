@@ -179,6 +179,30 @@ export function getModuleExportFileBaseName(document: ModuleEditorDocument) {
     .slice(0, 180) || "edutindo-module";
 }
 
+export function getModuleExportPayload(format: ModuleExportFormat, document: ModuleEditorDocument) {
+  if (format === "pdf") {
+    return {
+      body: buildModulePdf(document),
+      extension: "pdf",
+      contentType: "application/pdf",
+    };
+  }
+
+  if (format === "docx") {
+    return {
+      body: buildModuleDocx(document),
+      extension: "docx",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+  }
+
+  return {
+    body: buildModuleOdt(document),
+    extension: "odt",
+    contentType: "application/vnd.oasis.opendocument.text",
+  };
+}
+
 function wrapText(text: string, maxLength: number) {
   const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const lines: string[] = [];

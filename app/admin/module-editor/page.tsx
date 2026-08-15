@@ -77,6 +77,7 @@ export default async function AdminModuleEditorPage({ searchParams }: ModuleEdit
           <ModuleEditor
             initialModuleId={initialDocument?.id ?? null}
             initialDocument={initialDocument}
+            assignmentLessonId={requestedNodeId || null}
             subjectSlug={activeSubjectSlug}
             subjectTitle={activeSubjectTitle}
             chapterSlug={activeChapterSlug}

@@ -58,6 +58,7 @@ import type {
 interface ModuleEditorProps {
   initialModuleId: string | null;
   initialDocument: ModuleEditorDocument | null;
+  assignmentLessonId?: string | null;
   subjectSlug: string | null;
   subjectTitle: string;
   chapterSlug: string | null;
@@ -237,18 +238,28 @@ function createQuizBlockFromRecommendation(
           : []
       : [],
     acceptableAnswers:
-      recommendation.acceptableAnswers ?? getDefaultAcceptableAnswersForQuizType(recommendation.quizType),
+      recommendation.acceptableAnswers && recommendation.acceptableAnswers.length > 0
+        ? recommendation.acceptableAnswers
+        : getDefaultAcceptableAnswersForQuizType(recommendation.quizType),
     matchingPairs:
-      recommendation.matchingPairs?.map((pair) => ({
-        id: createId(),
-        prompt: pair.prompt,
-        match: pair.match,
-      })) ?? (recommendation.quizType === "matching" ? createMatchingPairs() : []),
+      recommendation.matchingPairs && recommendation.matchingPairs.length > 0
+        ? recommendation.matchingPairs.map((pair) => ({
+            id: createId(),
+            prompt: pair.prompt,
+            match: pair.match,
+          }))
+        : recommendation.quizType === "matching"
+          ? createMatchingPairs()
+          : [],
     orderingItems:
-      recommendation.orderingItems?.map((text) => ({
-        id: createId(),
-        text,
-      })) ?? (recommendation.quizType === "ordering" ? createOrderingItems() : []),
+      recommendation.orderingItems && recommendation.orderingItems.length > 0
+        ? recommendation.orderingItems.map((text) => ({
+            id: createId(),
+            text,
+          }))
+        : recommendation.quizType === "ordering"
+          ? createOrderingItems()
+          : [],
     explanation: recommendation.explanation,
   };
 }
@@ -411,6 +422,7 @@ function SummaryRow({
 export function ModuleEditor({
   initialModuleId,
   initialDocument,
+  assignmentLessonId = null,
   subjectSlug,
   subjectTitle,
   chapterSlug,
@@ -662,6 +674,23 @@ export function ModuleEditor({
         return;
       }
 
+      if (assignmentLessonId) {
+        const assignmentResponse = await fetch("/api/admin/module-assignments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moduleId: data.document.id,
+            lessonId: assignmentLessonId,
+          }),
+        });
+        const assignmentData = await assignmentResponse.json();
+
+        if (!assignmentResponse.ok || !assignmentData.ok) {
+          setError(assignmentData.error || "Module saved, but failed to assign it to this lesson.");
+          return;
+        }
+      }
+
       setModuleId(data.document.id);
       setTitle(data.document.title);
       setModuleCode(data.document.moduleCode ?? "");
@@ -669,7 +698,11 @@ export function ModuleEditor({
       setPages(data.document.pages);
       setUpdatedAt(data.document.updatedAt);
       setDirty(false);
-      setMessage("Module saved in the materials catalog.");
+      setMessage(
+        assignmentLessonId
+          ? "Module saved and assigned to this lesson."
+          : "Module saved in the materials catalog."
+      );
       router.replace(
         `/admin/module-editor?subjectSlug=${encodeURIComponent(subjectSlug)}&chapterSlug=${encodeURIComponent(chapterSlug)}&moduleId=${encodeURIComponent(data.document.id)}`
       );

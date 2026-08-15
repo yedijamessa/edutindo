@@ -232,12 +232,8 @@ async function callGeminiStructured<T>(
           },
         ],
         generationConfig: {
-          responseFormat: {
-            text: {
-              mimeType: "application/json",
-              schema: params.schema,
-            },
-          },
+          responseMimeType: "application/json",
+          responseJsonSchema: params.schema,
         },
       }),
     }

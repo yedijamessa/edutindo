@@ -104,7 +104,7 @@ export default function HomePage() {
         <div className="absolute inset-0 -z-20 hidden bg-[url('/homepage/1-section-bg.png')] bg-cover bg-center bg-no-repeat sm:block" />
         <div className="absolute inset-0 -z-10 bg-white/42" />
 
-        <div className="relative z-10 grid items-center gap-10 sm:gap-12 lg:grid-cols-2">
+        <div className="relative z-10 grid items-center gap-10 sm:gap-12 lg:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.86fr)] lg:gap-16 xl:gap-20">
           <div className="min-w-0 space-y-6 sm:space-y-8">
             <Badge
               variant="secondary"
@@ -146,7 +146,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative w-full lg:ml-auto">
             <div className="relative mx-auto aspect-[16/10] w-full max-w-2xl overflow-hidden rounded-3xl border-4 border-white shadow-2xl transition-transform duration-500 rotate-2 hover:rotate-0 dark:border-slate-800">
               <Image
                 src={currentSlide.src}

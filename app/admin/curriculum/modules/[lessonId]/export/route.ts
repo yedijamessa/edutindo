@@ -6,13 +6,13 @@ import {
   getModuleExportPayload,
   type ModuleExportFormat,
 } from "@/lib/module-export";
-import { getModuleEditorDocument } from "@/lib/module-editor";
+import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
 
 export const runtime = "nodejs";
 
 type Context = {
   params: Promise<{
-    moduleId: string;
+    lessonId: string;
   }>;
 };
 
@@ -32,7 +32,7 @@ async function requireAdminAccess(req: NextRequest) {
 }
 
 function resolveFormat(value: string | null): ModuleExportFormat | null {
-  if (value === "pdf" || value === "docx" || value === "odt") return value;
+  if (value === "pdf" || value === "docx") return value;
   return null;
 }
 
@@ -41,16 +41,19 @@ export async function GET(req: NextRequest, context: Context) {
     const access = await requireAdminAccess(req);
     if (access.response) return access.response;
 
-    const { moduleId } = await context.params;
+    const { lessonId } = await context.params;
     const format = resolveFormat(req.nextUrl.searchParams.get("format"));
 
     if (!format) {
-      return NextResponse.json({ ok: false, error: "Format must be pdf, docx, or odt." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Format must be pdf or docx." }, { status: 400 });
     }
 
-    const document = await getModuleEditorDocument(moduleId);
+    const document = await getAssignedModuleDocumentForLesson(lessonId);
     if (!document) {
-      return NextResponse.json({ ok: false, error: "Module not found." }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "Module content has not been created or assigned for this lesson yet." },
+        { status: 404 }
+      );
     }
 
     const payload = getModuleExportPayload(format, document);
@@ -64,7 +67,7 @@ export async function GET(req: NextRequest, context: Context) {
       },
     });
   } catch (error) {
-    console.error("module export GET error:", error);
+    console.error("curriculum module export GET error:", error);
     return NextResponse.json({ ok: false, error: "Failed to export module." }, { status: 500 });
   }
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -12,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
+  Download,
   FilePenLine,
   FlaskConical,
   GripVertical,
@@ -111,6 +121,21 @@ type LessonEditDraft = {
   uniqueIdentifier: string;
 };
 
+type BulkLessonEntry = {
+  title: string;
+  metadata: Record<string, unknown>;
+};
+
+type BulkLessonRow = {
+  id: string;
+  week: string;
+  lessonCode: string;
+  uniqueIdentifier: string;
+  title: string;
+};
+
+type BulkLessonField = keyof Omit<BulkLessonRow, "id">;
+
 interface CurriculumPortalProps {
   lockedSchoolSlug?: string | null;
   lockedSubjectSlug?: string | null;
@@ -124,6 +149,16 @@ const nodeLabelByType: Record<NodeType, string> = {
   chapter: "Chapter",
   lesson: "Module",
 };
+
+function createBulkLessonRow(): BulkLessonRow {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    week: "",
+    lessonCode: "",
+    uniqueIdentifier: "",
+    title: "",
+  };
+}
 
 const DEFAULT_SCHOOL_SLUG = "edutindo";
 const YEAR_OPTIONS = [
@@ -171,6 +206,10 @@ function toBoolean(value: unknown) {
 
 function normalizeWeekInput(value: string) {
   return value.replace(/\D/g, "").slice(0, 3);
+}
+
+function slugPart(value: string) {
+  return slugifyValue(value).toUpperCase() || "MODULE";
 }
 
 function parseChapterWeekDraft(value: unknown): ChapterWeekDraft {
@@ -736,6 +775,7 @@ export function CurriculumPortal({
   const [lessonWeekDraft, setLessonWeekDraft] = useState("");
   const [lessonCodeDraft, setLessonCodeDraft] = useState("");
   const [lessonUniqueIdentifierDraft, setLessonUniqueIdentifierDraft] = useState("");
+  const [bulkLessonRows, setBulkLessonRows] = useState<BulkLessonRow[]>(() => [createBulkLessonRow()]);
 
   const loadTree = useCallback(async () => {
     setLoading(true);
@@ -982,6 +1022,36 @@ export function CurriculumPortal({
     [lessons, selectedModuleId]
   );
 
+  const getNextLessonWeekNumber = (offset: number) => {
+    const highestWeek = lessons.reduce((highest, lesson) => {
+      const match = text(lesson.metadata.week).match(/\d+/);
+      const value = match ? Number.parseInt(match[0], 10) : 0;
+      return Number.isFinite(value) && value > highest ? value : highest;
+    }, 0);
+
+    return highestWeek + offset + 1;
+  };
+
+  const getGeneratedLessonMetadata = (offset: number) => {
+    const sequence = getNextLessonWeekNumber(offset);
+    const paddedSequence = String(sequence).padStart(2, "0");
+    const chapterCode = text(selectedChapter?.metadata.chapterCode);
+    const subjectCode = text(selectedSubject?.metadata.curriculumCode);
+    const codeBase = slugPart(chapterCode || subjectCode || selectedChapter?.slug || selectedSubject?.slug || "module");
+    const uniqueBase = [
+      selectedSubject?.slug || selectedSubject?.title || "subject",
+      selectedChapter?.slug || selectedChapter?.title || "chapter",
+    ]
+      .map((part) => slugPart(part))
+      .join("-");
+
+    return {
+      week: String(sequence),
+      lessonCode: `${codeBase}-${paddedSequence}`,
+      uniqueIdentifier: `${uniqueBase}-${String(sequence).padStart(3, "0")}`,
+    };
+  };
+
   useEffect(() => {
     if (!lessonEditDraft) return;
 
@@ -1077,9 +1147,11 @@ export function CurriculumPortal({
       }
     }
     if (nodeType === "lesson") {
-      metadata.week = metadata.week ?? lessonWeekDraft.trim();
-      metadata.lessonCode = metadata.lessonCode ?? lessonCodeDraft.trim();
-      metadata.uniqueIdentifier = metadata.uniqueIdentifier ?? lessonUniqueIdentifierDraft.trim();
+      const generated = getGeneratedLessonMetadata(0);
+      metadata.week = text(metadata.week ?? lessonWeekDraft) || generated.week;
+      metadata.lessonCode = text(metadata.lessonCode ?? lessonCodeDraft) || generated.lessonCode;
+      metadata.uniqueIdentifier =
+        text(metadata.uniqueIdentifier ?? lessonUniqueIdentifierDraft) || generated.uniqueIdentifier;
       if (
         isLockedSubjectWorkspace &&
         selectedSchool &&
@@ -1140,6 +1212,152 @@ export function CurriculumPortal({
       console.error(createError);
       setError("Failed to create node.");
       return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateBulkLessonRow = (rowId: string, field: BulkLessonField, value: string) => {
+    setBulkLessonRows((current) =>
+      current.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const handleBulkLessonPaste = (
+    event: ClipboardEvent<HTMLInputElement>,
+    rowId: string,
+    field: BulkLessonField
+  ) => {
+    const pastedText = event.clipboardData.getData("text");
+    const pastedRows = pastedText
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter((line) => line.trim().length > 0);
+
+    if (pastedRows.length <= 1 && !pastedText.includes("\t")) return;
+
+    event.preventDefault();
+
+    const fields: BulkLessonField[] = ["week", "lessonCode", "uniqueIdentifier", "title"];
+    const startFieldIndex = Math.max(fields.indexOf(field), 0);
+    const rowIndex = Math.max(bulkLessonRows.findIndex((row) => row.id === rowId), 0);
+    const nextRows = bulkLessonRows.map((row) => ({ ...row }));
+
+    pastedRows.forEach((pastedRow, pastedRowIndex) => {
+      const targetIndex = rowIndex + pastedRowIndex;
+      while (nextRows.length <= targetIndex) {
+        nextRows.push(createBulkLessonRow());
+      }
+
+      const columns = pastedRow.split("\t").map((column) => column.trim());
+      const targetRow = nextRows[targetIndex];
+
+      if (columns.length === 1) {
+        targetRow[field] = columns[0] ?? "";
+        return;
+      }
+
+      columns.forEach((column, columnIndex) => {
+        const targetField = fields[startFieldIndex + columnIndex];
+        if (!targetField) return;
+        targetRow[targetField] = column;
+      });
+    });
+
+    setBulkLessonRows(nextRows);
+  };
+
+  const addBulkLessonRow = () => {
+    setBulkLessonRows((current) => [...current, createBulkLessonRow()]);
+  };
+
+  const removeBulkLessonRow = (rowId: string) => {
+    setBulkLessonRows((current) => {
+      if (current.length <= 1) return [createBulkLessonRow()];
+      return current.filter((row) => row.id !== rowId);
+    });
+  };
+
+  const clearBulkLessonRows = () => {
+    setBulkLessonRows([createBulkLessonRow()]);
+  };
+
+  const getBulkLessonEntries = (): BulkLessonEntry[] => {
+    return bulkLessonRows
+      .filter((row) => row.title.trim())
+      .map((row, index) => {
+        const generated = getGeneratedLessonMetadata(index);
+        return {
+          title: row.title.trim(),
+          metadata: {
+            week: row.week.trim() || generated.week,
+            lessonCode: row.lessonCode.trim() || generated.lessonCode,
+            uniqueIdentifier: row.uniqueIdentifier.trim() || generated.uniqueIdentifier,
+          },
+        };
+      });
+  };
+
+  const createBulkLessons = async () => {
+    if (!selectedChapter) return;
+
+    const entries = getBulkLessonEntries();
+    if (entries.length === 0) {
+      setError("Add at least one lesson / module title.");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      let lastCreatedId = "";
+
+      for (const entry of entries) {
+        const metadata: Record<string, unknown> = { ...entry.metadata };
+        if (
+          isLockedSubjectWorkspace &&
+          selectedSchool &&
+          selectedYearSlug &&
+          !Array.isArray(metadata.assignmentTags)
+        ) {
+          metadata.assignmentTags = [{ schoolSlug: selectedSchool.slug, yearSlug: selectedYearSlug }];
+        }
+
+        const response = await fetch("/api/admin/curriculum", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nodeType: "lesson",
+            parentId: selectedChapter.id,
+            title: entry.title,
+            metadata,
+          }),
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          setError(data.error || `Failed to add "${entry.title}".`);
+          return;
+        }
+
+        lastCreatedId = String(data?.node?.id || "");
+      }
+
+      clearBulkLessonRows();
+      setDraft("lesson", "");
+      setLessonWeekDraft("");
+      setLessonCodeDraft("");
+      setLessonUniqueIdentifierDraft("");
+      await loadTree();
+      setMessage(`${entries.length} lessons / modules added.`);
+      if (lastCreatedId) {
+        setSelectedModuleId(lastCreatedId);
+      }
+    } catch (createError) {
+      console.error(createError);
+      setError("Failed to add lessons / modules.");
     } finally {
       setBusy(false);
     }
@@ -1434,7 +1652,7 @@ export function CurriculumPortal({
   };
 
   const deleteNode = async (node: CurriculumNode) => {
-    if (lockedSchoolSlug && node.nodeType !== "school") {
+    if (lockedSchoolSlug && node.nodeType !== "school" && node.nodeType !== "lesson") {
       const confirmed = window.confirm(`Remove "${node.title}" from ${selectedSchool?.title ?? "this school"} only?`);
       if (!confirmed) return;
 
@@ -2579,14 +2797,6 @@ export function CurriculumPortal({
                   <div className="border-t border-[#edf2f8] pt-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className="text-base font-bold text-slate-950 dark:text-slate-50">Lessons / Modules</p>
-                      <Button
-                        type="button"
-                        className={cn("h-10 rounded-xl px-4 text-sm font-semibold", primaryActionClassName)}
-                        onClick={() => createPromptedNode("lesson", selectedChapter.id)}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Lesson / Module
-                      </Button>
                     </div>
 
                     <form
@@ -2625,9 +2835,89 @@ export function CurriculumPortal({
                       </Button>
                     </form>
 
+                    <div className="mt-3 rounded-[22px] border border-dashed border-[#cfe0f7] bg-white/80 p-3">
+                      <div className="space-y-2">
+                        {bulkLessonRows.map((row) => (
+                          <div
+                            key={row.id}
+                            className="grid gap-2 md:grid-cols-[90px_130px_160px_minmax(0,1fr)_40px]"
+                          >
+                            <Input
+                              value={row.week}
+                              onChange={(event) => updateBulkLessonRow(row.id, "week", event.target.value)}
+                              onPaste={(event) => handleBulkLessonPaste(event, row.id, "week")}
+                              placeholder="Week"
+                              className={compactFieldClassName}
+                            />
+                            <Input
+                              value={row.lessonCode}
+                              onChange={(event) => updateBulkLessonRow(row.id, "lessonCode", event.target.value)}
+                              onPaste={(event) => handleBulkLessonPaste(event, row.id, "lessonCode")}
+                              placeholder="Module code"
+                              className={compactFieldClassName}
+                            />
+                            <Input
+                              value={row.uniqueIdentifier}
+                              onChange={(event) => updateBulkLessonRow(row.id, "uniqueIdentifier", event.target.value)}
+                              onPaste={(event) => handleBulkLessonPaste(event, row.id, "uniqueIdentifier")}
+                              placeholder="Unique ID"
+                              className={compactFieldClassName}
+                            />
+                            <Input
+                              value={row.title}
+                              onChange={(event) => updateBulkLessonRow(row.id, "title", event.target.value)}
+                              onPaste={(event) => handleBulkLessonPaste(event, row.id, "title")}
+                              placeholder="Lesson / module title"
+                              className={compactFieldClassName}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={busy || bulkLessonRows.length <= 1}
+                              onClick={() => removeBulkLessonRow(row.id)}
+                              className="h-9 w-9 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={addBulkLessonRow}
+                          className="h-10 rounded-xl text-sm font-semibold"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add More
+                        </Button>
+                        <Button
+                          type="button"
+                          disabled={busy || getBulkLessonEntries().length === 0}
+                          onClick={() => void createBulkLessons()}
+                          className={cn("h-10 rounded-xl text-sm font-semibold", primaryActionClassName)}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add All
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy || getBulkLessonEntries().length === 0}
+                          onClick={clearBulkLessonRows}
+                          className="h-10 rounded-xl text-sm font-semibold"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+
                     <div className="mt-4 overflow-x-auto rounded-[22px] border border-[#edf2f8]">
-                      <div className="min-w-[820px]">
-                      <div className="grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_90px] gap-3 bg-[#f8fbff] px-4 py-3 text-xs font-semibold text-slate-500">
+                      <div className="min-w-[960px]">
+                      <div className="grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_224px] gap-3 bg-[#f8fbff] px-4 py-3 text-xs font-semibold text-slate-500">
                         <span />
                         <span>Week</span>
                         <span>Module code</span>
@@ -2660,7 +2950,7 @@ export function CurriculumPortal({
                                 dropOnNode(lesson, lessons);
                               }}
                               className={cn(
-                                "grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_90px] items-center gap-3 border-t border-[#edf2f8] px-4 py-3 text-sm transition-colors",
+                                "grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_224px] items-center gap-3 border-t border-[#edf2f8] px-4 py-3 text-sm transition-colors",
                                 activeLesson ? "bg-[#f4f8ff]" : "bg-white dark:bg-slate-950"
                               )}
                             >
@@ -2770,6 +3060,34 @@ export function CurriculumPortal({
                                   </>
                                 ) : (
                                   <>
+                                    {(["pdf", "docx"] as const).map((format) => (
+                                      <a
+                                        key={format}
+                                        href={`/admin/curriculum/modules/${encodeURIComponent(lesson.id)}/export?format=${format}`}
+                                        className="inline-flex h-8 items-center gap-1 rounded-full border border-[#dbe7fb] px-2.5 text-[11px] font-bold uppercase text-[#53688f] transition-colors hover:bg-[#f7faff] hover:text-[#2f6fff]"
+                                        aria-label={`Export ${lesson.title} as ${format.toUpperCase()}`}
+                                        title={`Export ${format.toUpperCase()}`}
+                                      >
+                                        <Download className="h-3.5 w-3.5" />
+                                        {format}
+                                      </a>
+                                    ))}
+                                    <Button
+                                      asChild
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 rounded-full text-[#2f6fff] hover:bg-blue-50 hover:text-[#1f55d8]"
+                                    >
+                                      <Link
+                                        href={`/admin/module-editor?nodeId=${encodeURIComponent(lesson.id)}&subjectSlug=${encodeURIComponent(
+                                          selectedSubject?.slug ?? ""
+                                        )}&chapterSlug=${encodeURIComponent(selectedChapter.slug)}&new=1`}
+                                        aria-label={`Edit module content for ${lesson.title}`}
+                                        title="Edit module content"
+                                      >
+                                        <FilePenLine className="h-4 w-4" />
+                                      </Link>
+                                    </Button>
                                     <Button
                                       type="button"
                                       variant="ghost"
