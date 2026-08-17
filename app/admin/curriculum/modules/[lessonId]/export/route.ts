@@ -7,6 +7,8 @@ import {
   type ModuleExportFormat,
 } from "@/lib/module-export";
 import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
+import { getCurriculumNodeLineage } from "@/lib/curriculum-portal";
+import type { ModuleEditorDocument } from "@/types/module-editor";
 
 export const runtime = "nodejs";
 
@@ -36,6 +38,46 @@ function resolveFormat(value: string | null): ModuleExportFormat | null {
   return null;
 }
 
+function text(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+async function getFallbackLessonDocument(lessonId: string): Promise<ModuleEditorDocument | null> {
+  const lineage = await getCurriculumNodeLineage(lessonId);
+  const lesson = lineage.at(-1);
+  if (!lesson || lesson.nodeType !== "lesson") return null;
+
+  const subject = lineage.find((node) => node.nodeType === "subject");
+  const chapter = lineage.find((node) => node.nodeType === "chapter");
+
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    moduleCode: text(lesson.metadata.lessonCode),
+    uniqueIdentifier: text(lesson.metadata.uniqueIdentifier) || lesson.id,
+    updatedAt: lesson.updatedAt.toISOString(),
+    subjectSlug: subject?.slug ?? "",
+    subjectTitle: subject?.title ?? "",
+    chapterSlug: chapter?.slug ?? "",
+    chapterTitle: chapter?.title ?? "",
+    pages: [
+      {
+        id: `${lesson.id}:placeholder`,
+        title: lesson.title,
+        description: "Curriculum module placeholder",
+        blocks: [
+          {
+            id: `${lesson.id}:placeholder:text`,
+            type: "text",
+            title: "Module content",
+            body: "Module editor content has not been created for this curriculum module yet.",
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function GET(req: NextRequest, context: Context) {
   try {
     const access = await requireAdminAccess(req);
@@ -48,10 +90,10 @@ export async function GET(req: NextRequest, context: Context) {
       return NextResponse.json({ ok: false, error: "Format must be pdf or docx." }, { status: 400 });
     }
 
-    const document = await getAssignedModuleDocumentForLesson(lessonId);
+    const document = (await getAssignedModuleDocumentForLesson(lessonId)) ?? (await getFallbackLessonDocument(lessonId));
     if (!document) {
       return NextResponse.json(
-        { ok: false, error: "Module content has not been created or assigned for this lesson yet." },
+        { ok: false, error: "Module was not found." },
         { status: 404 }
       );
     }

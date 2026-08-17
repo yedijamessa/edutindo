@@ -811,11 +811,11 @@ export function ModuleLibraryClient({
             </div>
 
             <Link
-              href="/admin/module-editor"
+              href="/admin/materials"
               className="mt-7 inline-flex items-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#2f6fff,#1d4ed8)] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_32px_-18px_rgba(37,99,235,0.9)] transition-all hover:brightness-105"
             >
               <Plus className="h-4 w-4" />
-              New Module
+              Materials Catalog
             </Link>
           </header>
 
@@ -1092,10 +1092,10 @@ export function ModuleLibraryClient({
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-2">
                                 <Link
-                                  href={`/admin/module-editor?moduleId=${encodeURIComponent(module.moduleId)}`}
+                                  href="/admin/materials"
                                   className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e4ecfb] px-3 py-2 text-xs font-semibold text-[#2f6fff] hover:bg-[#f7faff]"
                                 >
-                                  Open
+                                  Materials
                                   <ExternalLink className="h-3 w-3" />
                                 </Link>
                                 <button
@@ -1271,11 +1271,11 @@ export function ModuleLibraryClient({
                   {busyKey === "bulk-assign" ? "Assigning..." : "Assign to Selected Module"}
                 </button>
                 <Link
-                  href="/admin/module-editor"
+                  href="/admin/materials"
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-[#2f6fff] px-4 py-3 text-sm font-semibold text-[#2f6fff] hover:bg-[#f7faff]"
                 >
                   <Plus className="h-4 w-4" />
-                  Create Module from Lesson
+                  Open Materials Catalog
                 </Link>
                 <p className="flex items-center gap-2 text-xs text-[#62789e]">
                   <CircleHelp className="h-3.5 w-3.5" />

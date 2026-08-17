@@ -121,6 +121,11 @@ export interface ModuleCatalogModuleSummary {
   pageCount: number;
   updatedAt: string;
   assignmentCount: number;
+  schoolSlug?: string;
+  yearSlug?: string;
+  lessonId?: string;
+  lessonSlug?: string;
+  hasEditorDocument?: boolean;
   subjectSlug: string;
   subjectTitle: string;
   chapterSlug: string;
@@ -139,4 +144,11 @@ export interface ModuleCatalogSubjectGroup {
   slug: string;
   title: string;
   chapters: ModuleCatalogChapterGroup[];
+}
+
+export interface ModuleCatalogSchoolGroup {
+  id: string;
+  slug: string;
+  title: string;
+  subjects: ModuleCatalogSubjectGroup[];
 }

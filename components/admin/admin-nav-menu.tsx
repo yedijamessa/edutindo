@@ -19,7 +19,6 @@ const adminMenuItems = [
   { label: "Admin Access Control", href: "/admin/access" },
   { label: "Learning Materials", href: "/admin/materials" },
   { label: "Curriculum Portal", href: "/admin/curriculum" },
-  { label: "Module Editor", href: "/admin/module-editor" },
   { label: "Module Library", href: "/admin/modules" },
   { label: "Curriculum Assign Portal", href: "/curriculum-assign-portal" },
   { label: "Admin Logs", href: "/admin/logs" },

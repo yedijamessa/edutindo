@@ -132,9 +132,9 @@ export async function CurriculumLessonPage({
                   variant="outline"
                   className="h-10 rounded-full border-[#d9e1ef] bg-white px-4 text-slate-700 shadow-none hover:border-[#c6d4f3] hover:bg-[#f7faff]"
                 >
-                  <Link href={`/admin/module-editor?moduleId=${encodeURIComponent(moduleDocument.id)}`}>
+                  <Link href="/admin/materials">
                     <PencilLine className="mr-2 h-4 w-4" />
-                    Edit Assigned Module
+                    Open Materials
                   </Link>
                 </Button>
               )}

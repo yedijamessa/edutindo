@@ -3079,11 +3079,9 @@ export function CurriculumPortal({
                                       className="h-8 w-8 rounded-full text-[#2f6fff] hover:bg-blue-50 hover:text-[#1f55d8]"
                                     >
                                       <Link
-                                        href={`/admin/module-editor?nodeId=${encodeURIComponent(lesson.id)}&subjectSlug=${encodeURIComponent(
-                                          selectedSubject?.slug ?? ""
-                                        )}&chapterSlug=${encodeURIComponent(selectedChapter.slug)}&new=1`}
-                                        aria-label={`Edit module content for ${lesson.title}`}
-                                        title="Edit module content"
+                                        href="/admin/materials"
+                                        aria-label={`Open materials catalog for ${lesson.title}`}
+                                        title="Open materials catalog"
                                       >
                                         <FilePenLine className="h-4 w-4" />
                                       </Link>

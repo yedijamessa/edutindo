@@ -375,7 +375,7 @@ export function ContentSandboxClient({
         chapter
       );
       await createLessonAndAssign(chapter, module, getAssignmentTags(selectedSchool, selectedYearSlug));
-      router.push(`/admin/module-editor?moduleId=${encodeURIComponent(module.moduleId)}`);
+      router.push("/admin/materials");
     });
   }
 

@@ -5,6 +5,7 @@ import {
   ensureCurriculumReady,
   getCurriculumLessonContext,
   getCurriculumNodeLineage,
+  listCurriculumSchools,
   listCurriculumTree,
   updateCurriculumNode,
   type CurriculumNode,
@@ -16,6 +17,7 @@ import type {
   ModuleEditorBlock,
   ModuleEditorBreadcrumb,
   ModuleCatalogModuleSummary,
+  ModuleCatalogSchoolGroup,
   ModuleCatalogSubjectGroup,
   ModuleEditorDocument,
   ModuleLessonAssignment,
@@ -1152,6 +1154,282 @@ export async function listModuleCatalog(): Promise<ModuleCatalogSubjectGroup[]> 
           modules: chapter.modules,
         })),
     }));
+}
+
+export async function listSchoolModuleCatalog(): Promise<ModuleCatalogSchoolGroup[]> {
+  await ensureModuleEditorSchema();
+  const [tree, schools, modules] = await Promise.all([
+    listCurriculumTree(),
+    listCurriculumSchools(),
+    listModuleDocuments(),
+  ]);
+
+  const modulesByScopedChapter = new Map<string, Map<string, ModuleCatalogModuleSummary>>();
+  const unassignedModulesByChapter = new Map<string, Map<string, ModuleCatalogModuleSummary>>();
+  const assignedLessonIdsByScopedChapter = new Map<string, Set<string>>();
+
+  const addModuleSummary = (
+    groups: Map<string, Map<string, ModuleCatalogModuleSummary>>,
+    key: string,
+    summary: ModuleCatalogModuleSummary,
+    placementCount = summary.assignmentCount
+  ) => {
+    const existingGroup = groups.get(key) ?? new Map<string, ModuleCatalogModuleSummary>();
+    const existingModule = existingGroup.get(summary.moduleId);
+
+    if (existingModule) {
+      existingModule.assignmentCount += placementCount;
+    } else {
+      existingGroup.set(summary.moduleId, {
+        ...summary,
+        assignmentCount: placementCount,
+      });
+    }
+
+    groups.set(key, existingGroup);
+  };
+
+  for (const module of modules) {
+    const fallbackSubjectSlug = slugifyCatalogValue(module.subjectSlug || module.subjectTitle);
+    const fallbackChapterSlug = slugifyCatalogValue(module.chapterSlug || module.chapterTitle);
+
+    const baseSummary = {
+      moduleId: module.moduleId,
+      moduleTitle: module.moduleTitle,
+      moduleCode: module.moduleCode,
+      uniqueIdentifier: module.uniqueIdentifier,
+      pageCount: module.pageCount,
+      updatedAt: module.updatedAt,
+      assignmentCount: module.assignments.length,
+      hasEditorDocument: true,
+      subjectSlug: fallbackSubjectSlug,
+      subjectTitle: module.subjectTitle || fallbackSubjectSlug,
+      chapterSlug: fallbackChapterSlug,
+      chapterTitle: module.chapterTitle || fallbackChapterSlug,
+    };
+
+    let hasScopedAssignment = false;
+    for (const assignment of module.assignments) {
+      const schoolSlug = slugifyCatalogValue(assignment.schoolSlug);
+      const yearSlug = slugifyCatalogValue(assignment.yearSlug);
+      const subjectSlug = slugifyCatalogValue(assignment.subjectSlug || fallbackSubjectSlug);
+      const chapterSlug = slugifyCatalogValue(assignment.chapterSlug || fallbackChapterSlug);
+      if (!schoolSlug || !subjectSlug || !chapterSlug) continue;
+
+      hasScopedAssignment = true;
+      const scopedChapterKey = `${schoolSlug}:${subjectSlug}:${chapterSlug}`;
+      const assignedLessonIds = assignedLessonIdsByScopedChapter.get(scopedChapterKey) ?? new Set<string>();
+      assignedLessonIds.add(assignment.lessonId);
+      assignedLessonIdsByScopedChapter.set(scopedChapterKey, assignedLessonIds);
+      addModuleSummary(
+        modulesByScopedChapter,
+        scopedChapterKey,
+        {
+          ...baseSummary,
+          schoolSlug,
+          yearSlug,
+          lessonId: assignment.lessonId,
+          lessonSlug: assignment.lessonSlug,
+          hasEditorDocument: true,
+          subjectSlug,
+          subjectTitle: assignment.subjectTitle || module.subjectTitle || subjectSlug,
+          chapterSlug,
+          chapterTitle: assignment.chapterTitle || module.chapterTitle || chapterSlug,
+        },
+        1
+      );
+    }
+
+    if (!hasScopedAssignment && fallbackSubjectSlug && fallbackChapterSlug) {
+      addModuleSummary(unassignedModulesByChapter, `${fallbackSubjectSlug}:${fallbackChapterSlug}`, baseSummary, 0);
+    }
+  }
+
+  const subjectNodesBySlug = new Map(
+    tree
+      .filter((node) => node.nodeType === "subject" && node.parentId === null)
+      .map((node) => [slugifyCatalogValue(node.slug || node.title), node])
+  );
+  const matchesScope = (tags: CurriculumAssignmentTag[], schoolSlug: string, yearSlug: string) =>
+    tags.some((tag) => tag.schoolSlug === schoolSlug && tag.yearSlug === yearSlug);
+  const getVisibleLessons = (chapterNode: CurriculumNode, schoolSlug: string, yearSlug: string) => {
+    const chapterTags = normalizeAssignmentTags(chapterNode.metadata.assignmentTags);
+    const lessons = sortCurriculumNodesByPosition(chapterNode.children.filter((node) => node.nodeType === "lesson"));
+
+    return lessons.filter((lesson) => {
+      const lessonTags = normalizeAssignmentTags(lesson.metadata.assignmentTags);
+      if (lessonTags.length > 0) {
+        return matchesScope(lessonTags, schoolSlug, yearSlug);
+      }
+
+      if (chapterTags.length > 0) {
+        return matchesScope(chapterTags, schoolSlug, yearSlug);
+      }
+
+      return false;
+    });
+  };
+
+  const getChapterModules = (schoolSlug: string, subjectSlug: string, chapterSlug: string) => {
+    const combined = new Map<string, ModuleCatalogModuleSummary>();
+    const scopedModules = modulesByScopedChapter.get(`${schoolSlug}:${subjectSlug}:${chapterSlug}`);
+    const unassignedModules = unassignedModulesByChapter.get(`${subjectSlug}:${chapterSlug}`);
+
+    for (const module of unassignedModules?.values() ?? []) {
+      combined.set(module.moduleId, module);
+    }
+
+    for (const module of scopedModules?.values() ?? []) {
+      combined.set(module.moduleId, module);
+    }
+
+    return Array.from(combined.values()).sort((left, right) => left.moduleTitle.localeCompare(right.moduleTitle));
+  };
+
+  return schools
+    .map((school) => {
+      const subjects = new Map<
+        string,
+        {
+          id: string | null;
+          slug: string;
+          title: string;
+          position: number;
+          chapters: Map<
+            string,
+            {
+              id: string | null;
+              slug: string;
+              title: string;
+              position: number;
+              modules: ModuleCatalogModuleSummary[];
+            }
+          >;
+        }
+      >();
+
+      for (const year of school.years) {
+        for (const subjectSummary of year.subjects) {
+          const subjectSlug = slugifyCatalogValue(subjectSummary.slug || subjectSummary.title);
+          if (!subjectSlug) continue;
+
+          const existingSubject = subjects.get(subjectSlug);
+          const subject =
+            existingSubject ??
+            {
+              id: subjectSummary.id,
+              slug: subjectSlug,
+              title: subjectSummary.title,
+              position: subjectSummary.position,
+              chapters: new Map<
+                string,
+                {
+                  id: string | null;
+                  slug: string;
+                  title: string;
+                  position: number;
+                  modules: ModuleCatalogModuleSummary[];
+                }
+              >(),
+            };
+
+          if (existingSubject) {
+            subject.position = Math.min(subject.position, subjectSummary.position);
+          } else {
+            subjects.set(subjectSlug, subject);
+          }
+
+          for (const chapterSummary of subjectSummary.chapters) {
+            const chapterSlug = slugifyCatalogValue(chapterSummary.slug || chapterSummary.title);
+            if (!chapterSlug || subject.chapters.has(chapterSlug)) continue;
+            const scopedChapterKey = `${school.slug}:${subjectSlug}:${chapterSlug}`;
+            const chapterModules = getChapterModules(school.slug, subjectSlug, chapterSlug);
+            const assignedLessonIds =
+              assignedLessonIdsByScopedChapter.get(scopedChapterKey) ??
+              new Set(
+                chapterModules
+                  .map((module) => module.lessonId)
+                  .filter((lessonId): lessonId is string => Boolean(lessonId))
+              );
+            const subjectNode = subjectNodesBySlug.get(subjectSlug) ?? null;
+            const chapterNode =
+              subjectNode?.children.find(
+                (node) => node.nodeType === "chapter" && slugifyCatalogValue(node.slug || node.title) === chapterSlug
+              ) ?? null;
+
+            if (chapterNode) {
+              for (const lesson of getVisibleLessons(chapterNode, school.slug, year.slug)) {
+                if (assignedLessonIds.has(lesson.id)) continue;
+
+                chapterModules.push({
+                  moduleId: lesson.id,
+                  moduleTitle: lesson.title,
+                  moduleCode: sanitizeText(lesson.metadata.lessonCode, 80),
+                  uniqueIdentifier: sanitizeText(lesson.metadata.uniqueIdentifier, 120) || lesson.id,
+                  pageCount: 0,
+                  updatedAt: lesson.updatedAt.toISOString(),
+                  assignmentCount: 1,
+                  schoolSlug: school.slug,
+                  yearSlug: year.slug,
+                  lessonId: lesson.id,
+                  lessonSlug: lesson.slug,
+                  hasEditorDocument: false,
+                  subjectSlug,
+                  subjectTitle: subjectSummary.title,
+                  chapterSlug,
+                  chapterTitle: chapterSummary.title,
+                });
+                assignedLessonIds.add(lesson.id);
+              }
+            }
+
+            chapterModules.sort((left, right) => left.moduleTitle.localeCompare(right.moduleTitle));
+
+            subject.chapters.set(chapterSlug, {
+              id: chapterSummary.id,
+              slug: chapterSlug,
+              title: chapterSummary.title,
+              position: chapterSummary.position,
+              modules: chapterModules,
+            });
+          }
+        }
+      }
+
+      return {
+        id: school.id,
+        slug: school.slug,
+        title: school.title,
+        subjects: Array.from(subjects.values())
+          .sort((left, right) => {
+            if (left.position !== right.position) {
+              return left.position - right.position;
+            }
+
+            return left.title.localeCompare(right.title);
+          })
+          .map((subject) => ({
+            id: subject.id,
+            slug: subject.slug,
+            title: subject.title,
+            chapters: Array.from(subject.chapters.values())
+              .sort((left, right) => {
+                if (left.position !== right.position) {
+                  return left.position - right.position;
+                }
+
+                return left.title.localeCompare(right.title);
+              })
+              .map((chapter) => ({
+                id: chapter.id,
+                slug: chapter.slug,
+                title: chapter.title,
+                modules: chapter.modules,
+              })),
+          })),
+      };
+    })
+    .sort((left, right) => left.title.localeCompare(right.title));
 }
 
 export async function assignModuleToLesson(input: {

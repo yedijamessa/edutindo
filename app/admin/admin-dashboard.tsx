@@ -37,12 +37,6 @@ const adminTools = [
     icon: BookOpen,
   },
   {
-    title: "Module Editor",
-    href: "/admin/module-editor",
-    description: "Choose a subject, chapter, and module to build or update content.",
-    icon: NotebookTabs,
-  },
-  {
     title: "Module Library",
     href: "/admin/modules",
     description: "Assign reusable modules to lessons and send selected modules to students.",

@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Layers3, Loader2, NotebookPen, Plus } from "lucide-react";
+import { BookOpen, Download, Layers3, Loader2, NotebookPen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { ModuleCatalogChapterGroup, ModuleCatalogSubjectGroup } from "@/types/module-editor";
+import type {
+  ModuleCatalogChapterGroup,
+  ModuleCatalogSchoolGroup,
+  ModuleCatalogSubjectGroup,
+} from "@/types/module-editor";
 
 function formatDate(value: string) {
   const parsed = new Date(value);
@@ -20,19 +23,26 @@ function formatDate(value: string) {
 }
 
 export function AdminMaterialsCatalog({
-  subjects,
+  schools,
 }: {
-  subjects: ModuleCatalogSubjectGroup[];
+  schools: ModuleCatalogSchoolGroup[];
 }) {
   const router = useRouter();
+  const [selectedSchoolSlug, setSelectedSchoolSlug] = useState<string>("");
   const [selectedSubjectSlug, setSelectedSubjectSlug] = useState<string>("");
   const [selectedChapterSlug, setSelectedChapterSlug] = useState<string>("");
   const [chapterTitle, setChapterTitle] = useState("");
   const [createError, setCreateError] = useState("");
   const [creatingChapter, setCreatingChapter] = useState(false);
 
-  const totalChapters = subjects.reduce((sum, subject) => sum + subject.chapters.length, 0);
-  const totalModules = subjects.reduce(
+  const selectedSchool = useMemo(
+    () => schools.find((school) => school.slug === selectedSchoolSlug) ?? null,
+    [selectedSchoolSlug, schools]
+  );
+  const subjects = selectedSchool?.subjects ?? [];
+  const displayedSubjects = selectedSchool ? selectedSchool.subjects : schools.flatMap((school) => school.subjects);
+  const totalChapters = displayedSubjects.reduce((sum, subject) => sum + subject.chapters.length, 0);
+  const totalModules = displayedSubjects.reduce(
     (sum, subject) => sum + subject.chapters.reduce((chapterSum, chapter) => chapterSum + chapter.modules.length, 0),
     0
   );
@@ -53,7 +63,19 @@ export function AdminMaterialsCatalog({
     setCreateError("");
   }, [selectedSubjectSlug]);
 
+  useEffect(() => {
+    setSelectedSubjectSlug("");
+    setSelectedChapterSlug("");
+    setChapterTitle("");
+    setCreateError("");
+  }, [selectedSchoolSlug]);
+
   const handleCreateChapter = async () => {
+    if (!selectedSchool) {
+      setCreateError("Choose a school first.");
+      return;
+    }
+
     if (!selectedSubject?.id) {
       setCreateError("Choose a subject first.");
       return;
@@ -108,28 +130,23 @@ export function AdminMaterialsCatalog({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Admin Materials</p>
-                <h1 className="mt-2 text-[2.2rem] font-black tracking-tight text-slate-950">Subject, Chapter, and Module Catalog</h1>
+                <h1 className="mt-2 text-[2.2rem] font-black tracking-tight text-slate-950">Materials Catalog</h1>
                 <p className="mt-2 max-w-3xl text-[15px] leading-7 text-slate-500">
-                  Select a subject first, then a chapter, and only then review the modules in that chapter.
+                  Select a school first, then choose a subject and chapter before reviewing the modules in that chapter.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Button
-                asChild
-                variant="outline"
-                className="h-11 rounded-2xl border-[#dce6f7] bg-white px-5 text-slate-700 shadow-none hover:bg-[#f7faff]"
-              >
-                <Link href="/admin/module-editor">Open Module Editor</Link>
-              </Button>
-            </div>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <div className="rounded-[24px] border border-[#e7edf8] bg-[#f8fbff] p-4">
+              <p className="text-sm font-medium text-slate-500">Schools</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{schools.length}</p>
+            </div>
             <div className="rounded-[24px] border border-[#e7edf8] bg-[#f8fbff] p-4">
               <p className="text-sm font-medium text-slate-500">Subjects</p>
-              <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{subjects.length}</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{displayedSubjects.length}</p>
             </div>
             <div className="rounded-[24px] border border-[#e7edf8] bg-[#f8fbff] p-4">
               <p className="text-sm font-medium text-slate-500">Chapters</p>
@@ -143,9 +160,26 @@ export function AdminMaterialsCatalog({
         </section>
 
         <section className="rounded-[30px] border border-white/70 bg-white/92 p-5 shadow-[0_32px_80px_-70px_rgba(15,23,42,0.45)]">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <label className="space-y-2">
               <span className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Step 1</span>
+              <p className="text-sm font-semibold text-slate-700">Choose School</p>
+              <select
+                value={selectedSchoolSlug}
+                onChange={(event) => setSelectedSchoolSlug(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-[#dfe7f5] bg-white px-4 text-sm text-slate-700 focus:outline-none"
+              >
+                <option value="">Select school</option>
+                {schools.map((school) => (
+                  <option key={school.slug} value={school.slug}>
+                    {school.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Step 2</span>
               <p className="text-sm font-semibold text-slate-700">Choose Subject</p>
               <select
                 value={selectedSubjectSlug}
@@ -153,9 +187,10 @@ export function AdminMaterialsCatalog({
                   setSelectedSubjectSlug(event.target.value);
                   setSelectedChapterSlug("");
                 }}
-                className="h-12 w-full rounded-2xl border border-[#dfe7f5] bg-white px-4 text-sm text-slate-700 focus:outline-none"
+                disabled={!selectedSchool}
+                className="h-12 w-full rounded-2xl border border-[#dfe7f5] bg-white px-4 text-sm text-slate-700 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               >
-                <option value="">Select subject</option>
+                <option value="">{selectedSchool ? "Select subject" : "Choose school first"}</option>
                 {subjects.map((subject) => (
                   <option key={subject.slug} value={subject.slug}>
                     {subject.title}
@@ -165,7 +200,7 @@ export function AdminMaterialsCatalog({
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Step 2</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Step 3</span>
               <p className="text-sm font-semibold text-slate-700">Choose Chapter</p>
               <select
                 value={effectiveChapterSlug}
@@ -176,7 +211,7 @@ export function AdminMaterialsCatalog({
                 <option value="">{selectedSubject ? "Select chapter" : "Choose subject first"}</option>
                 {selectedSubject?.chapters.map((chapter) => (
                   <option key={chapter.slug} value={chapter.slug}>
-                    {chapter.title}
+                    {chapter.title} ({chapter.modules.length})
                   </option>
                 ))}
               </select>
@@ -184,26 +219,17 @@ export function AdminMaterialsCatalog({
           </div>
         </section>
 
-        {selectedSubject ? (
+        {selectedSchool && selectedSubject ? (
           <section className="rounded-[30px] border border-white/70 bg-white/92 p-5 shadow-[0_32px_80px_-70px_rgba(15,23,42,0.45)]">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Selected Subject</p>
                 <h2 className="mt-2 text-[1.8rem] font-black tracking-tight text-slate-950">{selectedSubject.title}</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Add a chapter here, then open that chapter to review existing modules or create a new one inside it.
+                  {selectedSchool.title} · Add a chapter here, then open that chapter to review existing modules.
                 </p>
               </div>
-              <Button
-                asChild
-                variant="outline"
-                className="h-11 rounded-2xl border-[#dce6f7] bg-white px-5 text-slate-700 shadow-none hover:bg-[#f7faff]"
-                >
-                  <Link href={`/admin/module-editor?subjectSlug=${encodeURIComponent(selectedSubject.slug)}`}>
-                    Open Subject in Editor
-                  </Link>
-                </Button>
-              </div>
+            </div>
 
             <div className="mt-5 grid gap-3 rounded-[24px] border border-[#e7edf8] bg-[#f8fbff] p-4 md:grid-cols-[minmax(0,1fr)_auto]">
               <Input
@@ -227,7 +253,11 @@ export function AdminMaterialsCatalog({
                 onClick={handleCreateChapter}
                 className="h-12 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_20px_40px_-28px_rgba(37,99,235,0.88)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {creatingChapter ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {creatingChapter ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
                 Create Chapter
               </Button>
             </div>
@@ -236,13 +266,15 @@ export function AdminMaterialsCatalog({
           </section>
         ) : null}
 
-        {selectedSubject && selectedChapter ? (
-          <SelectedChapterCatalog subject={selectedSubject} chapter={selectedChapter} />
+        {selectedSchool && selectedSubject && selectedChapter ? (
+          <SelectedChapterCatalog school={selectedSchool} subject={selectedSubject} chapter={selectedChapter} />
         ) : (
           <section className="rounded-[30px] border border-dashed border-[#d9e5fb] bg-white/75 px-6 py-10 text-center text-sm text-slate-500">
             {selectedSubject
               ? "Choose a chapter to see only that chapter and its modules."
-              : "Choose a subject first, then choose a chapter."}
+              : selectedSchool
+                ? "Choose a subject first, then choose a chapter."
+                : "Choose a school first, then choose a subject and chapter."}
           </section>
         )}
       </main>
@@ -251,12 +283,54 @@ export function AdminMaterialsCatalog({
 }
 
 function SelectedChapterCatalog({
+  school,
   subject,
   chapter,
 }: {
+  school: ModuleCatalogSchoolGroup;
   subject: ModuleCatalogSubjectGroup;
   chapter: ModuleCatalogChapterGroup;
 }) {
+  const router = useRouter();
+  const [busyModuleId, setBusyModuleId] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  const getExportHref = (module: ModuleCatalogChapterGroup["modules"][number], format: "pdf" | "docx") => {
+    if (module.lessonId) {
+      return `/admin/curriculum/modules/${encodeURIComponent(module.lessonId)}/export?format=${format}`;
+    }
+
+    return `/admin/modules/${encodeURIComponent(module.moduleId)}/export?format=${format}`;
+  };
+
+  const handleDeleteModule = async (module: ModuleCatalogChapterGroup["modules"][number]) => {
+    const moduleLabel = module.lessonId ? "curriculum module" : "module document";
+    if (!window.confirm(`Delete ${module.moduleTitle}? This will remove the ${moduleLabel}.`)) return;
+
+    setBusyModuleId(module.moduleId);
+    setActionError("");
+
+    try {
+      const endpoint = module.lessonId
+        ? `/api/admin/curriculum/${encodeURIComponent(module.lessonId)}`
+        : `/api/modules/${encodeURIComponent(module.moduleId)}`;
+      const response = await fetch(endpoint, { method: "DELETE" });
+      const data = await response.json();
+
+      if (!response.ok || data?.ok === false) {
+        setActionError(data?.error || "Failed to delete module.");
+        return;
+      }
+
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setActionError("Failed to delete module.");
+    } finally {
+      setBusyModuleId("");
+    }
+  };
+
   return (
     <section className="rounded-[30px] border border-white/70 bg-white/92 p-5 shadow-[0_32px_80px_-70px_rgba(15,23,42,0.45)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -268,35 +342,26 @@ function SelectedChapterCatalog({
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Selected Chapter</p>
             <h3 className="truncate text-[1.65rem] font-black tracking-tight text-slate-950">{chapter.title}</h3>
             <p className="mt-1 text-sm text-slate-500">
-              {subject.title} · {chapter.modules.length} module{chapter.modules.length === 1 ? "" : "s"}
+              {school.title} · {subject.title} · {chapter.modules.length} module
+              {chapter.modules.length === 1 ? "" : "s"}
             </p>
           </div>
         </div>
 
-        <Button
-          asChild
-          className="h-10 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-4 text-white shadow-[0_18px_36px_-24px_rgba(37,99,235,0.88)] hover:brightness-105"
-        >
-          <Link
-            href={`/admin/module-editor?subjectSlug=${encodeURIComponent(subject.slug)}&chapterSlug=${encodeURIComponent(chapter.slug)}&new=1`}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Module
-          </Link>
-        </Button>
+        <div />
       </div>
 
       <div className="mt-5 space-y-3">
+        {actionError ? <p className="text-sm text-rose-600">{actionError}</p> : null}
         {chapter.modules.length === 0 ? (
           <div className="rounded-[20px] border border-dashed border-[#d9e5fb] bg-white px-4 py-5 text-sm text-slate-500">
             No modules yet in this chapter.
           </div>
         ) : (
           chapter.modules.map((module) => (
-            <Link
+            <div
               key={module.moduleId}
-              href={`/admin/module-editor?subjectSlug=${encodeURIComponent(subject.slug)}&chapterSlug=${encodeURIComponent(chapter.slug)}&moduleId=${encodeURIComponent(module.moduleId)}`}
-              className="block rounded-[22px] border border-[#e5ecf8] bg-white p-4 transition-colors hover:border-[#cfe0ff] hover:bg-[#f8fbff]"
+              className="rounded-[22px] border border-[#e5ecf8] bg-white p-4 transition-colors hover:border-[#cfe0ff] hover:bg-[#f8fbff]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -309,11 +374,37 @@ function SelectedChapterCatalog({
                     {module.assignmentCount === 1 ? "" : "s"}
                   </p>
                 </div>
-                <span className="rounded-full border border-[#dce6ff] bg-[#f4f8ff] px-3 py-1 text-xs font-semibold text-[#2f6fff]">
-                  Updated {formatDate(module.updatedAt)}
-                </span>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="rounded-full border border-[#dce6ff] bg-[#f4f8ff] px-3 py-1 text-xs font-semibold text-[#2f6fff]">
+                    Updated {formatDate(module.updatedAt)}
+                  </span>
+                  {(["pdf", "docx"] as const).map((format) => (
+                    <a
+                      key={format}
+                      href={getExportHref(module, format)}
+                      className="inline-flex h-9 items-center rounded-full border border-[#dce6ff] bg-white px-3 text-xs font-semibold uppercase text-slate-600 transition-colors hover:bg-[#f4f8ff] hover:text-[#2f6fff]"
+                    >
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      {format}
+                    </a>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busyModuleId === module.moduleId}
+                    onClick={() => void handleDeleteModule(module)}
+                    className="h-9 rounded-full border-rose-100 bg-white px-3 text-xs font-semibold text-rose-600 shadow-none hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busyModuleId === module.moduleId ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Delete
+                  </Button>
+                </div>
               </div>
-            </Link>
+            </div>
           ))
         )}
       </div>
