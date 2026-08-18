@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { ModuleLibraryClient, type LessonStub } from "@/components/admin/module-library-client";
 import { listModuleDocuments, listModuleEditorTargets } from "@/lib/module-editor";
 
@@ -55,6 +56,11 @@ function dedupeLessons(lessons: LessonStub[]) {
 
 export default async function AdminModulesPage({ searchParams }: AdminModulesPageProps) {
   const { lessonId } = await searchParams;
+  const requestedLessonId = (lessonId || "").trim();
+  if (requestedLessonId) {
+    redirect(`/admin/module-editor?nodeId=${encodeURIComponent(requestedLessonId)}`);
+  }
+
   const [modules, allTargets] = await Promise.all([
     listModuleDocuments(),
     listModuleEditorTargets(),
@@ -69,14 +75,13 @@ export default async function AdminModulesPage({ searchParams }: AdminModulesPag
     modules.flatMap((module) => module.assignments.map((assignment) => assignment.lessonId))
   );
   const lessonsWithoutModule = uniqueLessons.filter((lesson) => !assignedLessonIds.has(lesson.lessonId));
-  const initialLessonId = (lessonId || "").trim() || null;
 
   return (
     <ModuleLibraryClient
       modules={modules}
       lessons={uniqueLessons}
       lessonsWithoutModule={lessonsWithoutModule}
-      initialLessonId={initialLessonId}
+      initialLessonId={null}
     />
   );
 }

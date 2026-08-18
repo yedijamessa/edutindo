@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Download, Layers3, Loader2, NotebookPen, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Download, FilePenLine, Layers3, Loader2, NotebookPen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
@@ -303,6 +304,14 @@ function SelectedChapterCatalog({
     return `/admin/modules/${encodeURIComponent(module.moduleId)}/export?format=${format}`;
   };
 
+  const getEditHref = (module: ModuleCatalogChapterGroup["modules"][number]) => {
+    if (module.lessonId) {
+      return `/admin/module-editor?nodeId=${encodeURIComponent(module.lessonId)}`;
+    }
+
+    return `/admin/module-editor?moduleId=${encodeURIComponent(module.moduleId)}`;
+  };
+
   const handleDeleteModule = async (module: ModuleCatalogChapterGroup["modules"][number]) => {
     const moduleLabel = module.lessonId ? "curriculum module" : "module document";
     if (!window.confirm(`Delete ${module.moduleTitle}? This will remove the ${moduleLabel}.`)) return;
@@ -388,6 +397,15 @@ function SelectedChapterCatalog({
                       {format}
                     </a>
                   ))}
+                  <Link
+                    href={getEditHref(module)}
+                    className="inline-flex h-9 items-center rounded-full border border-[#dce6ff] bg-white px-3 text-xs font-semibold text-[#2f6fff] transition-colors hover:bg-[#f4f8ff] hover:text-[#1f55d8]"
+                    aria-label={`Edit module ${module.moduleTitle}`}
+                    title="Edit module"
+                  >
+                    <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
+                    Edit Module
+                  </Link>
                   <Button
                     type="button"
                     variant="outline"
