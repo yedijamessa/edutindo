@@ -19,7 +19,6 @@ import {
   Link2,
   List,
   ListOrdered,
-  MoreVertical,
   NotebookPen,
   PencilLine,
   Plus,
@@ -1029,15 +1028,18 @@ export function ModuleEditor({
                           type="button"
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 rounded-xl text-slate-500"
+                          className="h-8 w-8 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 disabled:text-slate-300"
+                          aria-label={`Delete ${page.title || `Page ${index + 1}`}`}
+                          title="Delete page"
                           onClick={(event) => {
                             event.stopPropagation();
                             if (pages.length <= 1) return;
+                            if (!window.confirm(`Delete ${page.title || `Page ${index + 1}`}?`)) return;
                             updatePages((current) => current.filter((item) => item.id !== page.id));
                           }}
                           disabled={pages.length <= 1}
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
