@@ -22,6 +22,8 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  mobilePhone: string;
+  profilePhotoUrl: string;
   emailVerified: boolean;
   isAdmin: boolean;
   portals: PortalKey[];
@@ -35,6 +37,8 @@ type AuthUserRow = {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  mobile_phone: string | null;
+  profile_photo_url: string | null;
   password_hash: string | null;
   email_verified: boolean;
   email_verified_at: Date | null;
@@ -688,6 +692,8 @@ export async function ensureAuthSchema() {
 
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS first_name TEXT;`;
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS last_name TEXT;`;
+      await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS mobile_phone TEXT;`;
+      await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS profile_photo_url TEXT;`;
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS password_hash TEXT;`;
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN;`;
       await sql`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;`;
@@ -856,7 +862,7 @@ export async function ensureAuthSchema() {
 
 async function getUserRowByEmail(email: string) {
   const result = await sql<AuthUserRow>`
-    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
+    SELECT id, email, first_name, last_name, mobile_phone, profile_photo_url, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
     FROM auth_users
     WHERE email = ${email}
     LIMIT 1
@@ -867,7 +873,7 @@ async function getUserRowByEmail(email: string) {
 
 async function getUserRowById(userId: string) {
   const result = await sql<AuthUserRow>`
-    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
+    SELECT id, email, first_name, last_name, mobile_phone, profile_photo_url, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
     FROM auth_users
     WHERE id = ${userId}
     LIMIT 1
@@ -922,6 +928,8 @@ async function hydrateUser(userRow: AuthUserRow): Promise<AuthUser> {
     email: userRow.email,
     firstName: userRow.first_name ?? "",
     lastName: userRow.last_name ?? "",
+    mobilePhone: userRow.mobile_phone ?? "",
+    profilePhotoUrl: userRow.profile_photo_url ?? "",
     emailVerified: userRow.email_verified,
     isAdmin,
     portals,
@@ -1884,6 +1892,124 @@ export function clearSessionCookie(response: {
   });
 }
 
+function splitFullName(fullName: string) {
+  const cleaned = fullName.trim().replace(/\s+/g, " ");
+  if (!cleaned) {
+    throw new AuthError(400, "INVALID_NAME", "Please enter your full name.");
+  }
+
+  if (cleaned.length > 160) {
+    throw new AuthError(400, "INVALID_NAME", "Full name is too long.");
+  }
+
+  const [firstName = "", ...rest] = cleaned.split(" ");
+  return {
+    firstName: sanitizeName(firstName, "first name"),
+    lastName: rest.join(" ").slice(0, 80),
+  };
+}
+
+function sanitizeOptionalPhone(value: unknown) {
+  const cleaned = String(value ?? "").trim();
+  if (!cleaned) return "";
+  if (cleaned.length > 40) {
+    throw new AuthError(400, "INVALID_PHONE", "Mobile phone is too long.");
+  }
+  return cleaned;
+}
+
+function sanitizeProfilePhotoUrl(value: unknown) {
+  const cleaned = String(value ?? "").trim();
+  if (!cleaned) return "";
+  if (cleaned.length > 500) {
+    throw new AuthError(400, "INVALID_PHOTO", "Profile photo URL is too long.");
+  }
+  if (cleaned.startsWith("/") && !cleaned.startsWith("//")) return cleaned;
+
+  try {
+    const parsed = new URL(cleaned);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("Invalid protocol");
+    }
+    return parsed.toString();
+  } catch {
+    throw new AuthError(400, "INVALID_PHOTO", "Profile photo must be a valid image URL.");
+  }
+}
+
+export async function updateUserProfile(params: {
+  userId: string;
+  fullName: string;
+  email: string;
+  mobilePhone?: unknown;
+  profilePhotoUrl?: unknown;
+}) {
+  await ensureAuthSchema();
+
+  const currentUser = await getUserRowById(params.userId);
+  if (!currentUser) {
+    throw new AuthError(404, "ACCOUNT_NOT_FOUND", "Account not found.");
+  }
+
+  const { firstName, lastName } = splitFullName(params.fullName);
+  const email = normalizeEmail(params.email);
+  if (!isValidEmail(email)) {
+    throw new AuthError(400, "INVALID_EMAIL", "Please enter a valid email.");
+  }
+
+  const existingUser = await getUserRowByEmail(email);
+  if (existingUser && existingUser.id !== params.userId) {
+    throw new AuthError(409, "EMAIL_IN_USE", "That email is already used by another account.");
+  }
+
+  await sql`
+    UPDATE auth_users
+    SET
+      email = ${email},
+      first_name = ${firstName},
+      last_name = ${lastName},
+      mobile_phone = ${sanitizeOptionalPhone(params.mobilePhone)},
+      profile_photo_url = ${sanitizeProfilePhotoUrl(params.profilePhotoUrl)},
+      updated_at = NOW()
+    WHERE id = ${params.userId}
+  `;
+
+  const updatedUser = await getUserRowById(params.userId);
+  if (!updatedUser) {
+    throw new AuthError(500, "USER_LOAD_FAILED", "Failed to reload profile.");
+  }
+
+  return hydrateUser(updatedUser);
+}
+
+export async function changeUserPassword(params: {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}) {
+  await ensureAuthSchema();
+
+  const userRow = await getUserRowById(params.userId);
+  if (!userRow) {
+    throw new AuthError(404, "ACCOUNT_NOT_FOUND", "Account not found.");
+  }
+
+  if (!userRow.password_hash || !verifyPassword(params.currentPassword, userRow.password_hash)) {
+    throw new AuthError(401, "INVALID_CURRENT_PASSWORD", "Current password is incorrect.");
+  }
+
+  validatePassword(params.newPassword);
+  const passwordHash = hashPassword(params.newPassword);
+
+  await sql`
+    UPDATE auth_users
+    SET password_hash = ${passwordHash}, updated_at = NOW()
+    WHERE id = ${params.userId}
+  `;
+
+  return { ok: true };
+}
+
 export function verifyDemoPortalCode(codeInput: string) {
   if (codeInput.trim() !== DEMO_PORTAL_CODE) {
     throw new AuthError(401, "INVALID_DEMO_CODE", "Invalid demo access code.");
@@ -1961,7 +2087,7 @@ export async function listUsersWithPortals() {
   await ensureAuthSchema();
 
   const usersResult = await sql<AuthUserRow>`
-    SELECT id, email, first_name, last_name, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
+    SELECT id, email, first_name, last_name, mobile_phone, profile_photo_url, password_hash, email_verified, email_verified_at, is_admin, school_slug, created_at
     FROM auth_users
     ORDER BY created_at DESC
   `;
@@ -2005,6 +2131,8 @@ export async function listUsersWithPortals() {
       email: row.email,
       firstName: row.first_name ?? "",
       lastName: row.last_name ?? "",
+      mobilePhone: row.mobile_phone ?? "",
+      profilePhotoUrl: row.profile_photo_url ?? "",
       emailVerified: row.email_verified,
       isAdmin: row.is_admin || (portalsByUser.get(row.id) ?? []).includes("admin"),
       schoolSlug: schoolSlugs[0] ?? row.school_slug ?? null,

@@ -82,6 +82,7 @@ export default async function StudentDashboard() {
           heading={studentName}
           subheading="Student portal"
           detail={schoolTitle}
+          profilePhotoUrl={user?.profilePhotoUrl}
           canOpenLockedItems={Boolean(user?.isAdmin)}
         />
 

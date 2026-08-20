@@ -30,7 +30,12 @@ export default async function StudentLayout({ children }: { children: React.Reac
       : `${assignedSchoolTitles.length} schools assigned`;
 
   return (
-    <StudentRouteShell studentName={studentName} schoolTitle={schoolTitle} canOpenLockedItems={Boolean(user?.isAdmin)}>
+    <StudentRouteShell
+      studentName={studentName}
+      schoolTitle={schoolTitle}
+      profilePhotoUrl={user?.profilePhotoUrl}
+      canOpenLockedItems={Boolean(user?.isAdmin)}
+    >
       {children}
     </StudentRouteShell>
   );

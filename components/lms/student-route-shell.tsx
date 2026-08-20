@@ -7,6 +7,7 @@ type StudentRouteShellProps = {
   children: React.ReactNode;
   studentName?: string;
   schoolTitle?: string | null;
+  profilePhotoUrl?: string | null;
   canOpenLockedItems?: boolean;
 };
 
@@ -14,6 +15,7 @@ export function StudentRouteShell({
   children,
   studentName = "Student Portal",
   schoolTitle = null,
+  profilePhotoUrl = null,
   canOpenLockedItems = false,
 }: StudentRouteShellProps) {
   const pathname = usePathname();
@@ -30,6 +32,7 @@ export function StudentRouteShell({
           heading={studentName}
           subheading="Student portal"
           detail={schoolTitle}
+          profilePhotoUrl={profilePhotoUrl}
           canOpenLockedItems={canOpenLockedItems}
         />
 

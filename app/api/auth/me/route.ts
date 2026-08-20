@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        mobilePhone: user.mobilePhone,
+        profilePhotoUrl: user.profilePhotoUrl,
         emailVerified: user.emailVerified,
         isAdmin: user.isAdmin,
         portals: user.portals,
