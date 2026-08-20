@@ -148,6 +148,22 @@ function sanitizeUrl(value: unknown) {
   }
 }
 
+function normalizeEmail(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function isStudentExcluded(email: string, excludedEmails: unknown) {
+  if (!email) return false;
+
+  const list = Array.isArray(excludedEmails)
+    ? excludedEmails
+    : String(excludedEmails ?? "")
+        .split(/[\s,;]+/)
+        .filter(Boolean);
+
+  return list.some((item) => normalizeEmail(item) === email);
+}
+
 function isModuleEditorNodeType(value: string): value is ModuleEditorNodeType {
   return value === "chapter" || value === "lesson";
 }
@@ -938,7 +954,7 @@ export async function listStudentAssignedModuleLessons(
     lessonsByKey.set(lesson.href, lesson);
   };
 
-  const email = user.email.trim().toLowerCase();
+  const email = normalizeEmail(user.email);
   const [assignmentResult, schools] = await Promise.all([
     sql<StudentLessonAssignmentRow>`
     SELECT lesson_id, module_id, school_slug, assigned_at
@@ -997,6 +1013,12 @@ export async function listStudentAssignedModuleLessons(
     }
 
     if (!lessonContext) continue;
+    if (
+      isStudentExcluded(email, lessonContext.chapter.excludedStudentEmails) ||
+      isStudentExcluded(email, lessonContext.lesson.excludedStudentEmails)
+    ) {
+      continue;
+    }
 
     addLesson({
       id: lesson.lessonId,
@@ -1053,6 +1075,13 @@ export async function listStudentAssignedModuleLessons(
     const { school, year, subject, chapter } = context;
 
     for (const lesson of chapter.lessons) {
+      if (
+        isStudentExcluded(email, chapter.excludedStudentEmails) ||
+        isStudentExcluded(email, lesson.excludedStudentEmails)
+      ) {
+        continue;
+      }
+
       const module = moduleByLessonId.get(lesson.id) ?? null;
       const lessonHref = `/student/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}/${lesson.slug}`;
 

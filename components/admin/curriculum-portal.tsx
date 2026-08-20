@@ -312,6 +312,26 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function parseStudentEmailList(value: unknown) {
+  const items = Array.isArray(value)
+    ? value
+    : String(value ?? "")
+        .split(/[\s,;]+/)
+        .filter(Boolean);
+
+  return Array.from(
+    new Set(
+      items
+        .map((item) => text(item).toLowerCase())
+        .filter((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item))
+    )
+  );
+}
+
+function formatStudentEmailList(value: unknown) {
+  return parseStudentEmailList(value).join("\n");
+}
+
 function toBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
@@ -442,6 +462,11 @@ function hasAssignmentTag(tags: AssignmentTag[], schoolSlug: string, yearSlug: s
   return tags.some((tag) => tag.schoolSlug === schoolSlug && tag.yearSlug === yearSlug);
 }
 
+function isHiddenForSchoolYear(node: CurriculumNode, schoolSlug: string, yearSlug: string) {
+  const hiddenTags = parseAssignmentTags({ assignmentTags: node.metadata.hiddenAssignmentTags });
+  return hasAssignmentTag(hiddenTags, schoolSlug, yearSlug);
+}
+
 function getVisibleLessonsForScope(chapter: CurriculumNode, schoolSlug: string, yearSlug: string) {
   const chapterTags = parseAssignmentTags(chapter.metadata ?? {});
   const lessonNodes = chapter.children.filter((node) => node.nodeType === "lesson");
@@ -505,6 +530,22 @@ function hideMetadataForSchoolYear(
   return {
     ...(metadata ?? {}),
     assignmentTags: currentTags.filter((tag) => tag.schoolSlug !== schoolSlug),
+    hiddenAssignmentTags: Array.from(
+      new Map(nextHiddenTags.map((tag) => [`${tag.schoolSlug}:${tag.yearSlug}`, tag])).values()
+    ),
+  };
+}
+
+function markMetadataHiddenForSchoolYear(
+  metadata: Record<string, unknown>,
+  schoolSlug: string,
+  yearSlug: string
+) {
+  const hiddenTags = parseAssignmentTags({ assignmentTags: metadata.hiddenAssignmentTags });
+  const nextHiddenTags = [...hiddenTags, { schoolSlug, yearSlug }];
+
+  return {
+    ...(metadata ?? {}),
     hiddenAssignmentTags: Array.from(
       new Map(nextHiddenTags.map((tag) => [`${tag.schoolSlug}:${tag.yearSlug}`, tag])).values()
     ),
@@ -909,6 +950,8 @@ export function CurriculumPortal({
   const [moduleSettingsNode, setModuleSettingsNode] = useState<CurriculumNode | null>(null);
   const [coverEditorNode, setCoverEditorNode] = useState<CurriculumNode | null>(null);
   const [coverEditorValue, setCoverEditorValue] = useState("");
+  const [excludeEditorNode, setExcludeEditorNode] = useState<CurriculumNode | null>(null);
+  const [excludeEditorValue, setExcludeEditorValue] = useState("");
 
   const dragStateRef = useRef<DragState | null>(null);
 
@@ -1173,9 +1216,13 @@ export function CurriculumPortal({
   );
   const chapterSettingsIsHidden = useMemo(() => {
     if (!chapterSettingsNode || !selectedSchool) return false;
-    const visibleTags = parseAssignmentTags(chapterSettingsNode.metadata ?? {});
-    return visibleTags.length > 0 && visibleTags.every((tag) => tag.schoolSlug !== selectedSchool.slug);
-  }, [chapterSettingsNode, selectedSchool]);
+    if (selectedYearSlug) {
+      return isHiddenForSchoolYear(chapterSettingsNode, selectedSchool.slug, selectedYearSlug);
+    }
+
+    const hiddenTags = parseAssignmentTags({ assignmentTags: chapterSettingsNode.metadata.hiddenAssignmentTags });
+    return hiddenTags.some((tag) => tag.schoolSlug === selectedSchool.slug);
+  }, [chapterSettingsNode, selectedSchool, selectedYearSlug]);
   const moduleSettingsIsHidden = useMemo(() => {
     if (!moduleSettingsNode || !selectedSchool) return false;
     const hiddenTags = parseAssignmentTags({ assignmentTags: moduleSettingsNode.metadata.hiddenAssignmentTags });
@@ -1942,6 +1989,33 @@ export function CurriculumPortal({
     }
   };
 
+  const openExcludeEditor = (node: CurriculumNode) => {
+    setExcludeEditorNode(node);
+    setExcludeEditorValue(formatStudentEmailList(node.metadata.excludedStudentEmails));
+  };
+
+  const saveExcludeEditor = async () => {
+    if (!excludeEditorNode) return;
+
+    const emails = parseStudentEmailList(excludeEditorValue);
+    const didSave = await saveNode(
+      excludeEditorNode,
+      excludeEditorNode.title,
+      {
+        ...(excludeEditorNode.metadata ?? {}),
+        excludedStudentEmails: emails,
+      },
+      emails.length === 0
+        ? `${nodeLabelByType[excludeEditorNode.nodeType]} student exclusions cleared.`
+        : `${nodeLabelByType[excludeEditorNode.nodeType]} excludes ${emails.length} student${emails.length === 1 ? "" : "s"}.`
+    );
+
+    if (didSave) {
+      setExcludeEditorNode(null);
+      setExcludeEditorValue("");
+    }
+  };
+
   const hideLessonFromSelectedSchool = async (lesson: CurriculumNode) => {
     if (!lockedSchoolSlug && !selectedSchool?.slug) {
       await toggleLessonLock(lesson);
@@ -1960,6 +2034,19 @@ export function CurriculumPortal({
         selectedYearSlug ?? YEAR_OPTIONS[0]?.slug ?? "year-7"
       ),
       `Module hidden from ${selectedSchool?.title ?? "students"}.`
+    );
+  };
+
+  const hideChapterFromSelectedSchool = async (chapter: CurriculumNode) => {
+    const schoolSlug = lockedSchoolSlug ?? selectedSchool?.slug ?? "";
+    const yearSlug = selectedYearSlug ?? YEAR_OPTIONS[0]?.slug ?? "year-7";
+    if (!schoolSlug || !yearSlug) return;
+
+    await saveNode(
+      chapter,
+      chapter.title,
+      markMetadataHiddenForSchoolYear(chapter.metadata ?? {}, schoolSlug, yearSlug),
+      `Chapter hidden from ${selectedSchool?.title ?? "students"}.`
     );
   };
 
@@ -1991,12 +2078,12 @@ export function CurriculumPortal({
     }
 
     if (action === "hide") {
-      await deleteNode(chapterSettingsNode);
+      await hideChapterFromSelectedSchool(chapterSettingsNode);
       setChapterSettingsNode(null);
       return;
     }
 
-    setMessage("Student exclusion for chapters is not connected yet.");
+    openExcludeEditor(chapterSettingsNode);
     setChapterSettingsNode(null);
   };
 
@@ -2029,7 +2116,7 @@ export function CurriculumPortal({
       return;
     }
 
-    setMessage("Student exclusion for modules is not connected yet.");
+    openExcludeEditor(moduleSettingsNode);
     setModuleSettingsNode(null);
   };
 
@@ -2468,6 +2555,9 @@ export function CurriculumPortal({
                                                   group.chapters.map(({ chapter, lessons: chapterLessons }) => {
                                                     const activeChapter = chapter.id === selectedChapterId;
                                                     const chapterKey = `chapter:${chapter.id}:${group.year.slug}`;
+                                                    const hiddenChapter = selectedSchool
+                                                      ? isHiddenForSchoolYear(chapter, selectedSchool.slug, group.year.slug)
+                                                      : false;
 
                                                     return (
                                                       <div key={chapter.id} className="space-y-1">
@@ -2476,7 +2566,8 @@ export function CurriculumPortal({
                                                             "flex items-center rounded-2xl px-3 py-2 text-sm transition-colors",
                                                             activeChapter
                                                               ? "bg-[#eef4ff] font-semibold text-[#2f6fff]"
-                                                              : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300"
+                                                              : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300",
+                                                            hiddenChapter && "opacity-55 grayscale"
                                                           )}
                                                         >
                                                           <button
@@ -2501,6 +2592,11 @@ export function CurriculumPortal({
                                                           >
                                                             <BookOpen className="h-4 w-4 shrink-0" />
                                                             <span className="truncate">{chapter.title}</span>
+                                                            {hiddenChapter ? (
+                                                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">
+                                                                Hidden
+                                                              </span>
+                                                            ) : null}
                                                           </button>
                                                           {activeChapter ? (
                                                             <span className="ml-2 flex items-center gap-1">
@@ -2666,6 +2762,10 @@ export function CurriculumPortal({
                                 <div className="ml-4 space-y-1 border-l border-dashed border-[#d7e5fb] pl-3">
                                   {chapters.map((chapter) => {
                                     const activeChapter = chapter.id === selectedChapterId;
+                                    const hiddenChapter =
+                                      selectedSchool && selectedYearSlug
+                                        ? isHiddenForSchoolYear(chapter, selectedSchool.slug, selectedYearSlug)
+                                        : false;
 
                                     return (
                                       <div
@@ -2674,7 +2774,8 @@ export function CurriculumPortal({
                                           "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition-colors",
                                           activeChapter
                                             ? "bg-[#eef4ff] font-semibold text-[#2f6fff]"
-                                            : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300"
+                                            : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300",
+                                          hiddenChapter && "opacity-55 grayscale"
                                         )}
                                       >
                                         <button
@@ -2687,6 +2788,11 @@ export function CurriculumPortal({
                                         >
                                           <BookOpen className="h-4 w-4" />
                                           <span className="truncate">{chapter.title}</span>
+                                          {hiddenChapter ? (
+                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">
+                                              Hidden
+                                            </span>
+                                          ) : null}
                                         </button>
                                         {activeChapter && (
                                           <span className="flex items-center gap-1">
@@ -2833,6 +2939,10 @@ export function CurriculumPortal({
                                       <div className="ml-4 space-y-1 border-l border-dashed border-[#d7e5fb] pl-3">
                                         {chapters.map((chapter) => {
                                           const activeChapter = chapter.id === selectedChapterId;
+                                          const hiddenChapter =
+                                            selectedSchool && selectedYearSlug
+                                              ? isHiddenForSchoolYear(chapter, selectedSchool.slug, selectedYearSlug)
+                                              : false;
 
                                           return (
                                             <div
@@ -2841,7 +2951,8 @@ export function CurriculumPortal({
                                                 "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition-colors",
                                                 activeChapter
                                                   ? "bg-[#eef4ff] font-semibold text-[#2f6fff]"
-                                                  : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300"
+                                                  : "text-slate-600 hover:bg-[#f7faff] hover:text-slate-900 dark:text-slate-300",
+                                                hiddenChapter && "opacity-55 grayscale"
                                               )}
                                             >
                                               <button
@@ -2854,6 +2965,11 @@ export function CurriculumPortal({
                                               >
                                                 <BookOpen className="h-4 w-4" />
                                                 <span className="truncate">{chapter.title}</span>
+                                                {hiddenChapter ? (
+                                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">
+                                                    Hidden
+                                                  </span>
+                                                ) : null}
                                               </button>
                                               {activeChapter && (
                                                 <span className="flex items-center gap-1">
@@ -3695,6 +3811,56 @@ export function CurriculumPortal({
             <Button type="button" disabled={busy} onClick={() => void saveCoverEditor()}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Save Cover Image
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(excludeEditorNode)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setExcludeEditorNode(null);
+            setExcludeEditorValue("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Exclude Student</DialogTitle>
+            <DialogDescription>
+              {excludeEditorNode?.title ?? "Selected item"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-500">Student emails</label>
+            <Textarea
+              value={excludeEditorValue}
+              onChange={(event) => setExcludeEditorValue(event.target.value)}
+              placeholder={"student1@example.com\nstudent2@example.com"}
+              className="min-h-40 rounded-2xl border-[#dbe7fb] bg-white"
+            />
+            <p className="text-xs text-slate-400">
+              Add one or more emails. Use commas, spaces, or new lines. These students will not see this {excludeEditorNode?.nodeType === "lesson" ? "module" : "chapter"}.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setExcludeEditorNode(null);
+                setExcludeEditorValue("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" disabled={busy} onClick={() => void saveExcludeEditor()}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Exclusions
             </Button>
           </DialogFooter>
         </DialogContent>

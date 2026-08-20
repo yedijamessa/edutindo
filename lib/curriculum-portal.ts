@@ -77,6 +77,7 @@ export interface CurriculumChapterSummary {
   uniqueIdentifier: string;
   weekRange: string;
   coverImageUrl: string;
+  excludedStudentEmails: string[];
   lessonCount: number;
   preTestQuizId: string;
   postTestQuizId: string;
@@ -93,6 +94,7 @@ export interface CurriculumLessonSummary {
   lessonCode: string;
   uniqueIdentifier: string;
   coverImageUrl: string;
+  excludedStudentEmails: string[];
   isLocked: boolean;
 }
 
@@ -218,6 +220,22 @@ function sanitizeUrl(value: unknown) {
   }
 }
 
+function normalizeEmailList(value: unknown) {
+  const values = Array.isArray(value)
+    ? value
+    : String(value ?? "")
+        .split(/[\s,;]+/)
+        .filter(Boolean);
+
+  return Array.from(
+    new Set(
+      values
+        .map((item) => sanitizeText(item, 180).toLowerCase())
+        .filter((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item))
+    )
+  ).slice(0, 200);
+}
+
 function parseYearLevelFromTitle(title: string) {
   const match = title.match(/\d+/);
   const parsed = match ? Number(match[0]) : NaN;
@@ -299,6 +317,7 @@ function normalizeMetadata(
       uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
       weekRange: sanitizeText(input.weekRange, 80),
       coverImageUrl: sanitizeUrl(input.coverImageUrl),
+      excludedStudentEmails: normalizeEmailList(input.excludedStudentEmails),
       strand: sanitizeText(input.strand, 80),
       unitTitle: sanitizeText(input.unitTitle, 280),
       learningOutcomes,
@@ -316,6 +335,7 @@ function normalizeMetadata(
     lessonCode: sanitizeText(input.lessonCode, 40),
     uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
     coverImageUrl: sanitizeUrl(input.coverImageUrl),
+    excludedStudentEmails: normalizeEmailList(input.excludedStudentEmails),
     isReadingWeek: parseBoolean(input.isReadingWeek),
     isLocked: parseBoolean(input.isLocked),
     assignmentTags: normalizeAssignmentTags(input.assignmentTags),
@@ -1291,6 +1311,7 @@ function mapLesson(node: CurriculumNode): CurriculumLessonSummary {
     lessonCode: extractString(node.metadata.lessonCode),
     uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
     coverImageUrl: extractString(node.metadata.coverImageUrl),
+    excludedStudentEmails: normalizeEmailList(node.metadata.excludedStudentEmails),
     isLocked: extractBoolean(node.metadata.isLocked),
   };
 }
@@ -1316,6 +1337,7 @@ function mapChapter(node: CurriculumNode, lessonNodes?: CurriculumNode[]): Curri
     uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
     weekRange: extractString(node.metadata.weekRange),
     coverImageUrl: extractString(node.metadata.coverImageUrl),
+    excludedStudentEmails: normalizeEmailList(node.metadata.excludedStudentEmails),
     lessonCount: lessons.length,
     preTestQuizId: extractString(node.metadata.preTestQuizId),
     postTestQuizId: extractString(node.metadata.postTestQuizId),
@@ -1411,6 +1433,10 @@ function getVisibleChaptersForScope(
   yearSlug: string
 ) {
   return sortChapterNodes(subjectNode.children.filter((node) => node.nodeType === "chapter"))
+    .filter((chapterNode) => {
+      const hiddenChapterTags = normalizeAssignmentTags(chapterNode.metadata.hiddenAssignmentTags);
+      return !matchesAssignmentTag(hiddenChapterTags, schoolSlug, yearSlug);
+    })
     .map((chapterNode) => ({
       chapterNode,
       lessonNodes: getVisibleLessonsForScope(chapterNode, schoolSlug, yearSlug),
@@ -1590,6 +1616,7 @@ export async function getCurriculumLessonContext(input: {
       uniqueIdentifier: chapterContext.chapter.uniqueIdentifier,
       weekRange: chapterContext.chapter.weekRange,
       coverImageUrl: chapterContext.chapter.coverImageUrl,
+      excludedStudentEmails: chapterContext.chapter.excludedStudentEmails,
       lessonCount: chapterContext.chapter.lessonCount,
       preTestQuizId: chapterContext.chapter.preTestQuizId,
       postTestQuizId: chapterContext.chapter.postTestQuizId,

@@ -43,9 +43,9 @@ const studentNav: NavItem[] = [
     { title: 'Dashboard', href: '/student', icon: LayoutDashboard },
     { title: 'Materials', href: '/student/materials', icon: BookOpen },
     { title: 'Learning Path', href: '/student/learning-path', icon: GitBranch },
+    { title: 'Progress', href: '/student/progress', icon: BarChart3 },
     { title: 'Quizzes', href: '/student/quizzes', icon: HelpCircle, inProgress: true },
     { title: 'Notes', href: '/student/notes', icon: StickyNote, inProgress: true },
-    { title: 'Progress', href: '/student/progress', icon: BarChart3, inProgress: true },
     { title: 'Announcements', href: '/student/announcements', icon: Sparkles, inProgress: true },
     { title: 'Digital Locker', href: '/student/locker', icon: HardDrive, inProgress: true },
     { title: 'Tutoring', href: '/student/tutoring', icon: Users, inProgress: true },
@@ -64,6 +64,7 @@ const greenStudentHrefs = new Set([
     "/student",
     "/student/materials",
     "/student/learning-path",
+    "/student/progress",
 ]);
 
 const teacherNav: NavItem[] = [
