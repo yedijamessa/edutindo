@@ -76,6 +76,7 @@ export interface CurriculumChapterSummary {
   chapterCode: string;
   uniqueIdentifier: string;
   weekRange: string;
+  coverImageUrl: string;
   lessonCount: number;
   preTestQuizId: string;
   postTestQuizId: string;
@@ -91,6 +92,8 @@ export interface CurriculumLessonSummary {
   week: string;
   lessonCode: string;
   uniqueIdentifier: string;
+  coverImageUrl: string;
+  isLocked: boolean;
 }
 
 export interface CurriculumChapterContext {
@@ -192,6 +195,29 @@ function sanitizeText(value: unknown, maxLength: number) {
   return cleaned.slice(0, maxLength);
 }
 
+function sanitizeUrl(value: unknown) {
+  const cleaned = String(value ?? "").trim();
+  if (!cleaned) return "";
+
+  if (cleaned.startsWith("/") && !cleaned.startsWith("//")) {
+    return cleaned.slice(0, 500);
+  }
+
+  if (/^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(cleaned)) {
+    return cleaned;
+  }
+
+  try {
+    const parsed = new URL(cleaned);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return "";
+    }
+    return parsed.toString().slice(0, 500);
+  } catch {
+    return "";
+  }
+}
+
 function parseYearLevelFromTitle(title: string) {
   const match = title.match(/\d+/);
   const parsed = match ? Number(match[0]) : NaN;
@@ -272,6 +298,7 @@ function normalizeMetadata(
       chapterCode: sanitizeText(input.chapterCode, 80),
       uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
       weekRange: sanitizeText(input.weekRange, 80),
+      coverImageUrl: sanitizeUrl(input.coverImageUrl),
       strand: sanitizeText(input.strand, 80),
       unitTitle: sanitizeText(input.unitTitle, 280),
       learningOutcomes,
@@ -288,7 +315,9 @@ function normalizeMetadata(
     week: sanitizeText(input.week, 40),
     lessonCode: sanitizeText(input.lessonCode, 40),
     uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
+    coverImageUrl: sanitizeUrl(input.coverImageUrl),
     isReadingWeek: parseBoolean(input.isReadingWeek),
+    isLocked: parseBoolean(input.isLocked),
     assignmentTags: normalizeAssignmentTags(input.assignmentTags),
     hiddenAssignmentTags: normalizeAssignmentTags(input.hiddenAssignmentTags),
   };
@@ -1261,6 +1290,8 @@ function mapLesson(node: CurriculumNode): CurriculumLessonSummary {
     week: extractString(node.metadata.week),
     lessonCode: extractString(node.metadata.lessonCode),
     uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
+    coverImageUrl: extractString(node.metadata.coverImageUrl),
+    isLocked: extractBoolean(node.metadata.isLocked),
   };
 }
 
@@ -1284,6 +1315,7 @@ function mapChapter(node: CurriculumNode, lessonNodes?: CurriculumNode[]): Curri
     chapterCode: extractString(node.metadata.chapterCode),
     uniqueIdentifier: extractString(node.metadata.uniqueIdentifier),
     weekRange: extractString(node.metadata.weekRange),
+    coverImageUrl: extractString(node.metadata.coverImageUrl),
     lessonCount: lessons.length,
     preTestQuizId: extractString(node.metadata.preTestQuizId),
     postTestQuizId: extractString(node.metadata.postTestQuizId),
@@ -1355,6 +1387,11 @@ function getVisibleLessonsForScope(
   const lessonNodes = sortLessonNodes(chapterNode.children.filter((node) => node.nodeType === "lesson"));
 
   return lessonNodes.filter((lessonNode) => {
+    const hiddenLessonTags = normalizeAssignmentTags(lessonNode.metadata.hiddenAssignmentTags);
+    if (matchesAssignmentTag(hiddenLessonTags, schoolSlug, yearSlug)) {
+      return false;
+    }
+
     const lessonTags = extractAssignmentTags(lessonNode.metadata);
     if (lessonTags.length > 0) {
       return matchesAssignmentTag(lessonTags, schoolSlug, yearSlug);
@@ -1552,6 +1589,7 @@ export async function getCurriculumLessonContext(input: {
       chapterCode: chapterContext.chapter.chapterCode,
       uniqueIdentifier: chapterContext.chapter.uniqueIdentifier,
       weekRange: chapterContext.chapter.weekRange,
+      coverImageUrl: chapterContext.chapter.coverImageUrl,
       lessonCount: chapterContext.chapter.lessonCount,
       preTestQuizId: chapterContext.chapter.preTestQuizId,
       postTestQuizId: chapterContext.chapter.postTestQuizId,

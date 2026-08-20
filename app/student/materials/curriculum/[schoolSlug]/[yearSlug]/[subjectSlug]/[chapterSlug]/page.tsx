@@ -1,4 +1,5 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { CurriculumChapterPage } from "@/components/lms/curriculum-chapter-page";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +9,20 @@ type ChapterPageProps = {
 };
 
 export default async function StudentSchoolCurriculumChapterPage({ params }: ChapterPageProps) {
-  const { schoolSlug } = await params;
+  const { schoolSlug, yearSlug, subjectSlug, chapterSlug } = await params;
   const user = await getCurrentUser();
 
   if (user?.schoolSlugs && user.schoolSlugs.length > 0 && !user.schoolSlugs.includes(schoolSlug)) {
     notFound();
   }
 
-  redirect("/student/materials");
+  return (
+    <CurriculumChapterPage
+      schoolSlug={schoolSlug}
+      yearSlug={yearSlug}
+      subjectSlug={subjectSlug}
+      chapterSlug={chapterSlug}
+      role="student"
+    />
+  );
 }

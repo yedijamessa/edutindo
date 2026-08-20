@@ -4,7 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
-  ChevronRight,
+  LockKeyhole,
   Microscope,
   PencilLine,
   Sparkles,
@@ -12,12 +12,13 @@ import {
 import { LessonExportButton } from "@/components/lms/lesson-export-button";
 import { IntroductionToCellsFunnel } from "@/components/lms/lessons/introduction-to-cells-funnel";
 import { ModuleDocumentView } from "@/components/lms/module-document-view";
+import { LessonFloatingTools } from "@/components/lms/lesson-floating-tools";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
-import { buildCurriculumMaterialsHref } from "@/lib/curriculum-navigation";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
 import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
+import type { ModuleEditorDocument } from "@/types/module-editor";
 
 type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
 
@@ -28,6 +29,30 @@ interface CurriculumLessonPageProps {
   chapterSlug: string;
   lessonSlug: string;
   role: ChapterPortalRole;
+}
+
+function truncateContext(value: string, maxLength: number) {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}...` : value;
+}
+
+function buildModuleLessonContext(document: ModuleEditorDocument) {
+  return document.pages
+    .map((page, pageIndex) => {
+      const blocks = page.blocks.map((block, blockIndex) => {
+        if (block.type === "text") {
+          return `${blockIndex + 1}. ${block.title || "Text"}: ${block.body}`;
+        }
+
+        if (block.type === "image") {
+          return `${blockIndex + 1}. Image: ${block.altText || ""} ${block.caption || ""}`.trim();
+        }
+
+        return `${blockIndex + 1}. Quiz: ${block.prompt}`;
+      });
+
+      return [`Page ${pageIndex + 1}: ${page.title}`, page.description, ...blocks].filter(Boolean).join("\n");
+    })
+    .join("\n\n");
 }
 
 export async function CurriculumLessonPage({
@@ -53,52 +78,31 @@ export async function CurriculumLessonPage({
   const { school, year, subject, chapter, lesson, previousLesson, nextLesson } = context;
 
   const chapterPath = `/${role}/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}`;
-  const materialsPath = `/${role}/materials`;
-  const schoolMaterialsPath = buildCurriculumMaterialsHref(role, { schoolSlug: school.slug });
-  const yearMaterialsPath = buildCurriculumMaterialsHref(role, {
-    schoolSlug: school.slug,
-    yearSlug: year.slug,
-  });
-  const subjectMaterialsPath = buildCurriculumMaterialsHref(role, {
-    schoolSlug: school.slug,
-    yearSlug: year.slug,
-    subjectSlug: subject.slug,
-  });
   const lessonContent = getCurriculumLessonContent(subject.slug, lesson.slug);
   const moduleDocument = await getAssignedModuleDocumentForLesson(lesson.id);
   const isIntroCellsLesson = lessonContent.interactiveExperience && !moduleDocument;
   const postTestAvailable =
     role === "student" && !nextLesson && Boolean(chapter.postTestEnabled) && Boolean(chapter.postTestQuizId);
+  const backHref = chapterPath;
+  const backLabel = `Back to ${chapter.title || "Materials"}`;
+  const lessonAiContext = moduleDocument
+    ? buildModuleLessonContext(moduleDocument)
+    : [
+        lessonContent.overview,
+        lessonContent.focus.length > 0 ? `Lesson focus:\n${lessonContent.focus.join("\n")}` : "",
+        lessonContent.activities.length > 0 ? `Suggested activities:\n${lessonContent.activities.join("\n")}` : "",
+      ].filter(Boolean).join("\n\n");
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_50%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
       <main className="portal-page-width px-4 pb-16 pt-5 sm:px-6 lg:px-8">
-        {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 overflow-auto text-xs text-slate-400">
-          <Link href={materialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap">
-            Learning Materials
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <Link href={schoolMaterialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
-            {school.title}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <Link href={yearMaterialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
-            {year.title}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <Link href={subjectMaterialsPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
-            {subject.title}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <Link href={chapterPath} className="hover:text-slate-700 transition-colors whitespace-nowrap text-slate-500">
-            {chapter.title}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="font-semibold text-slate-800 whitespace-nowrap">
-            {lesson.lessonCode || lesson.title}
-          </span>
-        </div>
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-[#c6d4f3] hover:bg-[#f7faff]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {backLabel}
+        </Link>
 
         {/* ── Lesson header card ─────────────────────────────────────────── */}
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4 rounded-[28px] border border-white/70 bg-white/90 px-7 py-6 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.35)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
@@ -161,6 +165,7 @@ export async function CurriculumLessonPage({
                 lessonCode: lesson.lessonCode ?? undefined,
                 chapterTitle: chapter.title,
                 weekRange: chapter.weekRange ?? undefined,
+                role,
               }}
             />
           ) : (
@@ -229,6 +234,16 @@ export async function CurriculumLessonPage({
         {/* ── Bottom navigation ──────────────────────────────────────────── */}
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           {previousLesson ? (
+            role === "student" && previousLesson.isLocked ? (
+              <Button
+                disabled
+                variant="outline"
+                className="h-11 rounded-full border-[#d9e1ef] bg-white px-5 text-slate-400 shadow-none dark:border-slate-700 dark:bg-slate-900"
+              >
+                <LockKeyhole className="mr-2 h-4 w-4" />
+                Previous lesson locked
+              </Button>
+            ) : (
             <Button
               asChild
               variant="outline"
@@ -239,6 +254,7 @@ export async function CurriculumLessonPage({
                 Lesson {previousLesson.lessonCode || previousLesson.title}
               </Link>
             </Button>
+            )
           ) : (
             <Button
               asChild
@@ -253,6 +269,15 @@ export async function CurriculumLessonPage({
           )}
 
           {nextLesson ? (
+            role === "student" && nextLesson.isLocked ? (
+              <Button
+                disabled
+                className="h-11 rounded-full bg-slate-200 px-5 text-slate-500 shadow-none"
+              >
+                Next lesson locked
+                <LockKeyhole className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
             <Button
               asChild
               className="h-11 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] hover:brightness-105"
@@ -262,6 +287,7 @@ export async function CurriculumLessonPage({
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
+            )
           ) : (
             <Button
               asChild
@@ -272,6 +298,13 @@ export async function CurriculumLessonPage({
           )}
         </div>
       </main>
+      {role === "student" ? (
+        <LessonFloatingTools
+          lessonTitle={lesson.title}
+          contextTitle={`${subject.title} / ${chapter.title} / ${lesson.title}`}
+          contextBody={truncateContext(lessonAiContext, 14000)}
+        />
+      ) : null}
     </div>
   );
 }

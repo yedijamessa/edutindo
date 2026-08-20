@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { cn } from "@/components/ui/button";
 import {
     LayoutDashboard,
@@ -22,6 +22,7 @@ import {
     Palette,
     School,
     Lock,
+    Loader2,
     Minimize2,
     Maximize2,
 } from "lucide-react";
@@ -96,6 +97,11 @@ import { FocusTimer } from "@/components/lms/focus-timer";
 export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps) {
     const pathname = usePathname();
     const [showLockedItems, setShowLockedItems] = useState(false);
+    const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+    useEffect(() => {
+        setPendingHref(null);
+    }, [pathname]);
 
     const navItems =
         role === 'student'
@@ -114,6 +120,22 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
         window.alert("Still locked for user, please contact admin to unlock.");
     };
 
+    const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, href: string, isActive: boolean) => {
+        if (
+            isActive ||
+            event.defaultPrevented ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0
+        ) {
+            return;
+        }
+
+        setPendingHref(href);
+    };
+
     return (
         <>
             <nav className={role === "student" ? "space-y-1.5" : "space-y-1"}>
@@ -128,6 +150,7 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
 
                     const lockedForUser = role === "student" && item.inProgress && !canOpenLockedItems;
                     const isGreenStudentItem = role === "student" && greenStudentHrefs.has(item.href);
+                    const isPending = pendingHref === item.href;
                     const className = cn(
                         role === "student"
                             ? "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition-colors"
@@ -155,7 +178,11 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
 
                     const content = (
                         <>
-                            <Icon className={role === "student" ? "h-4 w-4" : "h-5 w-5"} />
+                            {isPending ? (
+                                <Loader2 className={cn(role === "student" ? "h-4 w-4" : "h-5 w-5", "animate-spin")} />
+                            ) : (
+                                <Icon className={role === "student" ? "h-4 w-4" : "h-5 w-5"} />
+                            )}
                             {item.title}
                             {lockedForUser ? <Lock className="ml-auto h-3.5 w-3.5" /> : null}
                         </>
@@ -177,6 +204,7 @@ export function SidebarNav({ role, canOpenLockedItems = false }: SidebarNavProps
                             href={item.href}
                             className={className}
                             title={item.inProgress ? `${item.title} is in progress` : item.title}
+                            onClick={(event) => handleNavClick(event, item.href, isActive)}
                         >
                             {content}
                         </Link>

@@ -6,7 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Timer, Play, Pause, RotateCcw, X, Minimize2, Maximize2 } from "lucide-react";
 import { cn } from "@/components/ui/button";
 
-export function FocusTimer() {
+type FocusTimerProps = {
+    triggerClassName?: string;
+    minimizedClassName?: string;
+};
+
+export function FocusTimer({ triggerClassName, minimizedClassName }: FocusTimerProps = {}) {
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes
@@ -53,7 +58,7 @@ export function FocusTimer() {
     if (!isOpen) {
         return (
             <Button
-                className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg z-50"
+                className={cn("fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg z-50", triggerClassName)}
                 onClick={() => setIsOpen(true)}
             >
                 <Timer className="w-6 h-6" />
@@ -63,7 +68,7 @@ export function FocusTimer() {
 
     if (isMinimized) {
         return (
-            <Card className="fixed bottom-6 right-6 w-48 shadow-lg z-50 border-primary/20">
+            <Card className={cn("fixed bottom-6 right-6 w-48 shadow-lg z-50 border-primary/20", minimizedClassName)}>
                 <div className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-2">
                         <div className={cn("w-2 h-2 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-yellow-500")} />

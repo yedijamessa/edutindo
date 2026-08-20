@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { StudentSidebarPanel } from "@/components/lms/student-sidebar-panel";
 import { getCurrentUser } from "@/lib/auth";
@@ -10,6 +9,7 @@ import {
   CheckSquare,
   ChevronRight,
   HelpCircle,
+  LockKeyhole,
   Play,
   Search,
   Sparkles,
@@ -66,8 +66,11 @@ export default async function StudentDashboard() {
   ]);
 
   const visibleLessons = assignedLessons.slice(0, 3);
-  const heroLesson = visibleLessons[0] ?? null;
-  const nextLesson = visibleLessons[1] ?? null;
+  const openLessons = assignedLessons.filter((lesson) => !lesson.isLocked);
+  const heroLesson = openLessons[0] ?? visibleLessons[0] ?? null;
+  const heroCoverImageUrl = heroLesson?.coverImageUrl || "/images/cells/microscope.png";
+  const nextLesson = openLessons.find((lesson) => lesson.href !== heroLesson?.href) ?? visibleLessons[1] ?? null;
+  const taskLessons = openLessons.slice(0, 3);
   const overallProgress = 0;
   const completedCount = 0;
   const upcomingEvents = studentEvents.slice(0, 2);
@@ -108,18 +111,17 @@ export default async function StudentDashboard() {
                   {heroLesson ? (
                     <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
                       <div className="relative min-h-[190px] bg-[#0b1d3a]">
-                        <Image
-                          src="/images/cells/microscope.png"
-                          alt="Assigned lesson preview"
-                          fill
-                          className="object-cover opacity-90"
+                        <img
+                          src={heroCoverImageUrl}
+                          alt={`${heroLesson.moduleTitle} preview`}
+                          className="h-full min-h-[190px] w-full object-cover opacity-90"
                         />
                       </div>
                       <div className="p-5 sm:p-6">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#159a61]">
-                              Assigned lesson
+                              Curriculum lesson
                             </p>
                             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
                               {heroLesson.moduleTitle}
@@ -128,13 +130,20 @@ export default async function StudentDashboard() {
                               {heroLesson.subject} / {heroLesson.chapterTitle}
                             </p>
                           </div>
-                          <Link
-                            href={heroLesson.href}
-                            className="inline-flex items-center gap-2 rounded-full bg-[#2f6fff] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
-                          >
-                            <Play className="h-4 w-4" />
-                            Open lesson
-                          </Link>
+                          {heroLesson.isLocked ? (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-500">
+                              <LockKeyhole className="h-4 w-4" />
+                              Locked
+                            </span>
+                          ) : (
+                            <Link
+                              href={heroLesson.href}
+                              className="inline-flex items-center gap-2 rounded-full bg-[#2f6fff] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
+                            >
+                              <Play className="h-4 w-4" />
+                              Open lesson
+                            </Link>
+                          )}
                         </div>
 
                         <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
@@ -143,7 +152,7 @@ export default async function StudentDashboard() {
 
                         <div className="mt-5 grid gap-3 sm:grid-cols-3">
                           {[
-                            { label: "Assigned lessons", value: `${assignedLessons.length}`, icon: CheckSquare },
+                            { label: "Curriculum lessons", value: `${assignedLessons.length}`, icon: CheckSquare },
                             { label: "Lessons done", value: `${completedCount}`, icon: TrendingUp },
                             { label: "Progress", value: `${overallProgress}%`, icon: Target },
                           ].map((item) => {
@@ -162,10 +171,10 @@ export default async function StudentDashboard() {
                     </div>
                   ) : (
                     <div className="p-6">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#2f6fff]">Assigned lessons</p>
-                      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">No lessons assigned yet</h1>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#2f6fff]">Curriculum lessons</p>
+                      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">No lessons available yet</h1>
                       <p className="mt-2 text-sm text-slate-500">
-                        When an admin sends a lesson assignment to this account, it will appear here.
+                        Assign this student to a school with curriculum lessons to show them here.
                       </p>
                     </div>
                   )}
@@ -175,7 +184,7 @@ export default async function StudentDashboard() {
                   <section className="rounded-[2rem] border border-[#e6edf8] bg-white p-5 shadow-sm sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Next assigned lesson</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Next open lesson</p>
                         <h2 className="mt-1 text-xl font-bold text-slate-900">{nextLesson.moduleTitle}</h2>
                       </div>
                       <Link
@@ -203,7 +212,7 @@ export default async function StudentDashboard() {
                   <div className="mt-5 space-y-3">
                     {visibleLessons.length === 0 ? (
                       <div className="rounded-3xl border border-[#edf2f8] bg-[#fbfdff] p-4 text-sm text-slate-500">
-                        No assigned lessons yet.
+                        No curriculum lessons yet.
                       </div>
                     ) : (
                       visibleLessons.map((lesson, index) => {
@@ -220,18 +229,27 @@ export default async function StudentDashboard() {
                                 <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge.bg} ${badge.text}`}>
                                   {lesson.subject}
                                 </span>
-                                <span className="text-xs font-medium text-slate-400">Assigned</span>
+                                <span className="text-xs font-medium text-slate-400">
+                                  {lesson.isLocked ? "Locked" : "Open"}
+                                </span>
                               </div>
                               <p className="mt-3 truncate text-sm font-bold text-slate-900">{lesson.moduleTitle}</p>
                               <p className="mt-1 text-xs leading-5 text-slate-500">{lesson.description}</p>
                             </div>
                             <div className="flex items-center justify-end">
-                              <Link
-                                href={lesson.href}
-                                className="inline-flex w-full items-center justify-center rounded-full bg-[#2f6fff] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
-                              >
-                                {action}
-                              </Link>
+                              {lesson.isLocked ? (
+                                <span className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-500">
+                                  <LockKeyhole className="h-4 w-4" />
+                                  Locked
+                                </span>
+                              ) : (
+                                <Link
+                                  href={lesson.href}
+                                  className="inline-flex w-full items-center justify-center rounded-full bg-[#2f6fff] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
+                                >
+                                  {action}
+                                </Link>
+                              )}
                             </div>
                           </div>
                         );
@@ -253,7 +271,7 @@ export default async function StudentDashboard() {
 
                   <div className="mt-5 overflow-hidden rounded-3xl border border-[#edf2f8]">
                     {visibleLessons.length === 0 ? (
-                      <div className="px-4 py-4 text-sm text-slate-500">No assigned materials yet.</div>
+                      <div className="px-4 py-4 text-sm text-slate-500">No curriculum materials yet.</div>
                     ) : (
                       visibleLessons.map((lesson) => {
                         const badge = subjectBadge(lesson.subject);
@@ -291,7 +309,7 @@ export default async function StudentDashboard() {
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                     {[
                       { label: "Overall progress", value: `${overallProgress}%`, tone: "bg-[#eef4ff] text-[#2f6fff]" },
-                      { label: "Assigned lessons", value: `${assignedLessons.length}`, tone: "bg-[#fff3e6] text-[#f97316]" },
+                      { label: "Curriculum lessons", value: `${assignedLessons.length}`, tone: "bg-[#fff3e6] text-[#f97316]" },
                       { label: "Topics mastered", value: `${completedCount}`, tone: "bg-[#ecfbf3] text-[#159a61]" },
                     ].map((item) => (
                       <div key={item.label} className="rounded-3xl bg-[#fbfdff] p-4">
@@ -349,10 +367,10 @@ export default async function StudentDashboard() {
                   </div>
 
                   <div className="mt-4 space-y-3">
-                    {visibleLessons.length === 0 ? (
-                      <div className="rounded-3xl bg-[#fbfdff] p-3 text-sm text-slate-500">No assigned tasks yet.</div>
+                    {taskLessons.length === 0 ? (
+                      <div className="rounded-3xl bg-[#fbfdff] p-3 text-sm text-slate-500">No open tasks yet.</div>
                     ) : (
-                      visibleLessons.map((lesson) => {
+                      taskLessons.map((lesson) => {
                         const badge = subjectBadge(lesson.subject);
 
                         return (

@@ -22,9 +22,11 @@ import {
   ChevronRight,
   CircleHelp,
   Download,
+  EyeOff,
   FilePenLine,
   FlaskConical,
   GripVertical,
+  ImageIcon,
   LibraryBig,
   Loader2,
   MoreVertical,
@@ -34,8 +36,10 @@ import {
   Plus,
   Rocket,
   School,
+  Settings,
   Sparkles,
   Trash2,
+  User,
   X,
 } from "lucide-react";
 import { cn } from "@/components/ui/button";
@@ -119,6 +123,7 @@ type LessonEditDraft = {
   week: string;
   lessonCode: string;
   uniqueIdentifier: string;
+  coverImageUrl: string;
 };
 
 type BulkLessonEntry = {
@@ -202,6 +207,10 @@ function toBoolean(value: unknown) {
   if (typeof value === "number") return value === 1;
   const cleaned = text(value).toLowerCase();
   return cleaned === "true" || cleaned === "1" || cleaned === "yes" || cleaned === "on";
+}
+
+function isLessonLocked(lesson: CurriculumNode) {
+  return toBoolean(lesson.metadata?.isLocked);
 }
 
 function normalizeWeekInput(value: string) {
@@ -328,6 +337,11 @@ function getVisibleLessonsForScope(chapter: CurriculumNode, schoolSlug: string, 
   const lessonNodes = chapter.children.filter((node) => node.nodeType === "lesson");
 
   return lessonNodes.filter((lesson) => {
+    const hiddenLessonTags = parseAssignmentTags({ assignmentTags: lesson.metadata.hiddenAssignmentTags });
+    if (hasAssignmentTag(hiddenLessonTags, schoolSlug, yearSlug)) {
+      return false;
+    }
+
     const lessonTags = parseAssignmentTags(lesson.metadata ?? {});
 
     if (lessonTags.length > 0) {
@@ -364,6 +378,26 @@ function stripAssignmentTagsForSchool(metadata: Record<string, unknown>, schoolS
   return {
     ...(metadata ?? {}),
     assignmentTags: currentTags.filter((tag) => tag.schoolSlug !== schoolSlug),
+  };
+}
+
+function hideMetadataForSchoolYear(
+  metadata: Record<string, unknown>,
+  schoolSlug: string,
+  yearSlug: string
+) {
+  const currentTags = parseAssignmentTags(metadata);
+  const hiddenTags = parseAssignmentTags({ assignmentTags: metadata.hiddenAssignmentTags });
+  const fallbackTag = { schoolSlug, yearSlug };
+  const tagsToHide = currentTags.filter((tag) => tag.schoolSlug === schoolSlug);
+  const nextHiddenTags = [...hiddenTags, ...(tagsToHide.length > 0 ? tagsToHide : [fallbackTag])];
+
+  return {
+    ...(metadata ?? {}),
+    assignmentTags: currentTags.filter((tag) => tag.schoolSlug !== schoolSlug),
+    hiddenAssignmentTags: Array.from(
+      new Map(nextHiddenTags.map((tag) => [`${tag.schoolSlug}:${tag.yearSlug}`, tag])).values()
+    ),
   };
 }
 
@@ -751,6 +785,7 @@ export function CurriculumPortal({
   const [chapterTitleDraft, setChapterTitleDraft] = useState("");
   const [chapterCodeDraft, setChapterCodeDraft] = useState("");
   const [chapterUniqueIdentifierDraft, setChapterUniqueIdentifierDraft] = useState("");
+  const [chapterCoverImageDraft, setChapterCoverImageDraft] = useState("");
   const [lessonEditDraft, setLessonEditDraft] = useState<LessonEditDraft | null>(null);
   const [assessmentDrafts, setAssessmentDrafts] = useState<Record<string, ChapterAssessmentDraft>>({});
   const [assessmentBusyId, setAssessmentBusyId] = useState<string | null>(null);
@@ -760,6 +795,8 @@ export function CurriculumPortal({
   const [assessmentDialogOpen, setAssessmentDialogOpen] = useState(false);
   const [assessmentDialogType, setAssessmentDialogType] = useState<AssessmentType>("pre");
   const [assessmentDialogChapterId, setAssessmentDialogChapterId] = useState<string | null>(null);
+  const [chapterSettingsNode, setChapterSettingsNode] = useState<CurriculumNode | null>(null);
+  const [moduleSettingsNode, setModuleSettingsNode] = useState<CurriculumNode | null>(null);
 
   const dragStateRef = useRef<DragState | null>(null);
 
@@ -996,6 +1033,7 @@ export function CurriculumPortal({
     setChapterTitleDraft(selectedChapter?.title ?? "");
     setChapterCodeDraft(text(selectedChapter?.metadata.chapterCode));
     setChapterUniqueIdentifierDraft(text(selectedChapter?.metadata.uniqueIdentifier));
+    setChapterCoverImageDraft(text(selectedChapter?.metadata.coverImageUrl));
   }, [selectedChapter]);
 
   const lessons = useMemo(() => {
@@ -1021,6 +1059,21 @@ export function CurriculumPortal({
     () => lessons.find((item) => item.id === selectedModuleId) ?? null,
     [lessons, selectedModuleId]
   );
+  const chapterSettingsIsHidden = useMemo(() => {
+    if (!chapterSettingsNode || !selectedSchool) return false;
+    const visibleTags = parseAssignmentTags(chapterSettingsNode.metadata ?? {});
+    return visibleTags.length > 0 && visibleTags.every((tag) => tag.schoolSlug !== selectedSchool.slug);
+  }, [chapterSettingsNode, selectedSchool]);
+  const moduleSettingsIsHidden = useMemo(() => {
+    if (!moduleSettingsNode || !selectedSchool) return false;
+    const hiddenTags = parseAssignmentTags({ assignmentTags: moduleSettingsNode.metadata.hiddenAssignmentTags });
+    if (selectedYearSlug && hasAssignmentTag(hiddenTags, selectedSchool.slug, selectedYearSlug)) {
+      return true;
+    }
+
+    const visibleTags = parseAssignmentTags(moduleSettingsNode.metadata ?? {});
+    return visibleTags.length > 0 && visibleTags.every((tag) => tag.schoolSlug !== selectedSchool.slug);
+  }, [moduleSettingsNode, selectedSchool, selectedYearSlug]);
 
   const getNextLessonWeekNumber = (offset: number) => {
     const highestWeek = lessons.reduce((highest, lesson) => {
@@ -1135,6 +1188,7 @@ export function CurriculumPortal({
     if (nodeType === "chapter") {
       metadata.chapterCode = metadata.chapterCode ?? chapterCodeDraft.trim();
       metadata.uniqueIdentifier = metadata.uniqueIdentifier ?? chapterUniqueIdentifierDraft.trim();
+      metadata.coverImageUrl = metadata.coverImageUrl ?? chapterCoverImageDraft.trim();
       metadata.weekRange =
         metadata.weekRange ?? formatChapterWeekRange(chapterWeekStartDraft, chapterWeekEndDraft);
       if (
@@ -1446,7 +1500,8 @@ export function CurriculumPortal({
       nextTitle === selectedChapter.title &&
       nextWeekRange === currentWeekRange &&
       chapterCodeDraft.trim() === text(selectedChapter.metadata.chapterCode) &&
-      chapterUniqueIdentifierDraft.trim() === text(selectedChapter.metadata.uniqueIdentifier)
+      chapterUniqueIdentifierDraft.trim() === text(selectedChapter.metadata.uniqueIdentifier) &&
+      chapterCoverImageDraft.trim() === text(selectedChapter.metadata.coverImageUrl)
     ) {
       return;
     }
@@ -1458,6 +1513,7 @@ export function CurriculumPortal({
         ...(selectedChapter.metadata ?? {}),
         chapterCode: chapterCodeDraft.trim(),
         uniqueIdentifier: chapterUniqueIdentifierDraft.trim(),
+        coverImageUrl: chapterCoverImageDraft.trim(),
         weekRange: nextWeekRange,
       },
       "Chapter updated."
@@ -1478,6 +1534,7 @@ export function CurriculumPortal({
       week: text(lesson.metadata.week),
       lessonCode: text(lesson.metadata.lessonCode),
       uniqueIdentifier: text(lesson.metadata.uniqueIdentifier),
+      coverImageUrl: text(lesson.metadata.coverImageUrl),
     });
   };
 
@@ -1508,6 +1565,7 @@ export function CurriculumPortal({
         week: lessonEditDraft.week.trim(),
         lessonCode: lessonEditDraft.lessonCode.trim(),
         uniqueIdentifier: lessonEditDraft.uniqueIdentifier.trim(),
+        coverImageUrl: lessonEditDraft.coverImageUrl.trim(),
       },
       "Lesson / module updated."
     );
@@ -1569,6 +1627,18 @@ export function CurriculumPortal({
       node.title,
       { ...(node.metadata ?? {}), assignmentTags: nextTags },
       `${nodeLabelByType[node.nodeType]} tags updated.`
+    );
+  };
+
+  const toggleLessonLock = async (lesson: CurriculumNode) => {
+    await saveNode(
+      lesson,
+      lesson.title,
+      {
+        ...(lesson.metadata ?? {}),
+        isLocked: !isLessonLocked(lesson),
+      },
+      isLessonLocked(lesson) ? "Lesson unlocked for students." : "Lesson locked for students."
     );
   };
 
@@ -1730,6 +1800,116 @@ export function CurriculumPortal({
     } finally {
       setBusy(false);
     }
+  };
+
+  const openChapterSettings = (chapter: CurriculumNode) => {
+    setChapterSettingsNode(chapter);
+  };
+
+  const editCoverImage = async (node: CurriculumNode) => {
+    const nextCoverImageUrl = window.prompt("Cover image URL", text(node.metadata.coverImageUrl));
+    if (nextCoverImageUrl === null) return;
+
+    await saveNode(
+      node,
+      node.title,
+      {
+        ...(node.metadata ?? {}),
+        coverImageUrl: nextCoverImageUrl.trim(),
+      },
+      `${nodeLabelByType[node.nodeType]} cover image updated.`
+    );
+  };
+
+  const hideLessonFromSelectedSchool = async (lesson: CurriculumNode) => {
+    if (!lockedSchoolSlug && !selectedSchool?.slug) {
+      await toggleLessonLock(lesson);
+      return;
+    }
+
+    const schoolSlug = lockedSchoolSlug ?? selectedSchool?.slug ?? "";
+    if (!schoolSlug) return;
+
+    await saveNode(
+      lesson,
+      lesson.title,
+      hideMetadataForSchoolYear(
+        lesson.metadata ?? {},
+        schoolSlug,
+        selectedYearSlug ?? YEAR_OPTIONS[0]?.slug ?? "year-7"
+      ),
+      `Module hidden from ${selectedSchool?.title ?? "students"}.`
+    );
+  };
+
+  const openModuleSettings = (lesson: CurriculumNode) => {
+    setModuleSettingsNode(lesson);
+  };
+
+  const runChapterSettingsAction = async (
+    action: "rename" | "cover" | "delete" | "hide" | "exclude"
+  ) => {
+    if (!chapterSettingsNode) return;
+
+    if (action === "rename") {
+      await renameNode(chapterSettingsNode);
+      setChapterSettingsNode(null);
+      return;
+    }
+
+    if (action === "cover") {
+      await editCoverImage(chapterSettingsNode);
+      setChapterSettingsNode(null);
+      return;
+    }
+
+    if (action === "delete") {
+      await deleteNode(chapterSettingsNode);
+      setChapterSettingsNode(null);
+      return;
+    }
+
+    if (action === "hide") {
+      await deleteNode(chapterSettingsNode);
+      setChapterSettingsNode(null);
+      return;
+    }
+
+    setMessage("Student exclusion for chapters is not connected yet.");
+    setChapterSettingsNode(null);
+  };
+
+  const runModuleSettingsAction = async (
+    action: "rename" | "cover" | "delete" | "hide" | "exclude"
+  ) => {
+    if (!moduleSettingsNode) return;
+
+    if (action === "rename") {
+      await renameNode(moduleSettingsNode);
+      setModuleSettingsNode(null);
+      return;
+    }
+
+    if (action === "cover") {
+      await editCoverImage(moduleSettingsNode);
+      setModuleSettingsNode(null);
+      return;
+    }
+
+    if (action === "delete") {
+      await deleteNode(moduleSettingsNode);
+      setModuleSettingsNode(null);
+      return;
+    }
+
+    if (action === "hide") {
+      await hideLessonFromSelectedSchool(moduleSettingsNode);
+      setModuleSettingsNode(null);
+      return;
+    }
+
+    setMessage("Student exclusion for modules is not connected yet.");
+    setModuleSettingsNode(null);
   };
 
   const persistOrder = async (parentId: string | null, nodeType: NodeType, orderedNodeIds: string[]) => {
@@ -2207,21 +2387,13 @@ export function CurriculumPortal({
                                                                 type="button"
                                                                 onClick={(event) => {
                                                                   event.stopPropagation();
-                                                                  void renameNode(chapter);
+                                                                  openChapterSettings(chapter);
                                                                 }}
                                                                 className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                                                aria-label={`Open settings for ${chapter.title}`}
+                                                                title="Chapter settings"
                                                               >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                              </button>
-                                                              <button
-                                                                type="button"
-                                                                onClick={(event) => {
-                                                                  event.stopPropagation();
-                                                                  void deleteNode(chapter);
-                                                                }}
-                                                                className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
-                                                              >
-                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                <Settings className="h-3.5 w-3.5" />
                                                               </button>
                                                             </span>
                                                           ) : null}
@@ -2265,21 +2437,13 @@ export function CurriculumPortal({
                                                                           type="button"
                                                                           onClick={(event) => {
                                                                             event.stopPropagation();
-                                                                            void renameNode(lesson);
+                                                                            openModuleSettings(lesson);
                                                                           }}
                                                                           className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                                                          aria-label={`Open settings for ${lesson.title}`}
+                                                                          title="Module settings"
                                                                         >
-                                                                          <Pencil className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                        <button
-                                                                          type="button"
-                                                                          onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            void deleteNode(lesson);
-                                                                          }}
-                                                                          className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
-                                                                        >
-                                                                          <Trash2 className="h-3.5 w-3.5" />
+                                                                          <Settings className="h-3.5 w-3.5" />
                                                                         </button>
                                                                       </span>
                                                                     ) : null}
@@ -2409,21 +2573,13 @@ export function CurriculumPortal({
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
-                                                renameNode(chapter);
+                                                openChapterSettings(chapter);
                                               }}
                                               className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                              aria-label={`Open settings for ${chapter.title}`}
+                                              title="Chapter settings"
                                             >
-                                              <Pencil className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                deleteNode(chapter);
-                                              }}
-                                              className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
-                                            >
-                                              <Trash2 className="h-3.5 w-3.5" />
+                                              <Settings className="h-3.5 w-3.5" />
                                             </button>
                                             <MoreVertical className="h-4 w-4 text-slate-400" />
                                           </span>
@@ -2584,21 +2740,13 @@ export function CurriculumPortal({
                                                     type="button"
                                                     onClick={(event) => {
                                                       event.stopPropagation();
-                                                      renameNode(chapter);
+                                                      openChapterSettings(chapter);
                                                     }}
                                                     className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                                                    aria-label={`Open settings for ${chapter.title}`}
+                                                    title="Chapter settings"
                                                   >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                  </button>
-                                                  <button
-                                                    type="button"
-                                                    onClick={(event) => {
-                                                      event.stopPropagation();
-                                                      deleteNode(chapter);
-                                                    }}
-                                                    className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-500"
-                                                  >
-                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    <Settings className="h-3.5 w-3.5" />
                                                   </button>
                                                   <MoreVertical className="h-4 w-4 text-slate-400" />
                                                 </span>
@@ -2792,6 +2940,18 @@ export function CurriculumPortal({
                         </Button>
                       </div>
                     </div>
+                    <div className="mt-3">
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cover image URL</label>
+                      <Input
+                        value={chapterCoverImageDraft}
+                        onChange={(event) => setChapterCoverImageDraft(event.target.value)}
+                        placeholder="/images/cells/microscope.png or https://..."
+                        className={fieldClassName}
+                      />
+                      <p className="mt-1 text-xs text-slate-400">
+                        Used on student dashboard lesson cards. Module cover images override this chapter image.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="border-t border-[#edf2f8] pt-5">
@@ -2932,6 +3092,7 @@ export function CurriculumPortal({
                           const activeLesson = lesson.id === selectedModuleId;
                           const canDropHere = canDropOnNode(lesson);
                           const editingLesson = lessonEditDraft?.lessonId === lesson.id;
+                          const lockedLesson = isLessonLocked(lesson);
 
                           return (
                             <div
@@ -2951,7 +3112,7 @@ export function CurriculumPortal({
                               }}
                               className={cn(
                                 "grid grid-cols-[54px_82px_132px_160px_minmax(0,1fr)_224px] items-center gap-3 border-t border-[#edf2f8] px-4 py-3 text-sm transition-colors",
-                                activeLesson ? "bg-[#f4f8ff]" : "bg-white dark:bg-slate-950"
+                                activeLesson ? "bg-[#f4f8ff]" : lockedLesson ? "bg-slate-50/80" : "bg-white dark:bg-slate-950"
                               )}
                             >
                               <div className="flex items-center gap-2 text-slate-300">
@@ -3028,7 +3189,10 @@ export function CurriculumPortal({
                                   <button
                                     type="button"
                                     onClick={() => setSelectedModuleId(lesson.id)}
-                                    className="truncate text-left font-medium text-slate-700 hover:text-slate-950 dark:text-slate-100"
+                                    className={cn(
+                                      "truncate text-left font-medium hover:text-slate-950 dark:text-slate-100",
+                                      lockedLesson ? "text-slate-400" : "text-slate-700"
+                                    )}
                                   >
                                     {lesson.title}
                                   </button>
@@ -3073,6 +3237,18 @@ export function CurriculumPortal({
                                       </a>
                                     ))}
                                     <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      disabled={busy}
+                                      onClick={() => openModuleSettings(lesson)}
+                                      className="h-8 w-8 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                                      aria-label={`Open settings for ${lesson.title}`}
+                                      title="Module settings"
+                                    >
+                                      <Settings className="h-4 w-4" />
+                                    </Button>
+                                    <Button
                                       asChild
                                       variant="ghost"
                                       size="icon"
@@ -3085,24 +3261,6 @@ export function CurriculumPortal({
                                       >
                                         <FilePenLine className="h-4 w-4" />
                                       </Link>
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => beginLessonEdit(lesson)}
-                                      className="h-8 w-8 rounded-full text-slate-500"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => deleteNode(lesson)}
-                                      className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </>
                                 )}
@@ -3359,6 +3517,134 @@ export function CurriculumPortal({
         }}
         onQuizCreated={handleAssessmentQuizCreated}
       />
+
+      <Dialog open={Boolean(chapterSettingsNode)} onOpenChange={(open) => !open && setChapterSettingsNode(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chapter Settings</DialogTitle>
+            <DialogDescription>
+              {chapterSettingsNode?.title ?? "Selected chapter"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2 py-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy}
+              onClick={() => void runChapterSettingsAction("rename")}
+            >
+              <Pencil className="mr-3 h-4 w-4 text-slate-500" />
+              Edit Name
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy}
+              onClick={() => void runChapterSettingsAction("cover")}
+            >
+              <ImageIcon className="mr-3 h-4 w-4 text-slate-500" />
+              Edit Cover Image
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-red-200 bg-red-50 px-4 text-left text-red-700 hover:bg-red-100 hover:text-red-800"
+              disabled={busy}
+              onClick={() => void runChapterSettingsAction("delete")}
+            >
+              <Trash2 className="mr-3 h-4 w-4" />
+              Delete Chapter
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy || chapterSettingsIsHidden}
+              onClick={() => void runChapterSettingsAction("hide")}
+            >
+              <EyeOff className="mr-3 h-4 w-4 text-slate-500" />
+              {chapterSettingsIsHidden ? "Chapter Hidden from Student" : "Hide Chapter from Student"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy}
+              onClick={() => void runChapterSettingsAction("exclude")}
+            >
+              <User className="mr-3 h-4 w-4 text-slate-500" />
+              Exclude Student
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(moduleSettingsNode)} onOpenChange={(open) => !open && setModuleSettingsNode(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Module Settings</DialogTitle>
+            <DialogDescription>
+              {moduleSettingsNode?.title ?? "Selected module"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2 py-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy}
+              onClick={() => void runModuleSettingsAction("rename")}
+            >
+              <Pencil className="mr-3 h-4 w-4 text-slate-500" />
+              Edit Name
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy}
+              onClick={() => void runModuleSettingsAction("cover")}
+            >
+              <ImageIcon className="mr-3 h-4 w-4 text-slate-500" />
+              Edit Cover Image
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-red-200 bg-red-50 px-4 text-left text-red-700 hover:bg-red-100 hover:text-red-800"
+              disabled={busy}
+              onClick={() => void runModuleSettingsAction("delete")}
+            >
+              <Trash2 className="mr-3 h-4 w-4" />
+              Delete Module
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy || moduleSettingsIsHidden}
+              onClick={() => void runModuleSettingsAction("hide")}
+            >
+              <EyeOff className="mr-3 h-4 w-4 text-slate-500" />
+              {moduleSettingsIsHidden ? "Module Hidden from Student" : "Hide Module from Student"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start rounded-2xl border-[#dbe7fb] bg-white px-4 text-left"
+              disabled={busy}
+              onClick={() => void runModuleSettingsAction("exclude")}
+            >
+              <User className="mr-3 h-4 w-4 text-slate-500" />
+              Exclude Student
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

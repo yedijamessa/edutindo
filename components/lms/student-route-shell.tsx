@@ -17,8 +17,9 @@ export function StudentRouteShell({
   canOpenLockedItems = false,
 }: StudentRouteShellProps) {
   const pathname = usePathname();
+  const isCurriculumLessonPage = /^\/student\/materials\/curriculum\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/?$/.test(pathname);
 
-  if (pathname === "/student") {
+  if (pathname === "/student" || isCurriculumLessonPage) {
     return <>{children}</>;
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Clock3, Eye, EyeOff, Loader2, Trash2, X } from "lucide-react";
@@ -64,6 +64,13 @@ async function parseActionResponse(response: Response) {
   return payload as { applied?: boolean; request?: PendingRequest };
 }
 
+function sortSubjects(subjects: SubjectItem[]) {
+  return [...subjects].sort((left, right) => {
+    if (left.isVisible !== right.isVisible) return left.isVisible ? -1 : 1;
+    return left.title.localeCompare(right.title);
+  });
+}
+
 export function SchoolSubjectVisibilityClient({
   schoolTitle,
   schoolSlug,
@@ -72,10 +79,15 @@ export function SchoolSubjectVisibilityClient({
   canApprove,
 }: SchoolSubjectVisibilityClientProps) {
   const router = useRouter();
+  const [localSubjects, setLocalSubjects] = useState(() => sortSubjects(subjects));
   const [busyKey, setBusyKey] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    setLocalSubjects(sortSubjects(subjects));
+  }, [subjects]);
 
   const pendingBySubject = useMemo(() => {
     const map = new Map<string, PendingRequest[]>();
@@ -111,6 +123,17 @@ export function SchoolSubjectVisibilityClient({
       );
 
       if (payload.applied) {
+        setLocalSubjects((currentSubjects) =>
+          sortSubjects(
+            action === "remove"
+              ? currentSubjects.filter((item) => item.id !== subject.id)
+              : currentSubjects.map((item) =>
+                  item.id === subject.id
+                    ? { ...item, isVisible: action === "show" }
+                    : item
+                )
+          )
+        );
         setMessage(`${subject.title} ${action === "show" ? "shown" : action === "hide" ? "hidden" : "removed"}.`);
       } else {
         setMessage(`Request sent. ${approverLabel} must approve before ${subject.title} is changed.`);
@@ -237,7 +260,7 @@ export function SchoolSubjectVisibilityClient({
   return (
     <div className="space-y-5">
       <div className="rounded-[22px] border border-[#dbe5ff] bg-white/86 px-4 py-3 text-sm text-slate-600 shadow-sm">
-        Tick a subject to show it for {schoolTitle}; untick it to hide it. Remove deletes the subject after approval unless an
+        Use Show or Hide to control whether a subject appears for {schoolTitle}. Remove deletes the subject after approval unless an
         approver is making the change.
       </div>
 
@@ -316,19 +339,19 @@ export function SchoolSubjectVisibilityClient({
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Open subject</th>
-                <th className="px-4 py-3">Hide</th>
+                <th className="px-4 py-3">Visibility</th>
                 <th className="px-4 py-3">Remove</th>
               </tr>
             </thead>
             <tbody>
-              {subjects.length === 0 ? (
+              {localSubjects.length === 0 ? (
                 <tr className="border-t border-[#e7edf8]">
                   <td className="px-4 py-8 text-sm text-slate-500" colSpan={4}>
                     No subjects available for {schoolTitle}.
                   </td>
                 </tr>
               ) : (
-                subjects.map(renderSubjectRow)
+                localSubjects.map(renderSubjectRow)
               )}
             </tbody>
           </table>

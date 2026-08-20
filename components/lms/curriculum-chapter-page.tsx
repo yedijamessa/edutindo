@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, LockKeyhole, PencilLine } from "lucide-react";
 import { LessonExportButton } from "@/components/lms/lesson-export-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -137,6 +137,7 @@ export async function CurriculumChapterPage({
                     <tbody>
                       {chapter.lessons.map((lesson) => {
                         const lessonHref = `${chapterBasePath}/${chapter.slug}/${lesson.slug}`;
+                        const isStudentLocked = role === "student" && lesson.isLocked;
 
                         return (
                           <tr
@@ -146,13 +147,21 @@ export async function CurriculumChapterPage({
                             <td className="py-3 pr-3 text-slate-600">{lesson.week || "-"}</td>
                             <td className="py-3 pr-3 font-medium text-slate-800">{lesson.lessonCode || "-"}</td>
                             <td className="py-3 text-slate-700">
-                              <Link
-                                href={lessonHref}
-                                className="group inline-flex items-center gap-1.5 font-medium text-blue-700 hover:text-blue-900"
-                              >
-                                <span>{lesson.title}</span>
-                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                              </Link>
+                              {isStudentLocked ? (
+                                <span className="inline-flex items-center gap-1.5 font-medium text-slate-400">
+                                  <LockKeyhole className="h-3.5 w-3.5" />
+                                  <span>{lesson.title}</span>
+                                  <Badge variant="secondary" className="ml-1">Locked</Badge>
+                                </span>
+                              ) : (
+                                <Link
+                                  href={lessonHref}
+                                  className="group inline-flex items-center gap-1.5 font-medium text-blue-700 hover:text-blue-900"
+                                >
+                                  <span>{lesson.title}</span>
+                                  <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                                </Link>
+                              )}
                             </td>
                             {canExportLessons && (
                               <td className="py-3 pl-3 text-right">

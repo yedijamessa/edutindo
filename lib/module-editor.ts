@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import {
   ensureCurriculumReady,
   getCurriculumLessonContext,
+  getCurriculumChapterContext,
   getCurriculumNodeLineage,
   listCurriculumSchools,
   listCurriculumTree,
@@ -64,12 +65,23 @@ export type StudentAssignedModuleLesson = {
   moduleTitle: string;
   lessonId: string;
   lessonTitle: string;
+  lessonCode: string;
+  schoolTitle: string;
+  schoolSlug: string;
+  yearTitle: string;
+  yearSlug: string;
   subject: string;
   subjectSlug: string;
   chapterTitle: string;
+  chapterSlug: string;
+  chapterPosition: number;
+  lessonPosition: number;
+  coverImageUrl: string;
   description: string;
   href: string;
   createdAt: string;
+  isLocked: boolean;
+  isAutoAssigned: boolean;
 };
 
 let moduleEditorSchemaReady: Promise<void> | null = null;
@@ -903,26 +915,39 @@ export async function listModuleDocuments(): Promise<ModuleListEntry[]> {
 }
 
 export async function listStudentAssignedModuleLessons(
-  user: Pick<AuthUser, "id" | "email"> | null | undefined
+  user: (Pick<AuthUser, "id" | "email"> & Partial<Pick<AuthUser, "schoolSlugs">>) | null | undefined
 ): Promise<StudentAssignedModuleLesson[]> {
   if (!user) return [];
 
   await Promise.all([ensureAuthSchema(), ensureModuleEditorSchema()]);
 
+  const modules = await listModuleDocuments();
+  const lessonsByKey = new Map<string, StudentAssignedModuleLesson>();
+  const moduleByLessonId = new Map<string, ModuleListEntry>();
+
+  for (const module of modules) {
+    for (const assignment of module.assignments) {
+      if (!moduleByLessonId.has(assignment.lessonId)) {
+        moduleByLessonId.set(assignment.lessonId, module);
+      }
+    }
+  }
+
+  const addLesson = (lesson: StudentAssignedModuleLesson) => {
+    if (lessonsByKey.has(lesson.href)) return;
+    lessonsByKey.set(lesson.href, lesson);
+  };
+
   const email = user.email.trim().toLowerCase();
-  const assignmentResult = await sql<StudentLessonAssignmentRow>`
+  const [assignmentResult, schools] = await Promise.all([
+    sql<StudentLessonAssignmentRow>`
     SELECT lesson_id, module_id, school_slug, assigned_at
     FROM auth_student_lesson_assignments
     WHERE user_id = ${user.id} OR email = ${email}
     ORDER BY assigned_at DESC
-  `;
-
-  if (assignmentResult.rows.length === 0) {
-    return [];
-  }
-
-  const modules = await listModuleDocuments();
-  const lessonsByKey = new Map<string, StudentAssignedModuleLesson>();
+    `,
+    listCurriculumSchools(),
+  ]);
 
   for (const row of assignmentResult.rows) {
     const module = modules.find((item) => item.moduleId === row.module_id);
@@ -930,9 +955,6 @@ export async function listStudentAssignedModuleLessons(
 
     const lesson = module.assignments.find((item) => item.lessonId === row.lesson_id);
     if (!lesson) continue;
-
-    const key = `${row.module_id}:${row.lesson_id}`;
-    if (lessonsByKey.has(key)) continue;
 
     const subject = lesson.subjectTitle || module.subjectTitle || "General";
     const chapter = lesson.chapterTitle || module.chapterTitle;
@@ -976,22 +998,114 @@ export async function listStudentAssignedModuleLessons(
 
     if (!lessonContext) continue;
 
-    lessonsByKey.set(key, {
+    addLesson({
       id: lesson.lessonId,
       moduleId: module.moduleId,
       moduleTitle: module.moduleTitle,
       lessonId: lesson.lessonId,
       lessonTitle: lesson.lessonTitle,
+      lessonCode: lessonContext.lesson.lessonCode || lesson.lessonCode,
+      schoolTitle: lessonContext.school.title,
+      schoolSlug: lessonContext.school.slug,
+      yearTitle: lessonContext.year.title,
+      yearSlug: lessonContext.year.slug,
       subject,
       subjectSlug: lesson.subjectSlug || module.subjectSlug,
       chapterTitle: chapter,
+      chapterSlug: lessonContext.chapter.slug,
+      chapterPosition: lessonContext.chapter.position,
+      lessonPosition: lessonContext.lesson.position,
+      coverImageUrl: lessonContext.lesson.coverImageUrl || lessonContext.chapter.coverImageUrl,
       description: chapter ? `${subject} / ${chapter}` : `${subject} lesson`,
       href: lessonHref,
       createdAt: row.assigned_at.toISOString(),
+      isLocked: lessonContext.lesson.isLocked,
+      isAutoAssigned: false,
     });
   }
 
-  return Array.from(lessonsByKey.values());
+  const assignedSchoolSlugs = new Set(
+    (user.schoolSlugs ?? []).map((schoolSlug) => schoolSlug.trim().toLowerCase()).filter(Boolean)
+  );
+
+  const enrolledChapters = schools.flatMap((school) => {
+    if (!assignedSchoolSlugs.has(school.slug)) return [];
+
+    return school.years.flatMap((year) =>
+      year.subjects.flatMap((subject) =>
+        subject.chapters.map((chapter) => ({
+          schoolSlug: school.slug,
+          yearSlug: year.slug,
+          subjectSlug: subject.slug,
+          chapterSlug: chapter.slug,
+        }))
+      )
+    );
+  });
+
+  const chapterContexts = await Promise.all(
+    enrolledChapters.map((chapter) => getCurriculumChapterContext(chapter))
+  );
+
+  for (const context of chapterContexts) {
+    if (!context) continue;
+
+    const { school, year, subject, chapter } = context;
+
+    for (const lesson of chapter.lessons) {
+      const module = moduleByLessonId.get(lesson.id) ?? null;
+      const lessonHref = `/student/materials/curriculum/${school.slug}/${year.slug}/${subject.slug}/${chapter.slug}/${lesson.slug}`;
+
+      addLesson({
+        id: lesson.id,
+        moduleId: module?.moduleId ?? lesson.id,
+        moduleTitle: module?.moduleTitle ?? lesson.title,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        lessonCode: lesson.lessonCode,
+        schoolTitle: school.title,
+        schoolSlug: school.slug,
+        yearTitle: year.title,
+        yearSlug: year.slug,
+        subject: subject.title,
+        subjectSlug: subject.slug,
+        chapterTitle: chapter.title,
+        chapterSlug: chapter.slug,
+        chapterPosition: chapter.position,
+        lessonPosition: lesson.position,
+        coverImageUrl: lesson.coverImageUrl || chapter.coverImageUrl,
+        description: `${school.title} / ${year.title} / ${subject.title} / ${chapter.title}`,
+        href: lessonHref,
+        createdAt: new Date().toISOString(),
+        isLocked: lesson.isLocked,
+        isAutoAssigned: true,
+      });
+    }
+  }
+
+  return Array.from(lessonsByKey.values()).sort((left, right) =>
+    [
+      left.schoolTitle,
+      left.yearTitle,
+      left.subject,
+      String(left.chapterPosition).padStart(6, "0"),
+      left.chapterTitle,
+      String(left.lessonPosition).padStart(6, "0"),
+      left.lessonCode || left.lessonTitle,
+    ]
+      .join(" / ")
+      .localeCompare(
+        [
+          right.schoolTitle,
+          right.yearTitle,
+          right.subject,
+          String(right.chapterPosition).padStart(6, "0"),
+          right.chapterTitle,
+          String(right.lessonPosition).padStart(6, "0"),
+          right.lessonCode || right.lessonTitle,
+        ].join(" / ")
+      )
+  );
 }
 
 function sortCurriculumNodesByPosition<T extends { position: number; title: string }>(nodes: T[]) {

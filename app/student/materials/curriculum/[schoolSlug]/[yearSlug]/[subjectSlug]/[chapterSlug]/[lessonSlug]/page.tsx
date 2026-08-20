@@ -45,9 +45,9 @@ export default async function StudentSchoolCurriculumLessonPage({ params, search
 
   const requestedHref = `/student/materials/curriculum/${schoolSlug}/${yearSlug}/${subjectSlug}/${chapterSlug}/${lessonSlug}`;
   const assignedLessons = await listStudentAssignedModuleLessons(user);
-  const isAssignedToStudent = assignedLessons.some((lesson) => lesson.href === requestedHref);
+  const assignedLesson = assignedLessons.find((lesson) => lesson.href === requestedHref) ?? null;
 
-  if (!isAssignedToStudent) {
+  if (!assignedLesson || assignedLesson.isLocked) {
     redirect("/student/materials");
   }
 
