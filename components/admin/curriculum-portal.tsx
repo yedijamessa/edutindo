@@ -147,6 +147,116 @@ interface CurriculumPortalProps {
   compactMode?: boolean;
 }
 
+type CoverImageDropzoneProps = {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+};
+
+function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const uploadImage = async (file: File | null | undefined) => {
+    if (!file || disabled) return;
+
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please upload an image file.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("/api/admin/curriculum/cover-upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Failed to upload image.");
+      }
+
+      onChange(String(data.url || ""));
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Failed to upload image.");
+    } finally {
+      setIsUploading(false);
+      setIsDragging(false);
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        disabled={disabled || isUploading}
+        onClick={() => inputRef.current?.click()}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          if (!disabled) setIsDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!disabled) setIsDragging(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          void uploadImage(event.dataTransfer.files?.[0]);
+        }}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-2xl border border-dashed border-[#cfe0f7] bg-[#fbfdff] p-3 text-left transition-colors",
+          isDragging && "border-[#2f6fff] bg-[#eef4ff]",
+          disabled && "cursor-not-allowed opacity-60"
+        )}
+      >
+        {value ? (
+          <img
+            src={value}
+            alt="Cover preview"
+            className="h-16 w-24 shrink-0 rounded-xl border border-[#edf2f8] object-cover"
+          />
+        ) : (
+          <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl border border-[#edf2f8] bg-white text-[#2f6fff]">
+            <ImageIcon className="h-6 w-6" />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-slate-900">
+            {isUploading ? "Uploading image..." : "Drag and drop cover image"}
+          </span>
+          <span className="mt-1 block truncate text-xs font-medium text-slate-500">
+            {value || "or click to choose JPG, PNG, WEBP, or GIF"}
+          </span>
+        </span>
+        {isUploading ? <Loader2 className="h-5 w-5 animate-spin text-[#2f6fff]" /> : null}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="hidden"
+        onChange={(event) => void uploadImage(event.target.files?.[0])}
+      />
+      {uploadError ? <p className="text-xs font-semibold text-red-600">{uploadError}</p> : null}
+    </div>
+  );
+}
+
 const nodeLabelByType: Record<NodeType, string> = {
   school: "School",
   year: "Year",
@@ -797,6 +907,8 @@ export function CurriculumPortal({
   const [assessmentDialogChapterId, setAssessmentDialogChapterId] = useState<string | null>(null);
   const [chapterSettingsNode, setChapterSettingsNode] = useState<CurriculumNode | null>(null);
   const [moduleSettingsNode, setModuleSettingsNode] = useState<CurriculumNode | null>(null);
+  const [coverEditorNode, setCoverEditorNode] = useState<CurriculumNode | null>(null);
+  const [coverEditorValue, setCoverEditorValue] = useState("");
 
   const dragStateRef = useRef<DragState | null>(null);
 
@@ -1806,19 +1918,28 @@ export function CurriculumPortal({
     setChapterSettingsNode(chapter);
   };
 
-  const editCoverImage = async (node: CurriculumNode) => {
-    const nextCoverImageUrl = window.prompt("Cover image URL", text(node.metadata.coverImageUrl));
-    if (nextCoverImageUrl === null) return;
+  const openCoverEditor = (node: CurriculumNode) => {
+    setCoverEditorNode(node);
+    setCoverEditorValue(text(node.metadata.coverImageUrl));
+  };
 
-    await saveNode(
-      node,
-      node.title,
+  const saveCoverEditor = async () => {
+    if (!coverEditorNode) return;
+
+    const didSave = await saveNode(
+      coverEditorNode,
+      coverEditorNode.title,
       {
-        ...(node.metadata ?? {}),
-        coverImageUrl: nextCoverImageUrl.trim(),
+        ...(coverEditorNode.metadata ?? {}),
+        coverImageUrl: coverEditorValue.trim(),
       },
-      `${nodeLabelByType[node.nodeType]} cover image updated.`
+      `${nodeLabelByType[coverEditorNode.nodeType]} cover image updated.`
     );
+
+    if (didSave) {
+      setCoverEditorNode(null);
+      setCoverEditorValue("");
+    }
   };
 
   const hideLessonFromSelectedSchool = async (lesson: CurriculumNode) => {
@@ -1858,7 +1979,7 @@ export function CurriculumPortal({
     }
 
     if (action === "cover") {
-      await editCoverImage(chapterSettingsNode);
+      openCoverEditor(chapterSettingsNode);
       setChapterSettingsNode(null);
       return;
     }
@@ -1891,7 +2012,7 @@ export function CurriculumPortal({
     }
 
     if (action === "cover") {
-      await editCoverImage(moduleSettingsNode);
+      openCoverEditor(moduleSettingsNode);
       setModuleSettingsNode(null);
       return;
     }
@@ -2948,6 +3069,13 @@ export function CurriculumPortal({
                         placeholder="/images/cells/microscope.png or https://..."
                         className={fieldClassName}
                       />
+                      <div className="mt-2">
+                        <CoverImageDropzone
+                          value={chapterCoverImageDraft}
+                          onChange={setChapterCoverImageDraft}
+                          disabled={busy}
+                        />
+                      </div>
                       <p className="mt-1 text-xs text-slate-400">
                         Used on student dashboard lesson cards. Module cover images override this chapter image.
                       </p>
@@ -3517,6 +3645,60 @@ export function CurriculumPortal({
         }}
         onQuizCreated={handleAssessmentQuizCreated}
       />
+
+      <Dialog
+        open={Boolean(coverEditorNode)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCoverEditorNode(null);
+            setCoverEditorValue("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit Cover Image</DialogTitle>
+            <DialogDescription>
+              {coverEditorNode?.title ?? "Selected item"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cover image URL</label>
+              <Input
+                value={coverEditorValue}
+                onChange={(event) => setCoverEditorValue(event.target.value)}
+                placeholder="/uploads/curriculum-covers/image.png or https://..."
+                className={fieldClassName}
+              />
+            </div>
+            <CoverImageDropzone
+              value={coverEditorValue}
+              onChange={setCoverEditorValue}
+              disabled={busy}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setCoverEditorNode(null);
+                setCoverEditorValue("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" disabled={busy} onClick={() => void saveCoverEditor()}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Cover Image
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(chapterSettingsNode)} onOpenChange={(open) => !open && setChapterSettingsNode(null)}>
         <DialogContent className="max-w-md">
