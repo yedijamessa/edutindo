@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   type LucideIcon,
   Users,
+  UserSearch,
 } from "lucide-react";
 
 interface AdminDashboardProps {
@@ -47,6 +48,12 @@ const adminTools = [
     href: "/admin/access",
     description: "Manage which users can open each portal.",
     icon: ShieldCheck,
+  },
+  {
+    title: "Student Audit Trail",
+    href: "/admin/student-audit",
+    description: "Review schools, student progress, quiz activity, and learner audit logs.",
+    icon: UserSearch,
   },
 ];
 

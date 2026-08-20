@@ -20,6 +20,7 @@ const adminMenuItems = [
   { label: "Learning Materials", href: "/admin/materials" },
   { label: "Curriculum Portal", href: "/admin/curriculum" },
   { label: "Module Library", href: "/admin/modules" },
+  { label: "Student Audit Trail", href: "/admin/student-audit" },
   { label: "Curriculum Assign Portal", href: "/curriculum-assign-portal" },
   { label: "Admin Logs", href: "/admin/logs" },
   { label: "Public Site", href: "/" },

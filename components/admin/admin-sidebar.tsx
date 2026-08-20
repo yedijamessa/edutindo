@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cn } from "@/components/ui/button";
 
 interface AdminSidebarProps {
-  activeSection?: "dashboard" | "access" | "materials" | "curriculum";
+  activeSection?: "dashboard" | "access" | "materials" | "curriculum" | "student-audit";
   canManageAccessControls?: boolean;
 }
 
@@ -43,6 +43,12 @@ export function AdminSidebar({ activeSection = "dashboard", canManageAccessContr
           href="/admin/curriculum"
         >
           Curriculum Portal
+        </Link>
+        <Link
+          className={cn(baseLinkClass, activeSection === "student-audit" && activeLinkClass)}
+          href="/admin/student-audit"
+        >
+          Student Audit Trail
         </Link>
         <Link className={baseLinkClass} href="/">
           Public Site

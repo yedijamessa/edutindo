@@ -71,8 +71,23 @@ export function LessonFloatingTools({
 
   return (
     <>
-      {isOpen ? (
-        <section className="fixed bottom-24 right-6 z-50 w-[min(28rem,calc(100vw-2rem))] rounded-[24px] border border-[#dce6ff] bg-white shadow-[0_28px_70px_-38px_rgba(15,23,42,0.45)]">
+      <button
+        type="button"
+        className={cn(
+          "fixed inset-0 z-40 bg-slate-950/20 backdrop-blur-[1px] transition-opacity duration-300",
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+        onClick={() => setIsOpen(false)}
+        aria-label="Close Ask AI chat"
+      />
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 right-0 z-50 flex w-[min(30rem,100vw)] translate-x-full flex-col border-l border-[#dce6ff] bg-white shadow-[0_32px_90px_-40px_rgba(15,23,42,0.55)] transition-transform duration-300 ease-out",
+          isOpen && "translate-x-0"
+        )}
+        aria-hidden={!isOpen}
+      >
           <div className="flex items-start justify-between gap-3 border-b border-[#edf2fb] px-5 py-4">
             <div>
               <p className="flex items-center gap-2 text-sm font-bold text-slate-950">
@@ -93,7 +108,7 @@ export function LessonFloatingTools({
             </Button>
           </div>
 
-          <div className="max-h-80 space-y-3 overflow-y-auto px-5 py-4">
+          <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
             {messages.length === 0 ? (
               <div className="rounded-2xl bg-[#f7faff] px-4 py-3 text-sm leading-6 text-slate-600">
                 Ask about this lesson page. I will stay within the current lesson content.
@@ -145,19 +160,22 @@ export function LessonFloatingTools({
               </Button>
             </div>
           </form>
-        </section>
-      ) : null}
+        </aside>
 
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+      <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 sm:bottom-6">
         <Button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={() => setIsOpen((current) => !current)}
+          aria-expanded={isOpen}
           className="h-14 rounded-full bg-[#2f6fff] px-5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-[#1d4ed8]"
         >
           <Sparkles className="mr-2 h-5 w-5" />
           Ask AI
         </Button>
-        <FocusTimer triggerClassName="static bottom-auto right-auto" />
+        <FocusTimer
+          triggerClassName="static bottom-auto right-auto"
+          minimizedClassName="bottom-24 left-1/2 right-auto -translate-x-1/2"
+        />
       </div>
     </>
   );
