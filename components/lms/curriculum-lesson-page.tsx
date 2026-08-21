@@ -18,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurriculumLessonContent } from "@/lib/curriculum-lesson-content";
 import { getCurriculumLessonContext } from "@/lib/curriculum-portal";
 import { getAssignedModuleDocumentForLesson } from "@/lib/module-editor";
-import type { ModuleEditorDocument } from "@/types/module-editor";
 
 type ChapterPortalRole = "student" | "teacher" | "principal" | "admin";
 
@@ -33,26 +32,6 @@ interface CurriculumLessonPageProps {
 
 function truncateContext(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}...` : value;
-}
-
-function buildModuleLessonContext(document: ModuleEditorDocument) {
-  return document.pages
-    .map((page, pageIndex) => {
-      const blocks = page.blocks.map((block, blockIndex) => {
-        if (block.type === "text") {
-          return `${blockIndex + 1}. ${block.title || "Text"}: ${block.body}`;
-        }
-
-        if (block.type === "image") {
-          return `${blockIndex + 1}. Image: ${block.altText || ""} ${block.caption || ""}`.trim();
-        }
-
-        return `${blockIndex + 1}. Quiz: ${block.prompt}`;
-      });
-
-      return [`Page ${pageIndex + 1}: ${page.title}`, page.description, ...blocks].filter(Boolean).join("\n");
-    })
-    .join("\n\n");
 }
 
 export async function CurriculumLessonPage({
@@ -85,13 +64,12 @@ export async function CurriculumLessonPage({
     role === "student" && !nextLesson && Boolean(chapter.postTestEnabled) && Boolean(chapter.postTestQuizId);
   const backHref = chapterPath;
   const backLabel = `Back to ${chapter.title || "Materials"}`;
-  const lessonAiContext = moduleDocument
-    ? buildModuleLessonContext(moduleDocument)
-    : [
-        lessonContent.overview,
-        lessonContent.focus.length > 0 ? `Lesson focus:\n${lessonContent.focus.join("\n")}` : "",
-        lessonContent.activities.length > 0 ? `Suggested activities:\n${lessonContent.activities.join("\n")}` : "",
-      ].filter(Boolean).join("\n\n");
+  const lessonAiContext = [
+    lessonContent.overview,
+    lessonContent.focus.length > 0 ? `Lesson focus:\n${lessonContent.focus.join("\n")}` : "",
+    lessonContent.activities.length > 0 ? `Suggested activities:\n${lessonContent.activities.join("\n")}` : "",
+  ].filter(Boolean).join("\n\n");
+  const showLessonSeriesNavigation = !(role === "student" && moduleDocument);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_50%,#f9fbff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)]">
@@ -161,10 +139,19 @@ export async function CurriculumLessonPage({
               showAnswers={role !== "student"}
               hideSidebars={role === "student"}
               hideStatusBar={role === "student"}
+              aiTools={
+                role === "student"
+                  ? {
+                      lessonTitle: lesson.title,
+                      contextTitle: `${subject.title} / ${chapter.title} / ${lesson.title}`,
+                    }
+                  : undefined
+              }
               meta={{
                 lessonCode: lesson.lessonCode ?? undefined,
                 chapterTitle: chapter.title,
                 weekRange: chapter.weekRange ?? undefined,
+                backHref: chapterPath,
                 role,
               }}
             />
@@ -268,37 +255,39 @@ export async function CurriculumLessonPage({
             </Button>
           )}
 
-          {nextLesson ? (
-            role === "student" && nextLesson.isLocked ? (
-              <Button
-                disabled
-                className="h-11 rounded-full bg-slate-200 px-5 text-slate-500 shadow-none"
-              >
-                Next lesson locked
-                <LockKeyhole className="ml-2 h-4 w-4" />
-              </Button>
+          {showLessonSeriesNavigation ? (
+            nextLesson ? (
+              role === "student" && nextLesson.isLocked ? (
+                <Button
+                  disabled
+                  className="h-11 rounded-full bg-slate-200 px-5 text-slate-500 shadow-none"
+                >
+                  Next lesson locked
+                  <LockKeyhole className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  className="h-11 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] hover:brightness-105"
+                >
+                  <Link href={`${chapterPath}/${nextLesson.slug}`}>
+                    Next Lesson {nextLesson.lessonCode || nextLesson.title}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              )
             ) : (
-            <Button
-              asChild
-              className="h-11 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] hover:brightness-105"
-            >
-              <Link href={`${chapterPath}/${nextLesson.slug}`}>
-                Next Lesson {nextLesson.lessonCode || nextLesson.title}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+              <Button
+                asChild
+                className="h-11 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] hover:brightness-105"
+              >
+                <Link href={chapterPath}>Finish Lesson Series</Link>
+              </Button>
             )
-          ) : (
-            <Button
-              asChild
-              className="h-11 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] hover:brightness-105"
-            >
-              <Link href={chapterPath}>Finish Lesson Series</Link>
-            </Button>
-          )}
+          ) : null}
         </div>
       </main>
-      {role === "student" ? (
+      {role === "student" && !moduleDocument ? (
         <LessonFloatingTools
           lessonTitle={lesson.title}
           contextTitle={`${subject.title} / ${chapter.title} / ${lesson.title}`}

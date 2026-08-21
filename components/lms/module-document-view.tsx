@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import Link from "next/link";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -25,6 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { ModuleMarkdown } from "@/components/module-markdown";
+import { LessonFloatingTools } from "@/components/lms/lesson-floating-tools";
 import { cn } from "@/lib/utils";
 import type {
   ModuleEditorDocument,
@@ -32,6 +33,14 @@ import type {
   ModuleEditorQuizBlock,
   ModuleEditorQuizType,
 } from "@/types/module-editor";
+
+type QuizAnswerState = {
+  selectedOptionIds: string[];
+  textAnswer: string;
+  matchingAnswers: Record<string, string>;
+};
+
+type QuizAnswersByBlockId = Record<string, QuizAnswerState>;
 
 function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
   switch (quizType) {
@@ -55,8 +64,118 @@ function totalBlocks(document: ModuleEditorDocument) {
   return document.pages.reduce((sum, page) => sum + page.blocks.length, 0);
 }
 
+function buildPageAiContext(page: ModuleEditorPage) {
+  const blocks = page.blocks.map((block, index) => {
+    if (block.type === "text") {
+      return `${index + 1}. ${block.title || "Text"}: ${block.body}`;
+    }
+
+    if (block.type === "image") {
+      return `${index + 1}. Image: ${block.altText || ""} ${block.caption || ""}`.trim();
+    }
+
+    const options = block.options.map((option) => option.text).filter(Boolean);
+    const optionText = options.length > 0 ? ` Options: ${options.join("; ")}` : "";
+    return `${index + 1}. Quiz (${getQuizTypeLabel(block.quizType)}): ${block.prompt}${optionText}`;
+  });
+
+  return [`Page title: ${page.title}`, page.description, ...blocks].filter(Boolean).join("\n");
+}
+
 function normalizeAnswer(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getQuizBlocks(document: ModuleEditorDocument) {
+  return document.pages.flatMap((page) =>
+    page.blocks.filter((block): block is ModuleEditorQuizBlock => block.type === "quiz")
+  );
+}
+
+function isScorableQuiz(block: ModuleEditorQuizBlock) {
+  if (
+    block.quizType === "multiple-choice-single" ||
+    block.quizType === "multiple-choice-multiple" ||
+    block.quizType === "true-false"
+  ) {
+    return block.correctOptionIds.length > 0;
+  }
+
+  if (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank") {
+    return block.acceptableAnswers.some((answer) => answer.trim().length > 0);
+  }
+
+  return block.quizType === "matching" && block.matchingPairs.length > 0;
+}
+
+function isAnswerableQuiz(block: ModuleEditorQuizBlock) {
+  return block.quizType !== "ordering";
+}
+
+function isQuizAnswered(block: ModuleEditorQuizBlock, answer: QuizAnswerState | undefined) {
+  if (!answer) return false;
+
+  if (
+    block.quizType === "multiple-choice-single" ||
+    block.quizType === "multiple-choice-multiple" ||
+    block.quizType === "true-false"
+  ) {
+    return answer.selectedOptionIds.length > 0;
+  }
+
+  if (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank" || block.quizType === "essay") {
+    return answer.textAnswer.trim().length > 0;
+  }
+
+  if (block.quizType === "matching") {
+    return block.matchingPairs.every((pair) => Boolean(answer.matchingAnswers[pair.id]?.trim()));
+  }
+
+  return true;
+}
+
+function isQuizCorrect(block: ModuleEditorQuizBlock, answer: QuizAnswerState | undefined) {
+  if (!answer || !isScorableQuiz(block)) return false;
+
+  if (
+    block.quizType === "multiple-choice-single" ||
+    block.quizType === "multiple-choice-multiple" ||
+    block.quizType === "true-false"
+  ) {
+    const selected = [...answer.selectedOptionIds].sort();
+    const correct = [...block.correctOptionIds].sort();
+    return selected.length === correct.length && selected.every((optionId, index) => optionId === correct[index]);
+  }
+
+  if (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank") {
+    const normalizedAnswer = normalizeAnswer(answer.textAnswer);
+    return block.acceptableAnswers.map(normalizeAnswer).filter(Boolean).includes(normalizedAnswer);
+  }
+
+  if (block.quizType === "matching") {
+    return block.matchingPairs.every((pair) => normalizeAnswer(answer.matchingAnswers[pair.id] ?? "") === normalizeAnswer(pair.match));
+  }
+
+  return false;
+}
+
+function getQuizScore(quizBlocks: ModuleEditorQuizBlock[], answers: QuizAnswersByBlockId) {
+  const scorableBlocks = quizBlocks.filter(isScorableQuiz);
+  const correctCount = scorableBlocks.filter((block) => isQuizCorrect(block, answers[block.id])).length;
+
+  return {
+    correctCount,
+    totalCount: scorableBlocks.length,
+    percent: scorableBlocks.length > 0 ? Math.round((correctCount / scorableBlocks.length) * 100) : 0,
+  };
+}
+
+function getEmptyQuizAnswer(): QuizAnswerState {
+  return {
+    selectedOptionIds: [],
+    textAnswer: "",
+    matchingAnswers: {},
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,29 +185,27 @@ function normalizeAnswer(value: string) {
 function QuestionBlock({
   block,
   showAnswers,
+  answer,
+  onAnswerChange,
+  submitted,
 }: {
   block: ModuleEditorQuizBlock;
   showAnswers: boolean;
+  answer: QuizAnswerState;
+  onAnswerChange: (answer: QuizAnswerState) => void;
+  submitted: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [textAnswer, setTextAnswer] = useState("");
-  const [textAnswerSubmitted, setTextAnswerSubmitted] = useState(false);
 
   const hasAcceptedAnswers =
-    showAnswers &&
+    (showAnswers || submitted) &&
     (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank") &&
     block.acceptableAnswers.some((a) => a.trim().length > 0);
   const acceptedTextAnswers = block.acceptableAnswers.map(normalizeAnswer).filter(Boolean);
   const isTextAnswerQuiz = block.quizType === "short-answer" || block.quizType === "fill-in-the-blank";
   const canScoreTextAnswer = isTextAnswerQuiz && acceptedTextAnswers.length > 0;
-  const textAnswerCorrect = canScoreTextAnswer && acceptedTextAnswers.includes(normalizeAnswer(textAnswer));
-
-  function submitTextAnswer(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!textAnswer.trim()) return;
-    setTextAnswerSubmitted(true);
-  }
+  const textAnswerCorrect = canScoreTextAnswer && acceptedTextAnswers.includes(normalizeAnswer(answer.textAnswer));
+  const interactive = !showAnswers && !submitted;
 
   return (
     <div className="rounded-[20px] border border-[#ffedd5] bg-[#fffaf5]">
@@ -128,9 +245,9 @@ function QuestionBlock({
             block.quizType === "true-false") && (
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {block.options.map((option) => {
-                const isCorrect = showAnswers && block.correctOptionIds.includes(option.id);
-                const interactive = !showAnswers;
-                const isSelected = interactive && selectedOptions.includes(option.id);
+                const isCorrect = (showAnswers || submitted) && block.correctOptionIds.includes(option.id);
+                const isSelected = answer.selectedOptionIds.includes(option.id);
+                const isWrongSelection = submitted && isSelected && !block.correctOptionIds.includes(option.id);
                 
                 return (
                   <button
@@ -140,17 +257,22 @@ function QuestionBlock({
                     onClick={() => {
                       if (!interactive) return;
                       if (block.quizType === "multiple-choice-single" || block.quizType === "true-false") {
-                        setSelectedOptions([option.id]);
+                        onAnswerChange({ ...answer, selectedOptionIds: [option.id] });
                       } else {
-                        setSelectedOptions((prev) => 
-                          prev.includes(option.id) ? prev.filter((id) => id !== option.id) : [...prev, option.id]
-                        );
+                        onAnswerChange({
+                          ...answer,
+                          selectedOptionIds: answer.selectedOptionIds.includes(option.id)
+                            ? answer.selectedOptionIds.filter((id) => id !== option.id)
+                            : [...answer.selectedOptionIds, option.id],
+                        });
                       }
                     }}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm text-left transition-colors",
                       isCorrect
                         ? "border-[#bef2d0] bg-[#eafaf1] text-[#059669]"
+                        : isWrongSelection
+                          ? "border-[#fecaca] bg-[#fff1f2] text-[#b91c1c]"
                         : isSelected
                           ? "border-[#2f6fff] bg-[#f0f6ff] text-[#1e40af] shadow-[inset_0_0_0_1px_#2f6fff]"
                           : interactive 
@@ -160,6 +282,8 @@ function QuestionBlock({
                   >
                     {isCorrect ? (
                       <Check className="h-3.5 w-3.5 shrink-0" />
+                    ) : isWrongSelection ? (
+                      <XCircle className="h-3.5 w-3.5 shrink-0" />
                     ) : isSelected ? (
                       <div className="h-3.5 w-3.5 shrink-0 rounded-full border-4 border-[#2f6fff] bg-white" />
                     ) : interactive ? (
@@ -176,41 +300,33 @@ function QuestionBlock({
           {!showAnswers && (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank" || block.quizType === "essay") && (
             <div className="mt-3">
               {block.quizType === "essay" ? (
-                <textarea 
+                <textarea
+                  value={answer.textAnswer}
+                  onChange={(event) => onAnswerChange({ ...answer, textAnswer: event.target.value })}
+                  disabled={!interactive}
                   placeholder="Type your answer here..."
-                  className="w-full rounded-[14px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff] transition-colors"
+                  className="w-full rounded-[14px] border border-[#e5ecf8] bg-[#f8fbff] px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 transition-colors focus:border-[#2f6fff] focus:outline-none focus:ring-1 focus:ring-[#2f6fff] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   rows={4}
                 />
               ) : (
-                <form className="space-y-3" onSubmit={submitTextAnswer}>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <input
-                      type="text"
-                      value={textAnswer}
-                      onChange={(event) => {
-                        setTextAnswer(event.target.value);
-                        setTextAnswerSubmitted(false);
-                      }}
-                      placeholder="Type your answer here..."
-                      className={cn(
-                        "min-w-0 flex-1 rounded-[14px] border bg-[#f8fbff] px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 transition-colors focus:outline-none focus:ring-1",
-                        textAnswerSubmitted
-                          ? textAnswerCorrect
-                            ? "border-[#86efac] focus:border-[#16a34a] focus:ring-[#16a34a]"
-                            : "border-[#fca5a5] focus:border-[#dc2626] focus:ring-[#dc2626]"
-                          : "border-[#e5ecf8] focus:border-[#2f6fff] focus:ring-[#2f6fff]"
-                      )}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!textAnswer.trim()}
-                      className="inline-flex h-11 items-center justify-center rounded-[14px] bg-[#2f6fff] px-5 text-sm font-semibold text-white shadow-[0_16px_32px_-24px_rgba(37,99,235,0.85)] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
-                    >
-                      Submit
-                    </button>
-                  </div>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={answer.textAnswer}
+                    onChange={(event) => onAnswerChange({ ...answer, textAnswer: event.target.value })}
+                    disabled={!interactive}
+                    placeholder="Type your answer here..."
+                    className={cn(
+                      "w-full rounded-[14px] border bg-[#f8fbff] px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 transition-colors focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500",
+                      submitted
+                        ? textAnswerCorrect
+                          ? "border-[#86efac] focus:border-[#16a34a] focus:ring-[#16a34a]"
+                          : "border-[#fca5a5] focus:border-[#dc2626] focus:ring-[#dc2626]"
+                        : "border-[#e5ecf8] focus:border-[#2f6fff] focus:ring-[#2f6fff]"
+                    )}
+                  />
 
-                  {textAnswerSubmitted ? (
+                  {submitted ? (
                     canScoreTextAnswer ? (
                       <div
                         className={cn(
@@ -225,7 +341,7 @@ function QuestionBlock({
                         ) : (
                           <XCircle className="h-4 w-4 shrink-0" />
                         )}
-                        <span>{textAnswerCorrect ? "Correct." : "Not quite. Try again."}</span>
+                        <span>{textAnswerCorrect ? "Correct." : "Not quite."}</span>
                       </div>
                     ) : (
                       <div className="rounded-[14px] border border-[#dce7ff] bg-[#f0f6ff] px-4 py-2.5 text-sm font-semibold text-[#1e40af]">
@@ -233,7 +349,7 @@ function QuestionBlock({
                       </div>
                     )
                   ) : null}
-                </form>
+                </div>
               )}
             </div>
           )}
@@ -248,7 +364,20 @@ function QuestionBlock({
                  return (
                    <div key={pair.id} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-[14px] border border-[#e8eef8] bg-white px-4 py-2.5 text-sm">
                      <span className="flex-1 font-medium text-slate-700">{pair.prompt}</span>
-                     <select className="w-full sm:w-1/2 rounded-[10px] border border-[#dce6ff] bg-[#f8fbff] px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-[#2f6fff] focus:ring-1 focus:ring-[#2f6fff] transition-colors">
+                     <select
+                       value={answer.matchingAnswers[pair.id] ?? ""}
+                       onChange={(event) =>
+                         onAnswerChange({
+                           ...answer,
+                           matchingAnswers: {
+                             ...answer.matchingAnswers,
+                             [pair.id]: event.target.value,
+                           },
+                         })
+                       }
+                       disabled={!interactive}
+                       className="w-full sm:w-1/2 rounded-[10px] border border-[#dce6ff] bg-[#f8fbff] px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-[#2f6fff] focus:ring-1 focus:ring-[#2f6fff] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 transition-colors"
+                     >
                        <option value="">Select match...</option>
                        {matchOptions.map((matchOpt, i) => (
                          <option key={i} value={matchOpt}>{matchOpt}</option>
@@ -262,7 +391,7 @@ function QuestionBlock({
 
 
           {/* Explanation */}
-          {showAnswers && block.explanation.trim() ? (
+          {(showAnswers || submitted) && block.explanation.trim() ? (
             <div className="mt-4 rounded-[14px] border border-[#dce7ff] bg-[#f0f6ff] px-4 py-3 text-sm text-[#1e40af]">
               {block.explanation}
             </div>
@@ -292,9 +421,15 @@ function QuestionBlock({
 function PageContent({
   page,
   showAnswers,
+  quizAnswers,
+  onQuizAnswerChange,
+  quizSubmitted,
 }: {
   page: ModuleEditorPage;
   showAnswers: boolean;
+  quizAnswers: QuizAnswersByBlockId;
+  onQuizAnswerChange: (blockId: string, answer: QuizAnswerState) => void;
+  quizSubmitted: boolean;
 }) {
   return (
     <div className="space-y-5">
@@ -396,7 +531,16 @@ function PageContent({
         }
 
         // Quiz block
-        return <QuestionBlock key={block.id} block={block} showAnswers={showAnswers} />;
+        return (
+          <QuestionBlock
+            key={block.id}
+            block={block}
+            showAnswers={showAnswers}
+            answer={quizAnswers[block.id] ?? getEmptyQuizAnswer()}
+            onAnswerChange={(answer) => onQuizAnswerChange(block.id, answer)}
+            submitted={quizSubmitted}
+          />
+        );
       })}
     </div>
   );
@@ -426,6 +570,7 @@ export function ModuleDocumentView({
   showChrome = true,
   hideSidebars = false,
   hideStatusBar = false,
+  aiTools,
 }: {
   document: ModuleEditorDocument;
   showAnswers?: boolean;
@@ -434,6 +579,10 @@ export function ModuleDocumentView({
   showChrome?: boolean;
   hideSidebars?: boolean;
   hideStatusBar?: boolean;
+  aiTools?: {
+    lessonTitle: string;
+    contextTitle: string;
+  };
 }) {
   const pages = document.pages;
   const [currentPage, setCurrentPage] = useState(() => {
@@ -445,6 +594,8 @@ export function ModuleDocumentView({
     showAnswers ? "teacher" : "student"
   );
   const [note, setNote] = useState("");
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswersByBlockId>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
 
   const page = pages[currentPage] ?? pages[0];
   const pageIndex = Math.min(currentPage, pages.length - 1);
@@ -452,6 +603,18 @@ export function ModuleDocumentView({
   // Students never see answers regardless of viewMode
   const effectiveShowAnswers = showAnswers && viewMode === "teacher";
   const showSidebars = showChrome && !hideSidebars;
+  const quizBlocks = getQuizBlocks(document);
+  const answerableQuizBlocks = quizBlocks.filter(isAnswerableQuiz);
+  const answeredQuizCount = answerableQuizBlocks.filter((block) => isQuizAnswered(block, quizAnswers[block.id])).length;
+  const allAnswerableQuizzesAnswered = answerableQuizBlocks.length === 0 || answeredQuizCount === answerableQuizBlocks.length;
+  const quizScore = getQuizScore(quizBlocks, quizAnswers);
+  const isLastPage = pageIndex === pages.length - 1;
+  const completionHref = meta?.backHref ?? "#";
+
+  function updateQuizAnswer(blockId: string, answer: QuizAnswerState) {
+    if (quizSubmitted) return;
+    setQuizAnswers((current) => ({ ...current, [blockId]: answer }));
+  }
 
   return (
     <div className="flex flex-col gap-0">
@@ -566,6 +729,9 @@ export function ModuleDocumentView({
             <PageContent
               page={page}
               showAnswers={effectiveShowAnswers}
+              quizAnswers={quizAnswers}
+              onQuizAnswerChange={updateQuizAnswer}
+              quizSubmitted={quizSubmitted}
             />
           ) : (
             <div className="rounded-[24px] border border-dashed border-[#d9e4f7] bg-[#f8fbff] p-10 text-center text-sm text-slate-500">
@@ -597,6 +763,61 @@ export function ModuleDocumentView({
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
+
+          {aiTools && isLastPage ? (
+            <div className="mt-5 rounded-[24px] border border-[#dce7ff] bg-white p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.32)]">
+              {quizBlocks.length > 0 ? (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">
+                      {quizSubmitted ? "Quiz submitted" : "Submit quiz before finishing"}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {quizSubmitted
+                        ? quizScore.totalCount > 0
+                          ? `Score: ${quizScore.correctCount}/${quizScore.totalCount} (${quizScore.percent}%).`
+                          : "Your answers were submitted."
+                        : `Answered ${answeredQuizCount}/${answerableQuizBlocks.length} questions.`}
+                    </p>
+                  </div>
+
+                  {quizSubmitted ? (
+                    <Link
+                      href={completionHref}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105"
+                    >
+                      Finish Module
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setQuizSubmitted(true)}
+                      disabled={!allAnswerableQuizzesAnswered}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2f6fff] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                    >
+                      Submit Quiz
+                      <Check className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Module complete</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">You reached the end of this module.</p>
+                  </div>
+                  <Link
+                    href={completionHref}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105"
+                  >
+                    Finish Module
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         {/* ── Right sidebar: Quick Panel ───────────────────────────────────── */}
@@ -774,6 +995,14 @@ export function ModuleDocumentView({
           </div>
         </div>
       )}
+      {aiTools && page ? (
+        <LessonFloatingTools
+          lessonTitle={aiTools.lessonTitle}
+          contextTitle={`${aiTools.contextTitle} / ${page.title}`}
+          contextBody={buildPageAiContext(page)}
+          contextKey={`${document.id}:${page.id}`}
+        />
+      ) : null}
     </div>
   );
 }

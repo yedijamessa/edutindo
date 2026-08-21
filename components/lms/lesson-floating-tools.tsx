@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
+import { ModuleMarkdown } from "@/components/module-markdown";
 import { Button, cn } from "@/components/ui/button";
 import { FocusTimer } from "@/components/lms/focus-timer";
 
@@ -14,18 +15,38 @@ type LessonFloatingToolsProps = {
   lessonTitle: string;
   contextTitle: string;
   contextBody: string;
+  contextKey?: string;
 };
 
 export function LessonFloatingTools({
   lessonTitle,
   contextTitle,
   contextBody,
+  contextKey = contextTitle,
 }: LessonFloatingToolsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const contextKeyRef = useRef(contextKey);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [isOpen, messages, isSubmitting, error]);
+
+  useEffect(() => {
+    contextKeyRef.current = contextKey;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setQuestion("");
+    setMessages([]);
+    setError("");
+    setIsSubmitting(false);
+  }, [contextKey]);
 
   async function askQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,9 +60,13 @@ export function LessonFloatingTools({
     setMessages((current) => [...current, { role: "user", content: trimmedQuestion }]);
 
     try {
+      const requestContextKey = contextKey;
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortController.signal,
         body: JSON.stringify({
           task: "page-chat",
           question: trimmedQuestion,
@@ -53,6 +78,7 @@ export function LessonFloatingTools({
       });
 
       const data = await response.json().catch(() => null);
+      if (contextKeyRef.current !== requestContextKey) return;
 
       if (!response.ok || !data?.ok) {
         throw new Error(data?.error || "AI request failed.");
@@ -63,9 +89,13 @@ export function LessonFloatingTools({
         { role: "assistant", content: String(data.data?.reply || "") },
       ]);
     } catch (askError) {
+      if (askError instanceof DOMException && askError.name === "AbortError") return;
       setError(askError instanceof Error ? askError.message : "AI request failed.");
     } finally {
-      setIsSubmitting(false);
+      if (contextKeyRef.current === contextKey) {
+        abortControllerRef.current = null;
+        setIsSubmitting(false);
+      }
     }
   }
 
@@ -111,20 +141,28 @@ export function LessonFloatingTools({
           <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
             {messages.length === 0 ? (
               <div className="rounded-2xl bg-[#f7faff] px-4 py-3 text-sm leading-6 text-slate-600">
-                Ask about this lesson page. I will stay within the current lesson content.
+                Tanyakan materi di halaman ini. Jawaban akan tetap fokus pada isi pelajaran.
               </div>
             ) : (
               messages.map((message, index) => (
                 <div
                   key={`${message.role}-${index}`}
                   className={cn(
-                    "rounded-2xl px-4 py-3 text-sm leading-6",
+                    "overflow-hidden rounded-2xl px-4 py-3 text-sm leading-6",
                     message.role === "user"
                       ? "ml-8 bg-[#2f6fff] text-white"
                       : "mr-8 bg-[#f7faff] text-slate-700"
                   )}
                 >
-                  {message.content}
+                  {message.role === "assistant" ? (
+                    <ModuleMarkdown
+                      content={message.content}
+                      emptyFallback="Belum ada jawaban."
+                      className="prose-sm text-slate-700 prose-p:my-2 prose-p:leading-6 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-li:leading-6 prose-headings:mb-2 prose-headings:mt-3 prose-strong:text-slate-900"
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  )}
                 </div>
               ))
             )}
@@ -139,6 +177,7 @@ export function LessonFloatingTools({
                 {error}
               </div>
             ) : null}
+            <div ref={messagesEndRef} />
           </div>
 
           <form className="border-t border-[#edf2fb] p-4" onSubmit={askQuestion}>
