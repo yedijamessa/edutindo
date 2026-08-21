@@ -83,14 +83,36 @@ function getStudentSchoolSlugs(user: StudentUser) {
 
 function collectQuizAttempts(progress: StudentProgress[]) {
   return progress
-    .flatMap((record) =>
-      (record.quizScores ?? []).flatMap((score) =>
-        (score.attemptHistory ?? []).map((attempt) => ({
-          ...attempt,
-          materialId: attempt.materialId || record.materialId,
-        }))
-      )
-    )
+    .flatMap((record) => {
+      return (record.quizScores ?? []).flatMap((score, scoreIndex) => {
+        const history = score.attemptHistory ?? [];
+        if (history.length > 0) {
+          return history.map((attempt) => ({
+            ...attempt,
+            materialId: attempt.materialId || record.materialId,
+          }));
+        }
+
+        const recordId =
+          "id" in record && typeof record.id === "string" ? record.id : record.materialId;
+        const attemptCount = Math.max(1, Number(score.attempts) || 0);
+        const completedAt = score.lastAttempt ?? record.lastAccessed;
+        return Array.from({ length: attemptCount }, (_, attemptIndex) => ({
+          attemptId: `quiz-summary-${recordId}-${score.quizId}-${scoreIndex}-${attemptIndex}`,
+          quizId: score.quizId,
+          quizTitle: score.quizTitle ?? score.quizId,
+          materialId: record.materialId,
+          score: score.score,
+          earnedPoints: score.earnedPoints ?? score.score,
+          totalPoints: score.totalPoints ?? 100,
+          passed: score.passed ?? (score.score >= 70),
+          startedAt: completedAt,
+          completedAt,
+          timeSpentSeconds: 0,
+          questionResults: [],
+        }));
+      });
+    })
     .sort((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime());
 }
 

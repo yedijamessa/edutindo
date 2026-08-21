@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Info,
   LayoutList,
+  Loader2,
   PencilLine,
   Plus,
   StickyNote,
@@ -702,6 +703,17 @@ export function ModuleDocumentView({
   const quizScore = getQuizScore(quizBlocks, quizAnswers);
   const isLastPage = pageIndex === pages.length - 1;
   const completionHref = completion?.dashboardHref ?? "/student";
+  const isSavingProgress = progressSaveStatus === "saving";
+  const showSavingMotion = isSavingProgress || isFinishing;
+  const progressStatusLabel = isFinishing
+    ? "Opening dashboard..."
+    : progressSaveStatus === "saving"
+      ? "Saving progress..."
+      : progressSaveStatus === "saved"
+        ? "Progress saved."
+        : progressSaveStatus === "error"
+          ? "Progress could not be saved yet."
+          : "Ready to finish this module.";
 
   function updateQuizAnswer(blockId: string, answer: QuizAnswerState) {
     if (quizSubmitted) return;
@@ -950,8 +962,12 @@ export function ModuleDocumentView({
                       disabled={isFinishing}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     >
+                      {isFinishing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="h-4 w-4" />
+                      )}
                       {isFinishing ? "Finishing..." : "Finish Module"}
-                      <ArrowRight className="h-4 w-4" />
                     </button>
                   ) : (
                     <button
@@ -977,8 +993,12 @@ export function ModuleDocumentView({
                     disabled={isFinishing}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   >
+                    {isFinishing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4" />
+                    )}
                     {isFinishing ? "Finishing..." : "Finish Module"}
-                    <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
               )}
@@ -993,8 +1013,17 @@ export function ModuleDocumentView({
           {scorePopupOpen && quizSubmitted ? (
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
               <div className="score-pop-card w-full max-w-md rounded-[28px] border border-white/80 bg-white p-6 text-center shadow-[0_30px_90px_-40px_rgba(15,23,42,0.65)]">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#ecfdf3] text-[#059669] shadow-[0_16px_36px_-24px_rgba(5,150,105,0.9)]">
-                  <Check className="h-8 w-8" />
+                <div
+                  className={cn(
+                    "mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#ecfdf3] text-[#059669] shadow-[0_16px_36px_-24px_rgba(5,150,105,0.9)]",
+                    showSavingMotion && "animate-pulse ring-4 ring-emerald-100"
+                  )}
+                >
+                  {showSavingMotion ? (
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  ) : (
+                    <Check className="h-8 w-8" />
+                  )}
                 </div>
                 <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-[#2f6fff]">
                   Quiz submitted
@@ -1007,18 +1036,16 @@ export function ModuleDocumentView({
                 </p>
                 <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="score-pop-bar h-full rounded-full bg-[linear-gradient(90deg,#2f6fff,#16a34a)]"
+                    className={cn(
+                      "score-pop-bar h-full rounded-full bg-[linear-gradient(90deg,#2f6fff,#16a34a)]",
+                      showSavingMotion && "animate-pulse"
+                    )}
                     style={{ width: `${quizScore.percent}%` }}
                   />
                 </div>
-                <p className="mt-4 text-xs text-slate-500">
-                  {progressSaveStatus === "saving"
-                    ? "Saving progress in the background..."
-                    : progressSaveStatus === "saved"
-                      ? "Progress saved."
-                      : progressSaveStatus === "error"
-                        ? "Progress could not be saved yet."
-                        : "Ready to finish this module."}
+                <p className="mt-4 inline-flex items-center justify-center gap-2 text-xs text-slate-500">
+                  {showSavingMotion ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#2f6fff]" /> : null}
+                  {progressStatusLabel}
                 </p>
                 <div className="mt-6 grid gap-2 sm:grid-cols-2">
                   <button
@@ -1034,8 +1061,12 @@ export function ModuleDocumentView({
                     disabled={isFinishing}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2f6fff] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
+                    {isFinishing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4" />
+                    )}
                     {isFinishing ? "Finishing..." : "Finish Module"}
-                    <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
                 {finishError ? (

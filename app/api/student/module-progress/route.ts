@@ -71,22 +71,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Module material ID is required." }, { status: 400 });
     }
 
-    const quizScores: QuizAttemptReview[] = totalPoints > 0 ? [
-      {
-        attemptId: `${moduleId}-${user.id}-${completedAt.getTime()}`,
-        quizId: moduleId,
-        quizTitle: moduleTitle,
-        materialId,
-        score,
-        earnedPoints,
-        totalPoints,
-        passed: true,
-        startedAt: safeStartedAt,
-        completedAt,
-        timeSpentSeconds,
-        questionResults,
-      },
-    ] : [];
+    const quizAttempt: QuizAttemptReview | null =
+      totalPoints > 0
+        ? {
+            attemptId: `${moduleId}-${user.id}-${completedAt.getTime()}`,
+            quizId: moduleId,
+            quizTitle: moduleTitle,
+            materialId,
+            score,
+            earnedPoints,
+            totalPoints,
+            passed: true,
+            startedAt: safeStartedAt,
+            completedAt,
+            timeSpentSeconds,
+            questionResults,
+          }
+        : null;
 
     const progressUpdate: Partial<Progress> = {
       completed: true,
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
       timeSpent: Math.max(1, Math.round(timeSpentSeconds / 60)),
     };
 
-    if (quizScores.length > 0) {
+    if (quizAttempt) {
       progressUpdate.quizScores = [{
         quizId: moduleId,
         quizTitle: moduleTitle,
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
         earnedPoints,
         totalPoints,
         passed: true,
-        attemptHistory: quizScores,
+        attemptHistory: [quizAttempt],
       }];
     }
 
