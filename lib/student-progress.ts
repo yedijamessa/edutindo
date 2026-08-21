@@ -16,6 +16,8 @@ type ProgressRow = {
 
 type SaveProgressInput = {
   studentId: string;
+  studentEmail?: string;
+  studentName?: string;
   materialId: string;
   materialTitle?: string;
   completed: boolean;
@@ -200,6 +202,41 @@ async function ensureMaterial(materialId: string, materialTitle?: string) {
   `;
 }
 
+async function ensureProgressUser(input: {
+  studentId: string;
+  studentEmail?: string;
+  studentName?: string;
+}) {
+  const bridgeEmail = `${input.studentId}@progress.edutindo.local`;
+  const name = input.studentName?.trim() || input.studentEmail?.trim().toLowerCase() || bridgeEmail;
+  const existing = await sqlQuery<{ id: string }>`
+    SELECT id
+    FROM users
+    WHERE id = ${input.studentId}
+    LIMIT 1
+  `;
+
+  if (existing.rows[0]) {
+    await sqlQuery`
+      UPDATE users
+      SET name = ${name},
+          role = 'student',
+          updated_at = NOW()
+      WHERE id = ${input.studentId}
+    `;
+    return;
+  }
+
+  await sqlQuery`
+    INSERT INTO users (id, name, email, role, updated_at)
+    VALUES (${input.studentId}, ${name}, ${bridgeEmail}, 'student', NOW())
+    ON CONFLICT (id) DO UPDATE
+    SET name = EXCLUDED.name,
+        role = EXCLUDED.role,
+        updated_at = NOW()
+  `;
+}
+
 async function getProgressRow(studentId: string, materialId: string) {
   const result = await sqlQuery<ProgressRow>`
     SELECT id, student_id, material_id, completed, progress, quiz_scores, last_accessed, time_spent
@@ -224,6 +261,7 @@ export async function getStudentProgress(studentId: string): Promise<Progress[]>
 }
 
 export async function saveStudentModuleProgress(input: SaveProgressInput) {
+  await ensureProgressUser(input);
   await ensureMaterial(input.materialId, input.materialTitle);
 
   const existing = await getProgressRow(input.studentId, input.materialId);
@@ -259,7 +297,14 @@ export async function saveStudentModuleProgress(input: SaveProgressInput) {
   `;
 }
 
-export async function saveStudentQuizAttempt(studentId: string, attempt: QuizAttemptReview) {
+export async function saveStudentQuizAttempt(input: {
+  studentId: string;
+  studentEmail?: string;
+  studentName?: string;
+  attempt: QuizAttemptReview;
+}) {
+  const { attempt, studentId } = input;
+  await ensureProgressUser(input);
   await ensureMaterial(attempt.materialId, attempt.quizTitle);
 
   const existing = await getProgressRow(studentId, attempt.materialId);

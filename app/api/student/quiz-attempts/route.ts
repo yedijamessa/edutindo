@@ -91,7 +91,12 @@ export async function POST(req: NextRequest) {
       questionResults,
     };
 
-    await saveStudentQuizAttempt(user.id, attempt);
+    await saveStudentQuizAttempt({
+      studentId: user.id,
+      studentEmail: user.email,
+      studentName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+      attempt,
+    });
 
     return NextResponse.json({ ok: true, attempt });
   } catch (error) {

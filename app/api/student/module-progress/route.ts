@@ -91,6 +91,8 @@ export async function POST(req: NextRequest) {
 
     await saveStudentModuleProgress({
       studentId: user.id,
+      studentEmail: user.email,
+      studentName: `${user.firstName} ${user.lastName}`.trim() || user.email,
       materialId,
       materialTitle: moduleTitle,
       completed: true,
