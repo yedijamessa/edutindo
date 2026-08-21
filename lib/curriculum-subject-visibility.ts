@@ -192,26 +192,75 @@ function getSubjectContentNodes(subject: CurriculumNode) {
   return { chapters, lessons };
 }
 
+async function setNodeVisibleForSchool(input: {
+  node: CurriculumNode;
+  schoolSlug: string;
+  actorUserId: string;
+  restoredTags?: CurriculumAssignmentTag[];
+}) {
+  const assignmentTags = getAssignmentTags(input.node.metadata);
+  const hiddenAssignmentTags = getHiddenAssignmentTags(input.node.metadata);
+  const restoredTags = input.restoredTags ?? getVisibilityTagsToRestore(input.node, input.schoolSlug);
+
+  await updateCurriculumNode({
+    nodeId: input.node.id,
+    title: input.node.title,
+    metadata: {
+      ...input.node.metadata,
+      assignmentTags: mergeTags(assignmentTags, restoredTags),
+      hiddenAssignmentTags: removeSchoolTags(hiddenAssignmentTags, input.schoolSlug),
+    },
+    actorUserId: input.actorUserId,
+  });
+}
+
+async function setNodeHiddenForSchool(input: {
+  node: CurriculumNode;
+  schoolSlug: string;
+  actorUserId: string;
+}) {
+  const assignmentTags = getAssignmentTags(input.node.metadata);
+  const hiddenAssignmentTags = getHiddenAssignmentTags(input.node.metadata);
+  const schoolTags = getSchoolTags(assignmentTags, input.schoolSlug);
+
+  await updateCurriculumNode({
+    nodeId: input.node.id,
+    title: input.node.title,
+    metadata: {
+      ...input.node.metadata,
+      assignmentTags: removeSchoolTags(assignmentTags, input.schoolSlug),
+      hiddenAssignmentTags: mergeTags(
+        removeSchoolTags(hiddenAssignmentTags, input.schoolSlug),
+        schoolTags
+      ),
+    },
+    actorUserId: input.actorUserId,
+  });
+}
+
 async function setSubjectVisibleForSchool(input: {
   subject: CurriculumNode;
   schoolSlug: string;
   actorUserId: string;
 }) {
   const { chapters, lessons } = getSubjectContentNodes(input.subject);
+  const contentNodes = [input.subject, ...chapters, ...lessons];
+  const subjectRestoredTags = mergeTags(
+    [],
+    contentNodes.flatMap((node) => getVisibilityTagsToRestore(node, input.schoolSlug))
+  );
 
-  for (const chapter of [...chapters, ...lessons]) {
-    const assignmentTags = getAssignmentTags(chapter.metadata);
-    const hiddenAssignmentTags = getHiddenAssignmentTags(chapter.metadata);
-    const restoredTags = getVisibilityTagsToRestore(chapter, input.schoolSlug);
+  await setNodeVisibleForSchool({
+    node: input.subject,
+    schoolSlug: input.schoolSlug,
+    actorUserId: input.actorUserId,
+    restoredTags: subjectRestoredTags,
+  });
 
-    await updateCurriculumNode({
-      nodeId: chapter.id,
-      title: chapter.title,
-      metadata: {
-        ...chapter.metadata,
-        assignmentTags: mergeTags(assignmentTags, restoredTags),
-        hiddenAssignmentTags: removeSchoolTags(hiddenAssignmentTags, input.schoolSlug),
-      },
+  for (const node of [...chapters, ...lessons]) {
+    await setNodeVisibleForSchool({
+      node,
+      schoolSlug: input.schoolSlug,
       actorUserId: input.actorUserId,
     });
   }
@@ -224,22 +273,10 @@ async function setSubjectHiddenForSchool(input: {
 }) {
   const { chapters, lessons } = getSubjectContentNodes(input.subject);
 
-  for (const node of [...chapters, ...lessons]) {
-    const assignmentTags = getAssignmentTags(node.metadata);
-    const hiddenAssignmentTags = getHiddenAssignmentTags(node.metadata);
-    const schoolTags = getSchoolTags(assignmentTags, input.schoolSlug);
-
-    await updateCurriculumNode({
-      nodeId: node.id,
-      title: node.title,
-      metadata: {
-        ...node.metadata,
-        assignmentTags: removeSchoolTags(assignmentTags, input.schoolSlug),
-        hiddenAssignmentTags: mergeTags(
-          removeSchoolTags(hiddenAssignmentTags, input.schoolSlug),
-          schoolTags
-        ),
-      },
+  for (const node of [input.subject, ...chapters, ...lessons]) {
+    await setNodeHiddenForSchool({
+      node,
+      schoolSlug: input.schoolSlug,
       actorUserId: input.actorUserId,
     });
   }

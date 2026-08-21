@@ -301,6 +301,8 @@ function normalizeMetadata(
       description: sanitizeText(input.description, 280),
       curriculumCode: sanitizeText(input.curriculumCode, 80),
       uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
+      assignmentTags: normalizeAssignmentTags(input.assignmentTags),
+      hiddenAssignmentTags: normalizeAssignmentTags(input.hiddenAssignmentTags),
     };
   }
 
@@ -482,7 +484,7 @@ async function ensureUniqueSlug(input: {
       .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
   );
 
-  let nextSlug = slugify(input.desiredSlug);
+  const nextSlug = slugify(input.desiredSlug);
   if (!existing.has(nextSlug)) return nextSlug;
 
   let suffix = 2;
@@ -1441,7 +1443,10 @@ function getVisibleChaptersForScope(
       chapterNode,
       lessonNodes: getVisibleLessonsForScope(chapterNode, schoolSlug, yearSlug),
     }))
-    .filter((item) => item.lessonNodes.length > 0);
+    .filter((item) => {
+      const chapterTags = extractAssignmentTags(item.chapterNode.metadata);
+      return item.lessonNodes.length > 0 || matchesAssignmentTag(chapterTags, schoolSlug, yearSlug);
+    });
 }
 
 function mapSubjectForScope(
@@ -1450,7 +1455,10 @@ function mapSubjectForScope(
   yearSlug: string
 ) {
   const visibleChapters = getVisibleChaptersForScope(subjectNode, schoolSlug, yearSlug);
-  if (visibleChapters.length === 0) return null;
+  const subjectTags = extractAssignmentTags(subjectNode.metadata);
+  if (visibleChapters.length === 0 && !matchesAssignmentTag(subjectTags, schoolSlug, yearSlug)) {
+    return null;
+  }
   return mapSubject(subjectNode, visibleChapters);
 }
 

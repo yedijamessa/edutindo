@@ -1045,6 +1045,11 @@ export function CurriculumPortal({
         return true;
       }
 
+      const subjectTags = parseAssignmentTags(subject.metadata ?? {});
+      if (subjectTags.some((tag) => tag.schoolSlug === lockedSchoolSlug)) {
+        return true;
+      }
+
       return subject.children.some((chapter) => {
         if (chapter.nodeType !== "chapter") return false;
         const chapterTags = parseAssignmentTags(chapter.metadata ?? {});
@@ -1887,9 +1892,15 @@ export function CurriculumPortal({
 
       const detachQueue =
         node.nodeType === "subject"
-          ? node.children
-              .filter((child) => child.nodeType === "chapter")
-              .flatMap((chapter) => [chapter, ...chapter.children.filter((child) => child.nodeType === "lesson")])
+          ? [
+              node,
+              ...node.children
+                .filter((child) => child.nodeType === "chapter")
+                .flatMap((chapter) => [
+                  chapter,
+                  ...chapter.children.filter((child) => child.nodeType === "lesson"),
+                ]),
+            ]
           : node.nodeType === "chapter"
             ? [node, ...node.children.filter((child) => child.nodeType === "lesson")]
             : [node];
