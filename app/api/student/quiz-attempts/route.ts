@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getQuizById } from "@/lib/quiz-services";
-import { saveQuizAttempt } from "@/lib/firestore-services";
+import { getQuizById } from "@/lib/db-services";
+import { saveStudentQuizAttempt } from "@/lib/student-progress";
 import type { Question, QuizAttemptReview } from "@/types/lms";
 
 type SubmittedAnswer = string | number | null;
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       questionResults,
     };
 
-    await saveQuizAttempt(user.id, attempt);
+    await saveStudentQuizAttempt(user.id, attempt);
 
     return NextResponse.json({ ok: true, attempt });
   } catch (error) {

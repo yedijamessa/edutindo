@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/button";
 import { listCurriculumSchools } from "@/lib/curriculum-portal";
-import { getStudentProgress } from "@/lib/firestore-services";
 import { listStudentAssignedModuleLessons } from "@/lib/module-editor";
+import { getStudentProgress } from "@/lib/student-progress";
 import { listUsersWithPortals, type AuthUser } from "@/lib/auth";
 import type { QuizAttemptReview, StudentProgress } from "@/types/lms";
 

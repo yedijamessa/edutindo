@@ -1,9 +1,10 @@
 import { SidebarNav } from "@/components/lms/sidebar-nav";
 import { ProgressChart } from "@/components/lms/progress-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getStudentProgress, getMaterials } from "@/lib/firestore-services";
+import { getMaterials } from "@/lib/db-services";
 import { getCurrentUser } from "@/lib/auth";
 import { listStudentAssignedModuleLessons } from "@/lib/module-editor";
+import { getStudentProgress } from "@/lib/student-progress";
 import { CheckCircle2, Trophy, Target, Clock, TrendingUp, XCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";

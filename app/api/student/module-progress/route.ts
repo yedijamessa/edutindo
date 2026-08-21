@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { updateProgress } from "@/lib/firestore-services";
-import type { Progress, QuizAttemptReview, QuizQuestionReview } from "@/types/lms";
+import { saveStudentModuleProgress } from "@/lib/student-progress";
+import type { QuizAttemptReview, QuizQuestionReview } from "@/types/lms";
 
 function safeString(value: unknown, fallback = "") {
   return typeof value === "string" ? value.trim() : fallback;
@@ -89,27 +89,15 @@ export async function POST(req: NextRequest) {
           }
         : null;
 
-    const progressUpdate: Partial<Progress> = {
+    await saveStudentModuleProgress({
+      studentId: user.id,
+      materialId,
+      materialTitle: moduleTitle,
       completed: true,
       progress: 100,
       timeSpent: Math.max(1, Math.round(timeSpentSeconds / 60)),
-    };
-
-    if (quizAttempt) {
-      progressUpdate.quizScores = [{
-        quizId: moduleId,
-        quizTitle: moduleTitle,
-        score,
-        attempts: 1,
-        lastAttempt: completedAt,
-        earnedPoints,
-        totalPoints,
-        passed: true,
-        attemptHistory: [quizAttempt],
-      }];
-    }
-
-    await updateProgress(user.id, materialId, progressUpdate);
+      quizAttempt,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

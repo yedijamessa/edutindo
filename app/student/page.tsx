@@ -3,8 +3,8 @@ import { StudentSidebarPanel } from "@/components/lms/student-sidebar-panel";
 import { getCurrentUser } from "@/lib/auth";
 import { listCurriculumSchools } from "@/lib/curriculum-portal";
 import { getCalendarEvents } from "@/lib/db-services";
-import { getStudentProgress } from "@/lib/firestore-services";
 import { listStudentAssignedModuleLessons } from "@/lib/module-editor";
+import { getStudentProgress } from "@/lib/student-progress";
 import {
   CalendarDays,
   CheckSquare,

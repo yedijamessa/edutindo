@@ -1041,6 +1041,10 @@ export function CurriculumPortal({
         return false;
       }
 
+      if (lockedSubjectSlug) {
+        return true;
+      }
+
       if (!lockedSchoolSlug) {
         return true;
       }
@@ -1142,6 +1146,7 @@ export function CurriculumPortal({
       chapters: getVisibleChapterEntriesForScope(selectedSubject, selectedSchool.slug, year.slug),
     }));
   }, [isLockedSubjectWorkspace, selectedSchool, selectedSubject]);
+  const hasScopedSubjectContent = scopedYearGroups.some((group) => group.chapters.length > 0);
 
   useEffect(() => {
     if (!isLockedSubjectWorkspace) {
@@ -1165,13 +1170,17 @@ export function CurriculumPortal({
 
   const chapters = useMemo(() => {
     if (isLockedSubjectWorkspace && selectedSchool && selectedSubject && selectedYearSlug) {
-      return getVisibleChapterEntriesForScope(selectedSubject, selectedSchool.slug, selectedYearSlug).map(
-        (entry) => entry.chapter
-      );
+      if (hasScopedSubjectContent) {
+        return getVisibleChapterEntriesForScope(selectedSubject, selectedSchool.slug, selectedYearSlug).map(
+          (entry) => entry.chapter
+        );
+      }
+
+      return selectedSubject.children.filter((node) => node.nodeType === "chapter");
     }
 
     return selectedSubject?.children.filter((node) => node.nodeType === "chapter") ?? [];
-  }, [isLockedSubjectWorkspace, selectedSchool, selectedSubject, selectedYearSlug]);
+  }, [hasScopedSubjectContent, isLockedSubjectWorkspace, selectedSchool, selectedSubject, selectedYearSlug]);
 
   useEffect(() => {
     if (chapters.length === 0) {
@@ -1198,11 +1207,15 @@ export function CurriculumPortal({
 
   const lessons = useMemo(() => {
     if (isLockedSubjectWorkspace && selectedSchool && selectedChapter && selectedYearSlug) {
-      return getVisibleLessonsForScope(selectedChapter, selectedSchool.slug, selectedYearSlug);
+      if (hasScopedSubjectContent) {
+        return getVisibleLessonsForScope(selectedChapter, selectedSchool.slug, selectedYearSlug);
+      }
+
+      return selectedChapter.children.filter((node) => node.nodeType === "lesson");
     }
 
     return selectedChapter?.children.filter((node) => node.nodeType === "lesson") ?? [];
-  }, [isLockedSubjectWorkspace, selectedChapter, selectedSchool, selectedYearSlug]);
+  }, [hasScopedSubjectContent, isLockedSubjectWorkspace, selectedChapter, selectedSchool, selectedYearSlug]);
 
   useEffect(() => {
     if (lessons.length === 0) {
