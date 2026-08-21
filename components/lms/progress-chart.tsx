@@ -47,7 +47,7 @@ export function ProgressChart({ progressData, materials }: ProgressChartProps) {
                     <CardTitle>Progress by Material</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
+                    <div className="max-h-[28rem] space-y-4 overflow-y-auto pr-2">
                         {materials.map(material => {
                             const progress = progressByMaterialId.get(material.id);
                             const progressValue = progress?.progress || 0;

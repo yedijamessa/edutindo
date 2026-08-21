@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         questionId: question.id || String(index),
         questionText: question.question,
         questionType: question.type,
-        options: question.options,
+        options: question.options ?? [],
         correctAnswer: question.correctAnswer,
         studentAnswer,
         isCorrect,

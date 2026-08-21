@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -42,6 +42,7 @@ type QuizAnswerState = {
 };
 
 type QuizAnswersByBlockId = Record<string, QuizAnswerState>;
+type ProgressSaveStatus = "idle" | "saving" | "saved" | "error";
 
 function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
   switch (quizType) {
@@ -245,7 +246,7 @@ function buildQuizQuestionResults(
       questionId: block.id,
       questionText: block.prompt || getQuizTypeLabel(block.quizType),
       questionType: toReviewQuestionType(block.quizType),
-      options: block.options.length > 0 ? block.options.map((option) => option.text) : undefined,
+      options: block.options.map((option) => option.text),
       correctAnswer: getCorrectAnswerLabel(block),
       studentAnswer: getStudentAnswerLabel(block, answers[block.id]),
       isCorrect: correct,
@@ -681,9 +682,12 @@ export function ModuleDocumentView({
   const [note, setNote] = useState("");
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswersByBlockId>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [scorePopupOpen, setScorePopupOpen] = useState(false);
   const [finishError, setFinishError] = useState("");
   const [isFinishing, setIsFinishing] = useState(false);
+  const [progressSaveStatus, setProgressSaveStatus] = useState<ProgressSaveStatus>("idle");
   const [moduleStartedAt] = useState(() => new Date().toISOString());
+  const progressSavePromiseRef = useRef<Promise<void> | null>(null);
 
   const page = pages[currentPage] ?? pages[0];
   const pageIndex = Math.min(currentPage, pages.length - 1);
@@ -704,13 +708,18 @@ export function ModuleDocumentView({
     setQuizAnswers((current) => ({ ...current, [blockId]: answer }));
   }
 
-  async function finishModule() {
-    if (!completion || isFinishing) return;
+  function saveModuleProgress() {
+    if (!completion) {
+      return Promise.resolve();
+    }
 
-    setFinishError("");
-    setIsFinishing(true);
+    if (progressSavePromiseRef.current) {
+      return progressSavePromiseRef.current;
+    }
 
-    try {
+    setProgressSaveStatus("saving");
+
+    const savePromise = (async () => {
       const response = await fetch("/api/student/module-progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -730,9 +739,39 @@ export function ModuleDocumentView({
       if (!response.ok || !data?.ok) {
         throw new Error(data?.error || "Failed to update module progress.");
       }
+    })();
 
+    progressSavePromiseRef.current = savePromise
+      .then(() => {
+        setProgressSaveStatus("saved");
+      })
+      .catch((error) => {
+        progressSavePromiseRef.current = null;
+        setProgressSaveStatus("error");
+        throw error;
+      });
+
+    return progressSavePromiseRef.current;
+  }
+
+  function submitQuiz() {
+    setQuizSubmitted(true);
+    setScorePopupOpen(true);
+    setFinishError("");
+    void saveModuleProgress().catch((error) => {
+      setFinishError(error instanceof Error ? error.message : "Failed to update module progress.");
+    });
+  }
+
+  async function finishModule() {
+    if (!completion || isFinishing) return;
+
+    setFinishError("");
+    setIsFinishing(true);
+
+    try {
+      await saveModuleProgress();
       router.push(completionHref);
-      router.refresh();
     } catch (error) {
       setFinishError(error instanceof Error ? error.message : "Failed to update module progress.");
       setIsFinishing(false);
@@ -911,13 +950,13 @@ export function ModuleDocumentView({
                       disabled={isFinishing}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {isFinishing ? "Saving..." : "Finish Module"}
+                      {isFinishing ? "Finishing..." : "Finish Module"}
                       <ArrowRight className="h-4 w-4" />
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setQuizSubmitted(true)}
+                      onClick={submitQuiz}
                       disabled={!allAnswerableQuizzesAnswered}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2f6fff] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
                     >
@@ -938,7 +977,7 @@ export function ModuleDocumentView({
                     disabled={isFinishing}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isFinishing ? "Saving..." : "Finish Module"}
+                    {isFinishing ? "Finishing..." : "Finish Module"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -948,6 +987,63 @@ export function ModuleDocumentView({
                   {finishError}
                 </div>
               ) : null}
+            </div>
+          ) : null}
+
+          {scorePopupOpen && quizSubmitted ? (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
+              <div className="score-pop-card w-full max-w-md rounded-[28px] border border-white/80 bg-white p-6 text-center shadow-[0_30px_90px_-40px_rgba(15,23,42,0.65)]">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#ecfdf3] text-[#059669] shadow-[0_16px_36px_-24px_rgba(5,150,105,0.9)]">
+                  <Check className="h-8 w-8" />
+                </div>
+                <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-[#2f6fff]">
+                  Quiz submitted
+                </p>
+                <p className="mt-2 text-5xl font-black tracking-tight text-slate-950">
+                  {quizScore.percent}%
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  {quizScore.correctCount} of {quizScore.totalCount} correct
+                </p>
+                <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="score-pop-bar h-full rounded-full bg-[linear-gradient(90deg,#2f6fff,#16a34a)]"
+                    style={{ width: `${quizScore.percent}%` }}
+                  />
+                </div>
+                <p className="mt-4 text-xs text-slate-500">
+                  {progressSaveStatus === "saving"
+                    ? "Saving progress in the background..."
+                    : progressSaveStatus === "saved"
+                      ? "Progress saved."
+                      : progressSaveStatus === "error"
+                        ? "Progress could not be saved yet."
+                        : "Ready to finish this module."}
+                </p>
+                <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setScorePopupOpen(false)}
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#dce6ff] bg-white px-5 text-sm font-bold text-slate-600 transition-colors hover:bg-[#f7faff]"
+                  >
+                    Review Answers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={finishModule}
+                    disabled={isFinishing}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2f6fff] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isFinishing ? "Finishing..." : "Finish Module"}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+                {finishError ? (
+                  <div className="mt-4 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-700">
+                    {finishError}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

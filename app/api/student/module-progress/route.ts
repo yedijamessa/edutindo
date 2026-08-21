@@ -17,7 +17,7 @@ function normalizeQuestionResults(value: unknown): QuizQuestionReview[] {
 
   return value.map((item, index) => {
     const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
-    const options = Array.isArray(record.options) ? record.options.map(String) : undefined;
+    const options = Array.isArray(record.options) ? record.options.map(String) : [];
     const correctAnswer = typeof record.correctAnswer === "number" || typeof record.correctAnswer === "string"
       ? record.correctAnswer
       : "";
