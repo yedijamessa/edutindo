@@ -3,6 +3,7 @@ import { StudentSidebarPanel } from "@/components/lms/student-sidebar-panel";
 import { getCurrentUser } from "@/lib/auth";
 import { listCurriculumSchools } from "@/lib/curriculum-portal";
 import { getCalendarEvents } from "@/lib/db-services";
+import { getStudentProgress } from "@/lib/firestore-services";
 import { listStudentAssignedModuleLessons } from "@/lib/module-editor";
 import {
   CalendarDays,
@@ -60,19 +61,35 @@ export default async function StudentDashboard() {
       ? assignedSchoolTitles[0] ?? null
       : `${assignedSchoolTitles.length} schools assigned`;
 
-  const [assignedLessons, studentEvents] = await Promise.all([
+  const [assignedLessons, studentEvents, studentProgress] = await Promise.all([
     listStudentAssignedModuleLessons(user),
     getCalendarEvents(user?.id ?? ""),
+    user ? getStudentProgress(user.id) : Promise.resolve([]),
   ]);
 
   const visibleLessons = assignedLessons.slice(0, 3);
   const openLessons = assignedLessons.filter((lesson) => !lesson.isLocked);
-  const heroLesson = openLessons[0] ?? visibleLessons[0] ?? null;
+  const progressByLessonId = new Map(studentProgress.map((record) => [record.materialId, record]));
+  const completedLessonIds = new Set(
+    assignedLessons
+      .filter((lesson) => progressByLessonId.get(lesson.lessonId)?.completed)
+      .map((lesson) => lesson.lessonId)
+  );
+  const openIncompleteLessons = openLessons.filter((lesson) => !completedLessonIds.has(lesson.lessonId));
+  const heroLesson = openIncompleteLessons[0] ?? openLessons[0] ?? visibleLessons[0] ?? null;
   const heroCoverImageUrl = heroLesson?.coverImageUrl || "/images/cells/microscope.png";
-  const nextLesson = openLessons.find((lesson) => lesson.href !== heroLesson?.href) ?? visibleLessons[1] ?? null;
+  const nextLesson =
+    openIncompleteLessons.find((lesson) => lesson.href !== heroLesson?.href) ??
+    openLessons.find((lesson) => lesson.href !== heroLesson?.href) ??
+    visibleLessons[1] ??
+    null;
   const taskLessons = openLessons.slice(0, 3);
-  const overallProgress = 0;
-  const completedCount = 0;
+  const assignedProgressValues = assignedLessons.map((lesson) => progressByLessonId.get(lesson.lessonId)?.progress ?? 0);
+  const overallProgress =
+    assignedProgressValues.length > 0
+      ? Math.round(assignedProgressValues.reduce((sum, value) => sum + value, 0) / assignedProgressValues.length)
+      : 0;
+  const completedCount = completedLessonIds.size;
   const upcomingEvents = studentEvents.slice(0, 2);
 
   return (

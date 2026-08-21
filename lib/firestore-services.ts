@@ -157,7 +157,7 @@ export async function updateProgress(
     materialId: string,
     data: Partial<StudentProgress>
 ): Promise<void> {
-    const progressId = `${studentId}_${materialId} `;
+    const progressId = `${studentId}_${materialId}`;
     const docRef = doc(db, 'progress', progressId);
 
     await setDoc(docRef, {
@@ -174,7 +174,7 @@ export async function saveQuizScore(
     quizId: string,
     score: number
 ): Promise<void> {
-    const progressId = `${studentId}_${materialId} `;
+    const progressId = `${studentId}_${materialId}`;
     const docRef = doc(db, 'progress', progressId);
     const docSnap = await getDoc(docRef);
 

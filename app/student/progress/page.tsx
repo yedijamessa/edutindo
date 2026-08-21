@@ -3,7 +3,10 @@ import { ProgressChart } from "@/components/lms/progress-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getStudentProgress, getMaterials } from "@/lib/firestore-services";
 import { getCurrentUser } from "@/lib/auth";
+import { listStudentAssignedModuleLessons } from "@/lib/module-editor";
 import { CheckCircle2, Trophy, Target, Clock, TrendingUp, XCircle } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 function formatAttemptDate(value: Date) {
     return new Date(value).toLocaleString("en-GB", {
@@ -18,15 +21,33 @@ function formatAttemptDate(value: Date) {
 export default async function StudentProgressPage() {
     const user = await getCurrentUser();
     const studentId = user?.id ?? 'student-1';
-    const [studentProgress, materials] = await Promise.all([
+    const [studentProgress, materials, assignedLessons] = await Promise.all([
         getStudentProgress(studentId),
-        getMaterials()
+        getMaterials(),
+        listStudentAssignedModuleLessons(user),
     ]);
+    const assignedLessonMaterials = assignedLessons.map((lesson) => ({
+        id: lesson.lessonId,
+        title: lesson.moduleTitle || lesson.lessonTitle,
+        subject: lesson.subject,
+    }));
+    const progressMaterials = [
+        ...assignedLessonMaterials,
+        ...materials
+            .filter((material) => !assignedLessonMaterials.some((lesson) => lesson.id === material.id))
+            .map((material) => ({
+                id: material.id,
+                title: material.title,
+                subject: material.subject,
+            })),
+    ];
+    const progressByMaterialId = new Map(studentProgress.map((record) => [record.materialId, record]));
+    const progressValues = progressMaterials.map((material) => progressByMaterialId.get(material.id)?.progress ?? 0);
 
-    const totalTimeSpent = studentProgress.reduce((sum, p) => sum + p.timeSpent, 0);
-    const completedCount = studentProgress.filter(p => p.completed).length;
-    const overallProgress = studentProgress.length > 0
-        ? Math.round(studentProgress.reduce((sum, p) => sum + p.progress, 0) / studentProgress.length)
+    const totalTimeSpent = studentProgress.reduce((sum, p) => sum + (p.timeSpent ?? 0), 0);
+    const completedCount = progressMaterials.filter((material) => progressByMaterialId.get(material.id)?.completed).length;
+    const overallProgress = progressValues.length > 0
+        ? Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length)
         : 0;
     const quizAttempts = studentProgress
         .flatMap((progress) =>
@@ -114,7 +135,7 @@ export default async function StudentProgressPage() {
                         {/* Progress Charts */}
                         <ProgressChart
                             progressData={studentProgress}
-                            materials={materials}
+                            materials={progressMaterials}
                         />
 
                         <Card>

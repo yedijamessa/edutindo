@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,6 +33,7 @@ import type {
   ModuleEditorQuizBlock,
   ModuleEditorQuizType,
 } from "@/types/module-editor";
+import type { QuestionType, QuizQuestionReview } from "@/types/lms";
 
 type QuizAnswerState = {
   selectedOptionIds: string[];
@@ -176,6 +177,82 @@ function getEmptyQuizAnswer(): QuizAnswerState {
     textAnswer: "",
     matchingAnswers: {},
   };
+}
+
+function toReviewQuestionType(quizType: ModuleEditorQuizType): QuestionType {
+  if (quizType === "true-false") return "true-false";
+  if (quizType === "short-answer" || quizType === "fill-in-the-blank" || quizType === "matching") {
+    return "short-answer";
+  }
+  if (quizType === "essay" || quizType === "ordering") return "essay";
+  return "multiple-choice";
+}
+
+function getStudentAnswerLabel(block: ModuleEditorQuizBlock, answer: QuizAnswerState | undefined) {
+  if (!answer) return null;
+
+  if (
+    block.quizType === "multiple-choice-single" ||
+    block.quizType === "multiple-choice-multiple" ||
+    block.quizType === "true-false"
+  ) {
+    const optionLabels = answer.selectedOptionIds
+      .map((optionId) => block.options.find((option) => option.id === optionId)?.text)
+      .filter((option): option is string => Boolean(option));
+    return optionLabels.length > 0 ? optionLabels.join(", ") : null;
+  }
+
+  if (block.quizType === "matching") {
+    return block.matchingPairs
+      .map((pair) => `${pair.prompt}: ${answer.matchingAnswers[pair.id] ?? ""}`)
+      .join("; ");
+  }
+
+  return answer.textAnswer.trim() || null;
+}
+
+function getCorrectAnswerLabel(block: ModuleEditorQuizBlock) {
+  if (
+    block.quizType === "multiple-choice-single" ||
+    block.quizType === "multiple-choice-multiple" ||
+    block.quizType === "true-false"
+  ) {
+    return block.correctOptionIds
+      .map((optionId) => block.options.find((option) => option.id === optionId)?.text)
+      .filter((option): option is string => Boolean(option))
+      .join(", ");
+  }
+
+  if (block.quizType === "short-answer" || block.quizType === "fill-in-the-blank") {
+    return block.acceptableAnswers.filter(Boolean).join(", ");
+  }
+
+  if (block.quizType === "matching") {
+    return block.matchingPairs.map((pair) => `${pair.prompt}: ${pair.match}`).join("; ");
+  }
+
+  return "";
+}
+
+function buildQuizQuestionResults(
+  quizBlocks: ModuleEditorQuizBlock[],
+  answers: QuizAnswersByBlockId
+): QuizQuestionReview[] {
+  return quizBlocks.filter(isScorableQuiz).map((block) => {
+    const correct = isQuizCorrect(block, answers[block.id]);
+
+    return {
+      questionId: block.id,
+      questionText: block.prompt || getQuizTypeLabel(block.quizType),
+      questionType: toReviewQuestionType(block.quizType),
+      options: block.options.length > 0 ? block.options.map((option) => option.text) : undefined,
+      correctAnswer: getCorrectAnswerLabel(block),
+      studentAnswer: getStudentAnswerLabel(block, answers[block.id]),
+      isCorrect: correct,
+      points: 1,
+      earnedPoints: correct ? 1 : 0,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -571,6 +648,7 @@ export function ModuleDocumentView({
   hideSidebars = false,
   hideStatusBar = false,
   aiTools,
+  completion,
 }: {
   document: ModuleEditorDocument;
   showAnswers?: boolean;
@@ -583,7 +661,14 @@ export function ModuleDocumentView({
     lessonTitle: string;
     contextTitle: string;
   };
+  completion?: {
+    materialId: string;
+    moduleId: string;
+    moduleTitle: string;
+    dashboardHref: string;
+  };
 }) {
+  const router = useRouter();
   const pages = document.pages;
   const [currentPage, setCurrentPage] = useState(() => {
     const requestedIndex = initialPageId ? pages.findIndex((page) => page.id === initialPageId) : -1;
@@ -596,6 +681,9 @@ export function ModuleDocumentView({
   const [note, setNote] = useState("");
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswersByBlockId>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [finishError, setFinishError] = useState("");
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [moduleStartedAt] = useState(() => new Date().toISOString());
 
   const page = pages[currentPage] ?? pages[0];
   const pageIndex = Math.min(currentPage, pages.length - 1);
@@ -609,11 +697,46 @@ export function ModuleDocumentView({
   const allAnswerableQuizzesAnswered = answerableQuizBlocks.length === 0 || answeredQuizCount === answerableQuizBlocks.length;
   const quizScore = getQuizScore(quizBlocks, quizAnswers);
   const isLastPage = pageIndex === pages.length - 1;
-  const completionHref = meta?.backHref ?? "#";
+  const completionHref = completion?.dashboardHref ?? "/student";
 
   function updateQuizAnswer(blockId: string, answer: QuizAnswerState) {
     if (quizSubmitted) return;
     setQuizAnswers((current) => ({ ...current, [blockId]: answer }));
+  }
+
+  async function finishModule() {
+    if (!completion || isFinishing) return;
+
+    setFinishError("");
+    setIsFinishing(true);
+
+    try {
+      const response = await fetch("/api/student/module-progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          materialId: completion.materialId,
+          moduleId: completion.moduleId,
+          moduleTitle: completion.moduleTitle,
+          startedAt: moduleStartedAt,
+          score: quizScore.percent,
+          earnedPoints: quizScore.correctCount,
+          totalPoints: quizScore.totalCount,
+          questionResults: buildQuizQuestionResults(quizBlocks, quizAnswers),
+        }),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed to update module progress.");
+      }
+
+      router.push(completionHref);
+      router.refresh();
+    } catch (error) {
+      setFinishError(error instanceof Error ? error.message : "Failed to update module progress.");
+      setIsFinishing(false);
+    }
   }
 
   return (
@@ -782,13 +905,15 @@ export function ModuleDocumentView({
                   </div>
 
                   {quizSubmitted ? (
-                    <Link
-                      href={completionHref}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105"
+                    <button
+                      type="button"
+                      onClick={finishModule}
+                      disabled={isFinishing}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Finish Module
+                      {isFinishing ? "Saving..." : "Finish Module"}
                       <ArrowRight className="h-4 w-4" />
-                    </Link>
+                    </button>
                   ) : (
                     <button
                       type="button"
@@ -807,15 +932,22 @@ export function ModuleDocumentView({
                     <p className="text-sm font-bold text-slate-950">Module complete</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">You reached the end of this module.</p>
                   </div>
-                  <Link
-                    href={completionHref}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105"
+                  <button
+                    type="button"
+                    onClick={finishModule}
+                    disabled={isFinishing}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-5 text-sm font-bold text-white shadow-[0_16px_32px_-20px_rgba(37,99,235,0.85)] transition-[filter] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Finish Module
+                    {isFinishing ? "Saving..." : "Finish Module"}
                     <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  </button>
                 </div>
               )}
+              {finishError ? (
+                <div className="mt-4 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {finishError}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

@@ -147,6 +147,16 @@ export async function CurriculumLessonPage({
                     }
                   : undefined
               }
+              completion={
+                role === "student"
+                  ? {
+                      materialId: lesson.id,
+                      moduleId: moduleDocument.id,
+                      moduleTitle: moduleDocument.title,
+                      dashboardHref: "/student",
+                    }
+                  : undefined
+              }
               meta={{
                 lessonCode: lesson.lessonCode ?? undefined,
                 chapterTitle: chapter.title,

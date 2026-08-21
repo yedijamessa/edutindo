@@ -9,11 +9,13 @@ interface ProgressChartProps {
 }
 
 export function ProgressChart({ progressData, materials }: ProgressChartProps) {
-    const overallProgress = progressData.length > 0
-        ? Math.round(progressData.reduce((sum, p) => sum + p.progress, 0) / progressData.length)
+    const progressByMaterialId = new Map(progressData.map((progress) => [progress.materialId, progress]));
+    const progressValues = materials.map((material) => progressByMaterialId.get(material.id)?.progress ?? 0);
+    const overallProgress = progressValues.length > 0
+        ? Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length)
         : 0;
 
-    const completedCount = progressData.filter(p => p.completed).length;
+    const completedCount = materials.filter((material) => progressByMaterialId.get(material.id)?.completed).length;
     const totalMaterials = materials.length;
 
     return (
@@ -47,7 +49,7 @@ export function ProgressChart({ progressData, materials }: ProgressChartProps) {
                 <CardContent>
                     <div className="space-y-4">
                         {materials.map(material => {
-                            const progress = progressData.find(p => p.materialId === material.id);
+                            const progress = progressByMaterialId.get(material.id);
                             const progressValue = progress?.progress || 0;
 
                             return (
