@@ -4,11 +4,6 @@ import { AdminBreadcrumb } from "@/components/admin/admin-breadcrumb";
 import { SchoolSubjectVisibilityClient } from "@/components/admin/school-subject-visibility-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
-import {
-  canApproveCurriculumSubjectVisibility,
-  listPendingCurriculumSubjectVisibilityRequests,
-} from "@/lib/curriculum-subject-visibility";
 import { listCurriculumSchools, listCurriculumTree } from "@/lib/curriculum-portal";
 import { notFound } from "next/navigation";
 
@@ -20,11 +15,9 @@ type AdminSchoolCurriculumPageProps = {
 
 export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolCurriculumPageProps) {
   const { schoolSlug } = await params;
-  const [schools, tree, user, pendingRequests] = await Promise.all([
+  const [schools, tree] = await Promise.all([
     listCurriculumSchools(),
     listCurriculumTree(),
-    getCurrentUser(),
-    listPendingCurriculumSubjectVisibilityRequests(schoolSlug),
   ]);
   const school = schools.find((item) => item.slug === schoolSlug) ?? null;
 
@@ -72,8 +65,6 @@ export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolC
       if (left.isVisible !== right.isVisible) return left.isVisible ? -1 : 1;
       return left.title.localeCompare(right.title);
     });
-  const canApprove = canApproveCurriculumSubjectVisibility(user?.email);
-
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f3f8ff_44%,#fbfdff_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#020617_100%)]">
       <main className="portal-page-width px-4 pb-12 pt-5 sm:px-6 lg:px-8 lg:pb-16">
@@ -106,16 +97,6 @@ export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolC
             schoolTitle={school.title}
             schoolSlug={school.slug}
             subjects={allSubjects}
-            canApprove={canApprove}
-            pendingRequests={pendingRequests.map((request) => ({
-              id: request.id,
-              schoolSlug: request.schoolSlug,
-              subjectId: request.subjectId,
-              subjectTitle: request.subjectTitle,
-              action: request.action,
-              requestedByEmail: request.requestedByEmail,
-              createdAt: request.createdAt.toISOString(),
-            }))}
           />
         </div>
       </main>
