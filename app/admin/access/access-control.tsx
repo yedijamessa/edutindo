@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Save, Send } from "lucide-react";
+import { Loader2, Search, Save, Send, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,9 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
   const [inviteLastName, setInviteLastName] = useState("");
   const [inviteSchoolSlug, setInviteSchoolSlug] = useState("");
   const [invitePortals, setInvitePortals] = useState<Set<string>>(new Set(["admin"]));
+  const [userSearch, setUserSearch] = useState("");
+  const [portalFilters, setPortalFilters] = useState<Set<string>>(new Set());
+  const [schoolFilter, setSchoolFilter] = useState("all");
 
   const portalLabels = useMemo(
     () => ({
@@ -163,6 +166,55 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
       return next;
     });
   };
+
+  const togglePortalFilter = (portal: string) => {
+    setPortalFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(portal)) {
+        next.delete(portal);
+      } else {
+        next.add(portal);
+      }
+      return next;
+    });
+  };
+
+  const clearUserFilters = () => {
+    setUserSearch("");
+    setPortalFilters(new Set());
+    setSchoolFilter("all");
+  };
+
+  const filteredUsers = useMemo(() => {
+    const query = userSearch.trim().toLowerCase();
+
+    return users.filter((user) => {
+      if (query) {
+        const searchableText = [
+          user.email,
+          user.firstName,
+          user.lastName,
+          `${user.firstName} ${user.lastName}`.trim(),
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!searchableText.includes(query)) return false;
+      }
+
+      if (portalFilters.size > 0 && !Array.from(portalFilters).some((portal) => user.portals.includes(portal))) {
+        return false;
+      }
+
+      const userSchoolSlugs = user.schoolSlugs ?? (user.schoolSlug ? [user.schoolSlug] : []);
+      if (schoolFilter === "unassigned") return userSchoolSlugs.length === 0;
+      if (schoolFilter !== "all" && !userSchoolSlugs.includes(schoolFilter)) return false;
+
+      return true;
+    });
+  }, [portalFilters, schoolFilter, userSearch, users]);
+
+  const hasUserFilters = userSearch.trim() || portalFilters.size > 0 || schoolFilter !== "all";
 
   const sendInvite = async () => {
     setIsInviting(true);
@@ -367,7 +419,83 @@ export function AccessControl({ adminEmail }: AccessControlProps) {
         </div>
       ) : (
         <div className="grid gap-4">
-          {users.map((user) => {
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_280px_auto]">
+                <label className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <input
+                    value={userSearch}
+                    onChange={(event) => setUserSearch(event.target.value)}
+                    placeholder="Search by name or email..."
+                    className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
+                  />
+                </label>
+
+                <select
+                  value={schoolFilter}
+                  onChange={(event) => setSchoolFilter(event.target.value)}
+                  className="rounded-lg border bg-background px-3 py-2 text-sm"
+                  aria-label="Filter by school"
+                >
+                  <option value="all">All schools</option>
+                  <option value="unassigned">No school assigned</option>
+                  {schools.map((school) => (
+                    <option key={school.id} value={school.slug}>
+                      {school.title}
+                    </option>
+                  ))}
+                </select>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clearUserFilters}
+                  disabled={!hasUserFilters}
+                  className="justify-center"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {PORTAL_OPTIONS.map((portal) => {
+                  const active = portalFilters.has(portal);
+
+                  return (
+                    <button
+                      key={portal}
+                      type="button"
+                      onClick={() => togglePortalFilter(portal)}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        active
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-slate-200 bg-background text-slate-700 hover:bg-slate-50"
+                      }`}
+                      aria-pressed={active}
+                    >
+                      {portalLabels[portal]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredUsers.length} of {users.length} users
+              </p>
+            </CardContent>
+          </Card>
+
+          {filteredUsers.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                No users match the selected filters.
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {filteredUsers.map((user) => {
             const selectedPortals = draftPortals[user.id] ?? new Set<string>();
             const isSaving = savingUserId === user.id;
 

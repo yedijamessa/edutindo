@@ -27,7 +27,6 @@ function mapLessonTargetToStub(target: Awaited<ReturnType<typeof listModuleEdito
 
 function getLessonDedupeKey(lesson: LessonStub) {
   return [
-    lesson.lessonId,
     lesson.lessonSlug,
     lesson.lessonTitle.trim().toLowerCase(),
     lesson.subjectSlug,
