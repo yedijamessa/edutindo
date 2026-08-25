@@ -1,6 +1,14 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   allScholarships,
   Career,
@@ -9,6 +17,7 @@ import {
   isUnsure,
   matchCareer,
   Pathway,
+  Scholarship,
   studyRegionSuggestions,
   Skill,
   University,
@@ -477,7 +486,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
   const target = guidance?.targetTitle ?? career?.title ?? data.dream;
 
   return (
-    <div className="citacitaku min-h-screen pb-16">
+    <div className="citacitaku min-h-screen pb-16 xl:pl-56">
       <ResultHeader onReset={onReset} />
       <ResultFloatingNav mobileOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onNavigate={() => setMobileNavOpen(false)} />
 
@@ -495,6 +504,9 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
                 Kalau kamu ingin menjadi <strong className="text-white">{target}</strong>, ini beberapa jalan yang bisa kamu mulai dari <strong className="text-white">Kelas {data.grade}</strong>.
               </p>
               {guidance?.intro && <p className="mt-2 max-w-3xl text-sm leading-6 text-[#dbeafe]">{guidance.intro}</p>}
+              <p className="mt-4 max-w-3xl rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs font-semibold leading-5 text-white/65">
+                Disclaimer: panduan ini dibuat dengan bantuan AI sebagai titik awal eksplorasi. Informasi kampus, beasiswa, syarat, dan jadwal tetap perlu dicek kembali di sumber resmi.
+              </p>
               {!career && (
                 <div className="mt-5 max-w-2xl rounded-2xl border border-white/15 bg-white/10 p-4 text-sm leading-6 text-white/75">
                   {guidance?.researched
@@ -514,15 +526,15 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
         {notice && <p className="mt-4 rounded-2xl border border-[#fb923c]/50 bg-cream px-4 py-3 text-sm font-semibold text-ink/65">{notice}</p>}
 
         <div className="mt-8 space-y-8 sm:mt-12 sm:space-y-12">
-          <PathwaysSection career={career} guidance={guidance} />
+          <PathwaysSection career={career} guidance={guidance} target={target} grade={data.grade} />
           {guidance?.sources && guidance.sources.length > 0 && <ResearchSourcesSection guidance={guidance} />}
-          <UniversitiesSection career={career} target={target} />
-          <ScholarshipsSection career={career} />
+          <UniversitiesSection career={career} target={target} grade={data.grade} />
+          <ScholarshipsSection career={career} target={target} grade={data.grade} />
           <RoadmapSection grade={data.grade} target={target} stages={guidance?.roadmap} />
-          <SkillsSection career={career} generatedSkills={guidance?.skills} />
-          <PortfolioSection career={career} target={target} generatedIdeas={guidance?.portfolioIdeas} />
-          <CvSection career={career} generatedSuggestions={guidance?.cvSuggestions} />
-          <ThisWeekSection career={career} target={target} generatedActions={guidance?.weeklyActions} />
+          <SkillsSection career={career} generatedSkills={guidance?.skills} target={target} grade={data.grade} />
+          <PortfolioSection career={career} target={target} grade={data.grade} generatedIdeas={guidance?.portfolioIdeas} />
+          <CvSection career={career} target={target} grade={data.grade} generatedSuggestions={guidance?.cvSuggestions} />
+          <ThisWeekSection career={career} target={target} grade={data.grade} generatedActions={guidance?.weeklyActions} />
         </div>
 
         <FeedbackSection contained context={{ dream: data.dream, grade: data.grade, page: "result" }} />
@@ -576,10 +588,10 @@ function ResultHeader({ onReset }: { onReset: () => void }) {
 function ResultFloatingNav({ mobileOpen, onToggle, onNavigate }: { mobileOpen: boolean; onToggle: () => void; onNavigate: () => void }) {
   return (
     <>
-      <nav aria-label="Navigasi hasil" className="fixed left-4 top-24 z-30 hidden w-40 xl:block">
-        <div className="rounded-2xl border border-ink/10 bg-white/90 p-2 shadow-xl shadow-ink/10 backdrop-blur-md">
+      <nav aria-label="Navigasi hasil" className="fixed bottom-0 left-0 top-0 z-30 hidden w-56 border-r border-ink/10 bg-white xl:block">
+        <div className="flex min-h-full flex-col justify-center px-8 py-24">
           {navItems.map(([label, id]) => (
-            <a key={id} href={`#${id}`} className="focusable block rounded-xl px-3 py-2.5 text-sm font-bold text-ink/60 transition hover:bg-mint hover:text-forest">
+            <a key={id} href={`#${id}`} className="focusable block py-4 text-lg font-bold text-ink/55 transition hover:text-forest">
               {label}
             </a>
           ))}
@@ -624,7 +636,68 @@ function SectionHeading({ eyebrow, title, description }: { eyebrow: string; titl
   );
 }
 
-function PathwaysSection({ career, guidance }: { career: Career | null; guidance: AIGuidance | null }) {
+function DetailButton({ target, grade, section, title, summary, bullets = [] }: { target: string; grade?: Grade; section: string; title: string; summary: string; bullets?: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [detail, setDetail] = useState("");
+  const [error, setError] = useState("");
+
+  async function requestDetail() {
+    if (status === "loading" || detail) return;
+    setStatus("loading");
+    setError("");
+
+    try {
+      const response = await fetch("/api/citacitaku/detail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target, grade, section, title, summary, bullets }),
+      });
+      const payload = await response.json() as { detail?: string; error?: string };
+      if (!response.ok || !payload.detail) throw new Error(payload.error || "Detail belum bisa dibuat.");
+      setDetail(payload.detail);
+      setStatus("ready");
+    } catch (detailError) {
+      setError(detailError instanceof Error ? detailError.message : "Detail belum bisa dibuat.");
+      setStatus("error");
+    }
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) void requestDetail();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <button type="button" className="focusable mt-4 inline-flex min-h-10 items-center justify-center rounded-xl bg-mint px-4 py-2 text-sm font-bold text-forest transition hover:bg-forest hover:text-white">
+          Minta lebih detail
+        </button>
+      </DialogTrigger>
+      <DialogContent className="citacitaku max-h-[88vh] max-w-[min(92vw,54rem)] overflow-hidden rounded-[28px] border-ink/10 bg-white p-0 text-ink dark:bg-white">
+        <DialogHeader className="border-b border-ink/10 px-5 py-5 sm:px-7">
+          <p className="eyebrow mb-2">{section}</p>
+          <DialogTitle className="font-display text-2xl font-bold leading-tight text-ink sm:text-3xl">{title}</DialogTitle>
+          <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">Hasil AI untuk memperdalam poin ini. Tetap verifikasi informasi penting dari sumber resmi.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[calc(88vh-10rem)] overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+          {status === "loading" && (
+            <div className="rounded-2xl bg-mint/35 p-5 text-sm font-semibold text-forest">AI sedang menyiapkan penjelasan detail...</div>
+          )}
+          {status === "error" && (
+            <div className="rounded-2xl border border-coral/30 bg-cream p-5 text-sm font-semibold text-coral">{error}</div>
+          )}
+          {status === "ready" && (
+            <div className="whitespace-pre-wrap text-sm leading-7 text-ink/70 sm:text-base">{detail}</div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PathwaysSection({ career, guidance, target, grade }: { career: Career | null; guidance: AIGuidance | null; target: string; grade: Grade }) {
   const paths = guidance?.pathways ?? career?.pathways ?? genericPathways;
   const majors = guidance?.possibleMajors ?? career?.possibleMajors;
   return (
@@ -646,6 +719,14 @@ function PathwaysSection({ career, guidance }: { career: Career | null; guidance
             <ul className="mt-3 grid gap-2 text-sm text-ink/70 sm:grid-cols-2">
               {path.preparation.map((item) => <li key={item} className="flex gap-2"><span className="text-forest">✓</span>{item}</li>)}
             </ul>
+            <DetailButton
+              target={target}
+              grade={grade}
+              section="Jalur"
+              title={path.title}
+              summary={path.description}
+              bullets={path.preparation}
+            />
           </article>
         ))}
       </div>
@@ -654,15 +735,33 @@ function PathwaysSection({ career, guidance }: { career: Career | null; guidance
   );
 }
 
-function UniversitiesSection({ career, target }: { career: Career | null; target: string }) {
-  if (!career) return <UnknownUniversities target={target} />;
+function UniversitiesSection({ career, target, grade }: { career: Career | null; target: string; grade: Grade }) {
+  if (!career) return <UnknownUniversities target={target} grade={grade} />;
+  const indonesiaUniversities = sortUniversitiesByRelevantQs(career.indonesiaUniversities, career.id);
+  const overseasUniversities = ensureRequiredRegionalUniversities(career.overseasUniversities, career.id);
+
   return (
     <section id="kampus" className="section-card">
       <SectionHeading eyebrow="02 · Kampus" title="Kampus yang bisa kamu pertimbangkan" description="Ini titik awal untuk riset, bukan peringkat atau prediksi peluang masuk. Bandingkan kurikulum dan kecocokanmu." />
       <StudyRegionComparison />
-      <UniversityGroup title="🇮🇩 Dalam Negeri" universities={sortUniversitiesByRelevantQs(career.indonesiaUniversities, career.id)} careerId={career.id} />
-      <div className="my-8 border-t border-ink/10" />
-      <UniversityGroup title="🌍 Luar Negeri" universities={ensureRequiredRegionalUniversities(career.overseasUniversities, career.id)} overseas careerId={career.id} />
+      <div className="grid gap-3 md:grid-cols-2">
+        <RegionDialogButton
+          label="🇮🇩 Dalam Negeri"
+          description={`${indonesiaUniversities.length} pilihan kampus Indonesia untuk mulai dibandingkan.`}
+          dialogTitle="🇮🇩 Kampus Dalam Negeri"
+          dialogDescription="Bandingkan jurusan, kurikulum, biaya, lokasi, dan jalur seleksi dari website resmi tiap kampus."
+        >
+          <UniversityGroup universities={indonesiaUniversities} careerId={career.id} target={target} grade={grade} />
+        </RegionDialogButton>
+        <RegionDialogButton
+          label="🌍 Luar Negeri"
+          description={`${overseasUniversities.length} pilihan kampus luar negeri untuk riset awal.`}
+          dialogTitle="🌍 Kampus Luar Negeri"
+          dialogDescription="Gunakan daftar ini sebagai awal riset, lalu cek persyaratan akademik, bahasa, visa, biaya, dan beasiswa di sumber resmi."
+        >
+          <UniversityGroup universities={overseasUniversities} overseas careerId={career.id} target={target} grade={grade} />
+        </RegionDialogButton>
+      </div>
     </section>
   );
 }
@@ -686,10 +785,34 @@ function StudyRegionComparison() {
   );
 }
 
-function UniversityGroup({ title, universities, overseas = false, careerId = "" }: { title: string; universities: University[]; overseas?: boolean; careerId?: string }) {
+function RegionDialogButton({ label, description, dialogTitle, dialogDescription, children }: { label: string; description: string; dialogTitle: string; dialogDescription: string; children: ReactNode }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button type="button" className="focusable group flex min-h-36 w-full items-center justify-between rounded-2xl border border-ink/10 bg-[#fcfdfb] p-5 text-left transition hover:-translate-y-0.5 hover:border-forest/30 hover:bg-mint/30 hover:shadow-md">
+          <span>
+            <span className="block font-display text-2xl font-bold text-ink">{label}</span>
+            <span className="mt-2 block text-sm leading-6 text-ink/55">{description}</span>
+          </span>
+          <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint text-xl font-bold text-forest transition group-hover:bg-forest group-hover:text-white">→</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="citacitaku max-h-[88vh] max-w-[min(92vw,70rem)] overflow-hidden rounded-[28px] border-ink/10 bg-white p-0 text-ink dark:bg-white">
+        <DialogHeader className="border-b border-ink/10 px-5 py-5 sm:px-7">
+          <DialogTitle className="font-display text-2xl font-bold text-ink sm:text-3xl">{dialogTitle}</DialogTitle>
+          <DialogDescription className="mt-2 max-w-3xl text-sm leading-6 text-ink/55">{dialogDescription}</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[calc(88vh-9rem)] overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+          {children}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function UniversityGroup({ universities, overseas = false, careerId = "", target, grade }: { universities: University[]; overseas?: boolean; careerId?: string; target: string; grade: Grade }) {
   return (
     <div>
-      <h3 className="mb-4 text-xl font-bold">{title}</h3>
       <div className="grid gap-3 md:grid-cols-2">
         {universities.map((university) => {
           const rank = qsRankLabel(university, careerId);
@@ -705,6 +828,14 @@ function UniversityGroup({ title, universities, overseas = false, careerId = "" 
               <p className="mt-3 text-sm font-semibold text-ink/75">{university.majors.join(" · ")}</p>
               <p className="mt-2 text-sm leading-6 text-ink/55">{university.note}</p>
               <div className="mt-4 flex flex-wrap gap-1.5">{university.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}</div>
+              <DetailButton
+                target={target}
+                grade={grade}
+                section={overseas ? "Kampus luar negeri" : "Kampus dalam negeri"}
+                title={university.name}
+                summary={`${university.note} Program terkait: ${university.majors.join(", ")}.`}
+                bullets={[university.country, ...university.tags, university.competitiveLevel ?? "", qsRankLabel(university, careerId) ?? ""].filter(Boolean)}
+              />
             </article>
           );
         })}
@@ -713,7 +844,7 @@ function UniversityGroup({ title, universities, overseas = false, careerId = "" 
   );
 }
 
-function UnknownUniversities({ target }: { target: string }) {
+function UnknownUniversities({ target, grade }: { target: string; grade: Grade }) {
   const steps = [
     ["Cari kata kunci jurusan", `Telusuri “jurusan untuk menjadi ${target}” lalu cocokkan dari beberapa sumber.`],
     ["Buat shortlist Indonesia", "Pilih 4–6 kampus dan baca kurikulum pada website fakultas masing-masing."],
@@ -724,36 +855,64 @@ function UnknownUniversities({ target }: { target: string }) {
     <section id="kampus" className="section-card">
       <SectionHeading eyebrow="02 · Kampus" title="Cara menemukan kampus yang tepat" description={`Kami belum punya data kampus khusus untuk ${target}. Gunakan checklist ini agar kamu tidak mendapat rekomendasi yang dibuat-buat.`} />
       <StudyRegionComparison />
-      <div className="grid gap-3 md:grid-cols-2">{steps.map(([title, text], index) => <article key={title} className="rounded-2xl border border-ink/10 p-5"><span className="tag">Langkah {index + 1}</span><h3 className="mt-3 text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-ink/60">{text}</p></article>)}</div>
+      <div className="grid gap-3 md:grid-cols-2">{steps.map(([title, text], index) => <article key={title} className="rounded-2xl border border-ink/10 p-5"><span className="tag">Langkah {index + 1}</span><h3 className="mt-3 text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-ink/60">{text}</p><DetailButton target={target} grade={grade} section="Riset kampus" title={title} summary={text} /></article>)}</div>
     </section>
   );
 }
 
-function ScholarshipsSection({ career }: { career: Career | null }) {
+function ScholarshipsSection({ career, target, grade }: { career: Career | null; target: string; grade: Grade }) {
   const scholarships = career?.scholarships ?? allScholarships;
-  const groups = ["Indonesia", "Luar Negeri"];
+  const indonesiaScholarships = scholarships.filter((item) => item.country === "Indonesia");
+  const overseasScholarships = scholarships.filter((item) => item.country !== "Indonesia");
+
   return (
     <section id="beasiswa" className="section-card">
       <SectionHeading eyebrow="03 · Dukungan biaya" title="Beasiswa yang bisa kamu cari" description="Mulai dari nama programnya, lalu baca kembali ketentuan tahun pendaftaranmu di sumber resmi." />
-      {groups.map((group, groupIndex) => (
-        <div key={group} className={groupIndex ? "mt-8 border-t border-ink/10 pt-8" : ""}>
-          <h3 className="mb-4 text-xl font-bold">{groupIndex ? "🌏" : "🇮🇩"} {group}</h3>
-          <div className="grid gap-3 md:grid-cols-3">
-            {scholarships.filter((item) => groupIndex ? item.country !== "Indonesia" : item.country === "Indonesia").map((item) => (
-              <article key={item.name} className="flex flex-col rounded-2xl border border-ink/10 p-5">
-                <p className="text-xs font-bold uppercase tracking-wider text-forest">{item.country} · {item.studyLevel}</p>
-                <h4 className="mt-2 text-lg font-bold">{item.name}</h4>
-                <p className="mt-2 text-sm font-semibold text-ink/70">{item.coverage}</p>
-                <p className="mt-2 flex-1 text-sm leading-6 text-ink/55">{item.shortDescription}</p>
-                <a href={item.officialSource} target="_blank" rel="noreferrer" className="focusable mt-4 inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-bold text-forest hover:underline">Sumber resmi <span aria-hidden="true">↗</span></a>
-                <p className="mt-2 text-[10px] text-ink/35">Terakhir diverifikasi: {item.lastVerified}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      ))}
+      <div className="grid gap-3 md:grid-cols-2">
+        <RegionDialogButton
+          label="🇮🇩 Dalam Negeri"
+          description={`${indonesiaScholarships.length} opsi beasiswa Indonesia untuk kamu cek lebih lanjut.`}
+          dialogTitle="🇮🇩 Beasiswa Dalam Negeri"
+          dialogDescription="Mulai dari nama programnya, lalu cek ulang jadwal, sasaran penerima, dan dokumen wajib di website resmi."
+        >
+          <ScholarshipGroup scholarships={indonesiaScholarships} target={target} grade={grade} />
+        </RegionDialogButton>
+        <RegionDialogButton
+          label="🌍 Luar Negeri"
+          description={`${overseasScholarships.length} opsi funding luar negeri untuk riset awal.`}
+          dialogTitle="🌍 Beasiswa Luar Negeri"
+          dialogDescription="Bandingkan negara, kampus, cakupan biaya, persyaratan bahasa, dan deadline dari sumber resmi tiap program."
+        >
+          <ScholarshipGroup scholarships={overseasScholarships} target={target} grade={grade} />
+        </RegionDialogButton>
+      </div>
       <p className="mt-5 text-sm font-semibold text-coral">Periksa informasi terbaru di website resmi.</p>
     </section>
+  );
+}
+
+function ScholarshipGroup({ scholarships, target, grade }: { scholarships: Scholarship[]; target: string; grade: Grade }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {scholarships.map((item) => (
+        <article key={item.name} className="flex flex-col rounded-2xl border border-ink/10 p-5">
+          <p className="text-xs font-bold uppercase tracking-wider text-forest">{item.country} · {item.studyLevel}</p>
+          <h4 className="mt-2 text-lg font-bold">{item.name}</h4>
+          <p className="mt-2 text-sm font-semibold text-ink/70">{item.coverage}</p>
+          <p className="mt-2 flex-1 text-sm leading-6 text-ink/55">{item.shortDescription}</p>
+          <a href={item.officialSource} target="_blank" rel="noreferrer" className="focusable mt-4 inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-bold text-forest hover:underline">Sumber resmi <span aria-hidden="true">↗</span></a>
+          <p className="mt-2 text-[10px] text-ink/35">Terakhir diverifikasi: {item.lastVerified}</p>
+          <DetailButton
+            target={target}
+            grade={grade}
+            section={item.country === "Indonesia" ? "Beasiswa dalam negeri" : "Beasiswa luar negeri"}
+            title={item.name}
+            summary={`${item.coverage}. ${item.shortDescription}`}
+            bullets={[item.country, item.studyLevel, item.officialSource]}
+          />
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -788,6 +947,7 @@ function RoadmapSection({ grade, target, stages }: { grade: Grade; target: strin
             <h3 className="mt-4 text-lg font-bold">{stage.title}</h3>
             <p className={`mt-1 text-xs font-semibold ${index === 0 ? "text-white/55" : "text-forest"}`}>{stage.subtitle}</p>
             <ul className={`mt-4 space-y-2.5 text-sm leading-5 ${index === 0 ? "text-white/75" : "text-ink/65"}`}>{stage.actions.map((action) => <li key={action} className="flex gap-2"><span className={index === 0 ? "text-[#bae6fd]" : "text-forest"}>✓</span>{action}</li>)}</ul>
+            <DetailButton target={target} grade={grade} section="Roadmap" title={stage.title} summary={stage.subtitle} bullets={stage.actions} />
           </article>
         ))}
       </div>
@@ -795,7 +955,7 @@ function RoadmapSection({ grade, target, stages }: { grade: Grade; target: strin
   );
 }
 
-function SkillsSection({ career, generatedSkills }: { career: Career | null; generatedSkills?: Skill[] }) {
+function SkillsSection({ career, generatedSkills, target, grade }: { career: Career | null; generatedSkills?: Skill[]; target: string; grade: Grade }) {
   const skills = generatedSkills ?? career?.skills ?? genericSkills;
   return (
     <section id="skills" className="section-card">
@@ -810,6 +970,14 @@ function SkillsSection({ career, generatedSkills }: { career: Career | null; gen
                   <h4 className="font-bold">{skill.name}</h4>
                   <p className="mt-1 text-sm leading-6 text-ink/55">{skill.why}</p>
                   <div className="mt-3 rounded-xl bg-mint/40 p-3 text-sm leading-5 text-ink/70"><strong className="text-forest">Mulai minggu ini:</strong> {skill.activity}</div>
+                  <DetailButton
+                    target={target}
+                    grade={grade}
+                    section={skill.kind}
+                    title={skill.name}
+                    summary={skill.why}
+                    bullets={[skill.activity]}
+                  />
                 </article>
               ))}
             </div>
@@ -820,19 +988,19 @@ function SkillsSection({ career, generatedSkills }: { career: Career | null; gen
   );
 }
 
-function PortfolioSection({ career, target, generatedIdeas }: { career: Career | null; target: string; generatedIdeas?: string[] }) {
+function PortfolioSection({ career, target, grade, generatedIdeas }: { career: Career | null; target: string; grade: Grade; generatedIdeas?: string[] }) {
   const ideas = generatedIdeas ?? career?.portfolioIdeas ?? genericPortfolio;
   return (
     <section id="portfolio" className="section-card">
       <SectionHeading eyebrow="06 · Bukti karya" title="Portfolio yang bisa kamu mulai dari SMA" description={`Portfolio untuk ${target} tidak harus terlihat profesional. Yang penting menunjukkan proses, rasa ingin tahu, dan apa yang kamu pelajari.`} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ideas.map((idea, index) => <article key={idea} className="rounded-2xl border border-ink/10 bg-[#fcfdfb] p-5"><span className="font-display text-3xl font-bold text-forest/25">0{index + 1}</span><h3 className="mt-3 font-bold leading-6">{idea}</h3><p className="mt-2 text-sm leading-6 text-ink/50">Mulai kecil, simpan prosesnya, lalu catat apa yang ingin kamu perbaiki.</p></article>)}
+        {ideas.map((idea, index) => <article key={idea} className="rounded-2xl border border-ink/10 bg-[#fcfdfb] p-5"><span className="font-display text-3xl font-bold text-forest/25">0{index + 1}</span><h3 className="mt-3 font-bold leading-6">{idea}</h3><p className="mt-2 text-sm leading-6 text-ink/50">Mulai kecil, simpan prosesnya, lalu catat apa yang ingin kamu perbaiki.</p><DetailButton target={target} grade={grade} section="Portfolio" title={idea} summary="Mulai kecil, simpan prosesnya, lalu catat apa yang ingin kamu perbaiki." /></article>)}
       </div>
     </section>
   );
 }
 
-function CvSection({ career, generatedSuggestions }: { career: Career | null; generatedSuggestions?: string[] }) {
+function CvSection({ career, target, grade, generatedSuggestions }: { career: Career | null; target: string; grade: Grade; generatedSuggestions?: string[] }) {
   const cvSections = ["Nama dan kontak", "Pendidikan", "Prestasi Akademik", "Organisasi & Leadership", "Volunteer / Community Service", "Projects", "Competitions", "Skills", "Languages", "Certifications / Courses"];
   const targets = generatedSuggestions ?? career?.cvSuggestions ?? ["2 proyek bermakna", "1–2 kegiatan yang diikuti konsisten", "1 pengalaman memegang tanggung jawab", "Pengalaman komunitas atau volunteer", "Skill yang relevan"];
   return (
@@ -841,11 +1009,11 @@ function CvSection({ career, generatedSuggestions }: { career: Career | null; ge
       <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-2xl border border-ink/10 bg-[#fcfdfb] p-5 sm:p-6">
           <p className="mb-4 text-xs font-bold uppercase tracking-wider text-forest">Struktur CV siswa SMA</p>
-          <ol className="grid gap-2 sm:grid-cols-2">{cvSections.map((item, index) => <li key={item} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-mint text-[10px] font-bold text-forest">{index + 1}</span>{item}</li>)}</ol>
+          <ol className="grid gap-2 sm:grid-cols-2">{cvSections.map((item, index) => <li key={item} className="rounded-xl bg-white px-3 py-2.5 text-sm font-semibold"><div className="flex items-center gap-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-mint text-[10px] font-bold text-forest">{index + 1}</span>{item}</div><DetailButton target={target} grade={grade} section="CV siswa SMA" title={item} summary={`Bagian CV: ${item}`} /></li>)}</ol>
         </div>
         <div className="rounded-2xl bg-ink p-5 text-white sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wider text-[#bae6fd]">Contoh target sebelum lulus</p>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">{targets.map((item) => <li key={item} className="flex gap-2"><span className="text-[#bae6fd]">✓</span>{item}</li>)}</ul>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">{targets.map((item) => <li key={item} className="rounded-xl bg-white/5 p-3"><div className="flex gap-2"><span className="text-[#bae6fd]">✓</span>{item}</div><DetailButton target={target} grade={grade} section="Target CV sebelum lulus" title={item} summary="Contoh target yang bisa dikumpulkan sebelum lulus untuk memperkuat CV pelajar." /></li>)}</ul>
           <p className="mt-5 border-t border-white/10 pt-5 text-sm leading-6 text-white/65">Ini contoh, bukan syarat wajib. Jangan pernah mengarang pencapaian hanya agar CV terlihat penuh.</p>
         </div>
       </div>
@@ -854,7 +1022,7 @@ function CvSection({ career, generatedSuggestions }: { career: Career | null; ge
   );
 }
 
-function ThisWeekSection({ career, target, generatedActions }: { career: Career | null; target: string; generatedActions?: WeeklyAction[] }) {
+function ThisWeekSection({ career, target, grade, generatedActions }: { career: Career | null; target: string; grade: Grade; generatedActions?: WeeklyAction[] }) {
   const [started, setStarted] = useState(false);
   const skill = career?.skills[0];
   const actions = generatedActions ?? [
@@ -867,13 +1035,14 @@ function ThisWeekSection({ career, target, generatedActions }: { career: Career 
       <div aria-hidden="true" className="dot-grid absolute -bottom-10 -right-10 h-60 w-60 opacity-35" />
       <div className="relative">
         <p className="eyebrow text-ink/60">08 · Mulai bergerak</p>
-        <h2 className="section-title max-w-2xl">🎯 3 hal yang bisa kamu lakukan minggu ini</h2>
+        <h2 className="section-title max-w-none lg:whitespace-nowrap">🎯 3 hal yang bisa kamu lakukan minggu ini</h2>
         <div className="mt-7 grid gap-3 md:grid-cols-3">
           {actions.map((action, index) => (
             <article key={action.title} className="rounded-2xl bg-white/85 p-5 backdrop-blur">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-sm font-bold text-white">{index + 1}</span>
               <h3 className="mt-4 font-bold">{action.title}</h3>
               <p className="mt-2 text-sm leading-6 text-ink/60">{action.text}</p>
+              <DetailButton target={target} grade={grade} section="Aksi minggu ini" title={action.title} summary={action.text} />
             </article>
           ))}
         </div>
