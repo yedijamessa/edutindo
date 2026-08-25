@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateText } from "@/lib/server/ai";
+import { generateStructuredObject } from "@/lib/server/ai";
 
 export const runtime = "nodejs";
 
@@ -11,6 +11,57 @@ type DetailRequest = {
   summary?: unknown;
   bullets?: unknown;
 };
+
+type DetailResponse = {
+  overview: string;
+  whyItMatters: string;
+  steps: Array<{
+    title: string;
+    description: string;
+  }>;
+  checklist: string[];
+  exampleOutput: string;
+  verificationNotes: string[];
+  firstStep: string;
+};
+
+const detailJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    overview: { type: "string" },
+    whyItMatters: { type: "string" },
+    steps: {
+      type: "array",
+      minItems: 4,
+      maxItems: 6,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+        },
+        required: ["title", "description"],
+      },
+    },
+    checklist: {
+      type: "array",
+      minItems: 4,
+      maxItems: 7,
+      items: { type: "string" },
+    },
+    exampleOutput: { type: "string" },
+    verificationNotes: {
+      type: "array",
+      minItems: 2,
+      maxItems: 4,
+      items: { type: "string" },
+    },
+    firstStep: { type: "string" },
+  },
+  required: ["overview", "whyItMatters", "steps", "checklist", "exampleOutput", "verificationNotes", "firstStep"],
+} as const;
 
 function cleanText(value: unknown, maxLength: number) {
   if (typeof value !== "string") return "";
@@ -40,8 +91,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Data detail belum lengkap." }, { status: 400 });
     }
 
-    const result = await generateText({
-      maxOutputTokens: 2400,
+    const result = await generateStructuredObject<DetailResponse>({
+      schemaName: "citacitaku_detail",
+      schema: detailJsonSchema,
       systemPrompt: `Kamu adalah konselor pendidikan untuk siswa SMA Indonesia.
 Tulis dalam Bahasa Indonesia yang hangat, praktis, detail, dan mudah diikuti.
 
@@ -51,7 +103,11 @@ Aturan wajib:
 - Jangan menciptakan deadline, nominal biaya/beasiswa, acceptance rate, syarat resmi, atau fakta spesifik yang tidak ada di konteks.
 - Jika menyarankan pengecekan informasi, arahkan ke website resmi kampus, penyedia beasiswa, pemerintah, atau lembaga terkait.
 - Buat jawaban sedetail mungkin tetapi tetap actionable untuk siswa SMA.
-- Format jawaban dengan heading pendek dan bullet list. Jangan gunakan tabel.`,
+- Kembalikan JSON sesuai schema saja.
+- Jangan masukkan markdown, penomoran manual, bullet dash, atau checkbox di dalam string.
+- Setiap field harus berupa kalimat yang rapi dan siap ditampilkan di UI.
+- Untuk steps, buat judul pendek dan deskripsi 1–2 kalimat yang konkret.
+- Untuk checklist, gunakan item pendek yang bisa dicek satu per satu.`,
       userPrompt: JSON.stringify({
         studentContext: { target, grade: grade || null },
         requestedDetail: { section, title, summary, bullets },

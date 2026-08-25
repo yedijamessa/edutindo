@@ -27,6 +27,15 @@ import type { AIGuidance, GuidanceRoadmapStage, WeeklyAction } from "@/lib/citac
 type Grade = "10" | "11" | "12";
 type FormData = { name: string; dream: string; grade: Grade | "" };
 type FeedbackCategory = "feature" | "career" | "bug" | "other";
+type DetailResponse = {
+  overview: string;
+  whyItMatters: string;
+  steps: Array<{ title: string; description: string }>;
+  checklist: string[];
+  exampleOutput: string;
+  verificationNotes: string[];
+  firstStep: string;
+};
 
 const navItems = [
   ["Jalur", "jalur"],
@@ -307,6 +316,7 @@ export default function Home() {
   const [guidance, setGuidance] = useState<AIGuidance | null>(null);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+  const [careerPickerOpen, setCareerPickerOpen] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -396,22 +406,51 @@ export default function Home() {
             />
           </label>
 
-          <label className="mt-7 block">
-            <span className="mb-2.5 block font-display text-base font-bold"><span className="mr-2 text-forest">02</span>Apa cita-citamu?</span>
-            <input
-              value={form.dream}
-              onChange={(event) => setForm({ ...form, dream: event.target.value })}
-              list="career-options"
-              className="focusable min-h-14 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-base text-ink placeholder:text-ink/35"
-              placeholder="Contoh: Software Engineer atau Belum tahu"
-              required
-            />
-            <datalist id="career-options">
-              {careers.map((career) => <option key={career.id} value={career.title} />)}
-              <option value="Belum tahu" />
-            </datalist>
-            <p className="mt-2 text-xs leading-5 text-ink/45">Pilih salah satu profil awal atau tulis bebas dan spesifik—misalnya Marine Biologist, Game Designer, atau Food Technologist.</p>
-          </label>
+          <div className="mt-7">
+            <label htmlFor="dream-input" className="mb-2.5 block font-display text-base font-bold"><span className="mr-2 text-forest">02</span>Apa cita-citamu?</label>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <input
+                id="dream-input"
+                value={form.dream}
+                onChange={(event) => setForm({ ...form, dream: event.target.value })}
+                className="focusable min-h-14 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-base text-ink placeholder:text-ink/35"
+                placeholder="Contoh: Software Engineer atau Belum tahu"
+                required
+              />
+              <Dialog open={careerPickerOpen} onOpenChange={setCareerPickerOpen}>
+                <DialogTrigger asChild>
+                  <button type="button" className="focusable inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-forest/20 bg-mint px-4 text-sm font-bold text-forest transition hover:bg-forest hover:text-white sm:min-w-44">
+                    Pilih dari daftar <span aria-hidden="true">▾</span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="citacitaku max-h-[86vh] max-w-[min(92vw,34rem)] overflow-hidden rounded-[28px] border-ink/10 bg-white p-0 text-ink dark:bg-white">
+                  <DialogHeader className="border-b border-ink/10 px-5 py-5">
+                    <DialogTitle className="font-display text-2xl font-bold text-ink">Pilih cita-citamu</DialogTitle>
+                    <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">Kamu juga tetap bisa ketik bebas kalau pilihanmu belum ada di daftar.</DialogDescription>
+                  </DialogHeader>
+                  <div className="max-h-[calc(86vh-9rem)] overflow-y-auto px-4 py-4">
+                    <div className="grid gap-2">
+                      {[...careers.map((career) => career.title), "Belum tahu"].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => {
+                            setForm((current) => ({ ...current, dream: option }));
+                            setCareerPickerOpen(false);
+                          }}
+                          className={`focusable rounded-2xl border p-4 text-left transition hover:border-forest/30 hover:bg-mint/35 ${form.dream === option ? "border-forest bg-mint/60" : "border-ink/10 bg-[#fcfdfb]"}`}
+                        >
+                          <span className="block font-bold text-ink">{option}</span>
+                          <span className="mt-1 block text-xs leading-5 text-ink/50">{option === "Belum tahu" ? "Mulai dari eksplorasi area minat dulu." : "Pilih ini sebagai target awal. Bisa diubah kapan saja."}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-ink/45">Ketik bebas atau buka daftar pilihan—misalnya Marine Biologist, Game Designer, atau Food Technologist.</p>
+          </div>
 
           <fieldset className="mt-7">
             <legend className="mb-3 font-display text-base font-bold"><span className="mr-2 text-forest">03</span>Sekarang kamu kelas berapa?</legend>
@@ -639,7 +678,7 @@ function SectionHeading({ eyebrow, title, description }: { eyebrow: string; titl
 function DetailButton({ target, grade, section, title, summary, bullets = [] }: { target: string; grade?: Grade; section: string; title: string; summary: string; bullets?: string[] }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [detail, setDetail] = useState("");
+  const [detail, setDetail] = useState<DetailResponse | null>(null);
   const [error, setError] = useState("");
 
   async function requestDetail() {
@@ -653,7 +692,7 @@ function DetailButton({ target, grade, section, title, summary, bullets = [] }: 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target, grade, section, title, summary, bullets }),
       });
-      const payload = await response.json() as { detail?: string; error?: string };
+      const payload = await response.json() as { detail?: DetailResponse; error?: string };
       if (!response.ok || !payload.detail) throw new Error(payload.error || "Detail belum bisa dibuat.");
       setDetail(payload.detail);
       setStatus("ready");
@@ -688,12 +727,69 @@ function DetailButton({ target, grade, section, title, summary, bullets = [] }: 
           {status === "error" && (
             <div className="rounded-2xl border border-coral/30 bg-cream p-5 text-sm font-semibold text-coral">{error}</div>
           )}
-          {status === "ready" && (
-            <div className="whitespace-pre-wrap text-sm leading-7 text-ink/70 sm:text-base">{detail}</div>
-          )}
+          {status === "ready" && detail && <DetailResult detail={detail} />}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DetailResult({ detail }: { detail: DetailResponse }) {
+  return (
+    <div className="space-y-5 text-sm leading-6 text-ink/65">
+      <div className="rounded-2xl bg-mint/35 p-5">
+        <p className="text-xs font-bold uppercase tracking-wider text-forest">Inti poin</p>
+        <p className="mt-2 text-base font-semibold leading-7 text-ink">{detail.overview}</p>
+        <p className="mt-3 leading-6 text-ink/60">{detail.whyItMatters}</p>
+      </div>
+
+      <section>
+        <h3 className="font-display text-xl font-bold text-ink">Langkah konkret</h3>
+        <ol className="mt-3 grid gap-3">
+          {detail.steps.map((step, index) => (
+            <li key={`${step.title}-${index}`} className="rounded-2xl border border-ink/10 bg-[#fcfdfb] p-4">
+              <div className="flex gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-xs font-bold text-white">{index + 1}</span>
+                <div>
+                  <p className="font-bold text-ink">{step.title}</p>
+                  <p className="mt-1 text-ink/60">{step.description}</p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-ink/10 p-4">
+          <h3 className="font-display text-lg font-bold text-ink">Checklist</h3>
+          <ul className="mt-3 space-y-2.5">
+            {detail.checklist.map((item) => (
+              <li key={item} className="flex gap-2"><span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-forest/30 text-[10px] font-bold text-forest">✓</span><span>{item}</span></li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-2xl border border-ink/10 p-4">
+          <h3 className="font-display text-lg font-bold text-ink">Yang perlu dicek</h3>
+          <ul className="mt-3 space-y-2.5">
+            {detail.verificationNotes.map((item) => (
+              <li key={item} className="flex gap-2"><span className="text-coral">!</span><span>{item}</span></li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      <section className="rounded-2xl bg-cream p-4">
+        <h3 className="font-display text-lg font-bold text-ink">Contoh hasil</h3>
+        <p className="mt-2 text-ink/65">{detail.exampleOutput}</p>
+      </section>
+
+      <section className="rounded-2xl bg-ink p-4 text-white">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#bae6fd]">Mulai dari sini</p>
+        <p className="mt-2 font-semibold leading-6 text-white/85">{detail.firstStep}</p>
+      </section>
+    </div>
   );
 }
 
@@ -1009,11 +1105,11 @@ function CvSection({ career, target, grade, generatedSuggestions }: { career: Ca
       <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-2xl border border-ink/10 bg-[#fcfdfb] p-5 sm:p-6">
           <p className="mb-4 text-xs font-bold uppercase tracking-wider text-forest">Struktur CV siswa SMA</p>
-          <ol className="grid gap-2 sm:grid-cols-2">{cvSections.map((item, index) => <li key={item} className="rounded-xl bg-white px-3 py-2.5 text-sm font-semibold"><div className="flex items-center gap-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-mint text-[10px] font-bold text-forest">{index + 1}</span>{item}</div><DetailButton target={target} grade={grade} section="CV siswa SMA" title={item} summary={`Bagian CV: ${item}`} /></li>)}</ol>
+          <ol className="grid gap-2 sm:grid-cols-2">{cvSections.map((item, index) => <li key={item} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-mint text-[10px] font-bold text-forest">{index + 1}</span>{item}</li>)}</ol>
         </div>
         <div className="rounded-2xl bg-ink p-5 text-white sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wider text-[#bae6fd]">Contoh target sebelum lulus</p>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">{targets.map((item) => <li key={item} className="rounded-xl bg-white/5 p-3"><div className="flex gap-2"><span className="text-[#bae6fd]">✓</span>{item}</div><DetailButton target={target} grade={grade} section="Target CV sebelum lulus" title={item} summary="Contoh target yang bisa dikumpulkan sebelum lulus untuk memperkuat CV pelajar." /></li>)}</ul>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">{targets.map((item) => <li key={item} className="flex gap-2"><span className="text-[#bae6fd]">✓</span>{item}</li>)}</ul>
           <p className="mt-5 border-t border-white/10 pt-5 text-sm leading-6 text-white/65">Ini contoh, bukan syarat wajib. Jangan pernah mengarang pencapaian hanya agar CV terlihat penuh.</p>
         </div>
       </div>
@@ -1059,6 +1155,7 @@ function FeedbackSection({ contained = false, context }: { contained?: boolean; 
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState("");
+  const [minimized, setMinimized] = useState(true);
 
   async function handleFeedbackSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1091,62 +1188,74 @@ function FeedbackSection({ contained = false, context }: { contained?: boolean; 
   }
 
   const content = (
-    <form onSubmit={handleFeedbackSubmit} className="section-card grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-      <div>
-        <p className="eyebrow">Feedback</p>
-        <h2 className="section-title">Punya ide fitur baru?</h2>
-        <p className="mt-3 leading-7 text-ink/60">Tulis masukanmu. Nanti jalur ini bisa langsung diarahkan ke database saat backend production sudah dipasang.</p>
-      </div>
-
-      <div className="space-y-4">
+    <section className="mx-auto w-full max-w-3xl rounded-2xl border border-ink/10 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <label htmlFor="feedback-category" className="mb-2 block text-sm font-bold text-ink/70">Jenis masukan</label>
-          <select
-            id="feedback-category"
-            value={category}
-            onChange={(event) => setCategory(event.target.value as FeedbackCategory)}
-            className="focusable min-h-12 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-sm font-semibold text-ink"
-          >
-            <option value="feature">Fitur baru</option>
-            <option value="career">Tambah data cita-cita/karier</option>
-            <option value="bug">Ada yang error</option>
-            <option value="other">Lainnya</option>
-          </select>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-forest">Feedback</p>
+          <h2 className="mt-1 font-display text-xl font-bold text-ink">Punya ide fitur baru?</h2>
+          {!minimized && <p className="mt-1 text-sm leading-6 text-ink/55">Tulis masukan singkat supaya Citacitaku bisa makin berguna.</p>}
         </div>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-bold text-ink/70">Masukan</span>
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            className="focusable min-h-32 w-full resize-y rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 py-3 text-base leading-6 text-ink placeholder:text-ink/35"
-            placeholder="Contoh: Tolong tambahkan fitur simpan hasil roadmap atau data karier psikolog."
-            maxLength={1000}
-            required
-          />
-          <span className="mt-1 block text-right text-xs font-semibold text-ink/40">{message.length}/1000</span>
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-bold text-ink/70">Kontak opsional</span>
-          <input
-            value={contact}
-            onChange={(event) => setContact(event.target.value)}
-            className="focusable min-h-12 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-sm text-ink placeholder:text-ink/35"
-            placeholder="Email atau Instagram kalau ingin dihubungi"
-            maxLength={120}
-          />
-        </label>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button type="submit" className="primary-button min-w-44" disabled={status === "sending" || message.trim().length < 5}>
-            {status === "sending" ? <><span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Mengirim...</> : "Kirim Feedback"}
-          </button>
-          {status === "sent" && <p role="status" className="text-sm font-bold text-forest">Terima kasih, masukannya sudah tercatat.</p>}
-          {status === "error" && <p role="alert" className="text-sm font-bold text-coral">{error}</p>}
-        </div>
+        <button
+          type="button"
+          onClick={() => setMinimized((value) => !value)}
+          aria-expanded={!minimized}
+          className="focusable inline-flex min-h-10 items-center justify-center rounded-xl bg-mint px-4 py-2 text-sm font-bold text-forest transition hover:bg-forest hover:text-white"
+        >
+          {minimized ? "Maximize" : "Minimize"}
+        </button>
       </div>
-    </form>
+
+      {!minimized && (
+        <form onSubmit={handleFeedbackSubmit} className="mt-4 grid gap-3">
+          <div>
+            <label htmlFor="feedback-category" className="mb-1.5 block text-xs font-bold text-ink/70">Jenis masukan</label>
+            <select
+              id="feedback-category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value as FeedbackCategory)}
+              className="focusable min-h-11 w-full rounded-xl border border-ink/15 bg-[#fcfdfb] px-3 text-sm font-semibold text-ink"
+            >
+              <option value="feature">Fitur baru</option>
+              <option value="career">Tambah data cita-cita/karier</option>
+              <option value="bug">Ada yang error</option>
+              <option value="other">Lainnya</option>
+            </select>
+          </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-ink/70">Masukan</span>
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              className="focusable min-h-24 w-full resize-y rounded-xl border border-ink/15 bg-[#fcfdfb] px-3 py-2.5 text-sm leading-6 text-ink placeholder:text-ink/35"
+              placeholder="Contoh: Tambahkan fitur simpan hasil roadmap."
+              maxLength={1000}
+              required
+            />
+            <span className="mt-1 block text-right text-xs font-semibold text-ink/40">{message.length}/1000</span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-ink/70">Kontak opsional</span>
+            <input
+              value={contact}
+              onChange={(event) => setContact(event.target.value)}
+              className="focusable min-h-11 w-full rounded-xl border border-ink/15 bg-[#fcfdfb] px-3 text-sm text-ink placeholder:text-ink/35"
+              placeholder="Email atau Instagram"
+              maxLength={120}
+            />
+          </label>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button type="submit" className="primary-button min-h-11 min-w-36 rounded-xl px-4 py-2 text-sm" disabled={status === "sending" || message.trim().length < 5}>
+              {status === "sending" ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Mengirim...</> : "Kirim"}
+            </button>
+            {status === "sent" && <p role="status" className="text-sm font-bold text-forest">Terima kasih, masukannya sudah tercatat.</p>}
+            {status === "error" && <p role="alert" className="text-sm font-bold text-coral">{error}</p>}
+          </div>
+        </form>
+      )}
+    </section>
   );
 
   if (contained) return <div className="mt-8 sm:mt-12">{content}</div>;
