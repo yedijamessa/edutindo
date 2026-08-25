@@ -351,7 +351,7 @@ export default function Home() {
 
       <section className="shell relative pb-16 pt-8 sm:pb-24 sm:pt-14">
         <div aria-hidden="true" className="dot-grid absolute -right-20 top-0 -z-10 h-64 w-64 rounded-full opacity-70" />
-        <div aria-hidden="true" className="absolute -left-24 top-72 -z-10 h-56 w-56 rounded-full bg-[#ffe0b5]/45 blur-3xl" />
+        <div aria-hidden="true" className="absolute -left-24 top-72 -z-10 h-56 w-56 rounded-full bg-[#fed7aa]/45 blur-3xl" />
 
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-forest/10 bg-white px-4 py-2 text-sm font-bold text-forest shadow-sm">
@@ -442,7 +442,7 @@ export default function Home() {
 
 function RoadmapLoading() {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#fbfcf8]/85 px-5 backdrop-blur-md" role="status" aria-live="polite">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#f7fbff]/85 px-5 backdrop-blur-md" role="status" aria-live="polite">
       <div className="animate-rise w-full max-w-md rounded-[28px] border border-ink/10 bg-white p-6 text-center shadow-2xl shadow-ink/10 sm:p-8">
         <div className="mx-auto flex w-full max-w-xs items-center justify-between">
           {[0, 1, 2].map((item) => (
@@ -487,14 +487,14 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
           <div className="relative grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <p className="text-sm font-bold text-[#9edac7]">Rencana masa depanmu</p>
+                <p className="text-sm font-bold text-[#bae6fd]">Rencana masa depanmu</p>
                 {guidance && (guidance.researched || !guidance.generated) && <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/70">{guidance.researched ? `Diriset dengan ${guidance.provider === "openai" ? "OpenAI Search" : "Google Search"}` : "Data lokal"}</span>}
               </div>
               <h1 className="max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">Hai {data.name} <span aria-hidden="true">👋</span></h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-white/70 sm:text-lg">
                 Kalau kamu ingin menjadi <strong className="text-white">{target}</strong>, ini beberapa jalan yang bisa kamu mulai dari <strong className="text-white">Kelas {data.grade}</strong>.
               </p>
-              {guidance?.intro && <p className="mt-2 max-w-3xl text-sm leading-6 text-[#bce8d9]">{guidance.intro}</p>}
+              {guidance?.intro && <p className="mt-2 max-w-3xl text-sm leading-6 text-[#dbeafe]">{guidance.intro}</p>}
               {!career && (
                 <div className="mt-5 max-w-2xl rounded-2xl border border-white/15 bg-white/10 p-4 text-sm leading-6 text-white/75">
                   {guidance?.researched
@@ -511,7 +511,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
           </div>
         </section>
 
-        {notice && <p className="mt-4 rounded-2xl border border-[#f6bc6e]/50 bg-cream px-4 py-3 text-sm font-semibold text-ink/65">{notice}</p>}
+        {notice && <p className="mt-4 rounded-2xl border border-[#fb923c]/50 bg-cream px-4 py-3 text-sm font-semibold text-ink/65">{notice}</p>}
 
         <div className="mt-8 space-y-8 sm:mt-12 sm:space-y-12">
           <PathwaysSection career={career} guidance={guidance} />
@@ -787,7 +787,7 @@ function RoadmapSection({ grade, target, stages }: { grade: Grade; target: strin
             <span className={`grid h-8 w-8 place-items-center rounded-full text-sm font-bold ${index === 0 ? "bg-mint text-forest" : "bg-mint text-forest"}`}>{index + 1}</span>
             <h3 className="mt-4 text-lg font-bold">{stage.title}</h3>
             <p className={`mt-1 text-xs font-semibold ${index === 0 ? "text-white/55" : "text-forest"}`}>{stage.subtitle}</p>
-            <ul className={`mt-4 space-y-2.5 text-sm leading-5 ${index === 0 ? "text-white/75" : "text-ink/65"}`}>{stage.actions.map((action) => <li key={action} className="flex gap-2"><span className={index === 0 ? "text-[#9edac7]" : "text-forest"}>✓</span>{action}</li>)}</ul>
+            <ul className={`mt-4 space-y-2.5 text-sm leading-5 ${index === 0 ? "text-white/75" : "text-ink/65"}`}>{stage.actions.map((action) => <li key={action} className="flex gap-2"><span className={index === 0 ? "text-[#bae6fd]" : "text-forest"}>✓</span>{action}</li>)}</ul>
           </article>
         ))}
       </div>
@@ -844,8 +844,8 @@ function CvSection({ career, generatedSuggestions }: { career: Career | null; ge
           <ol className="grid gap-2 sm:grid-cols-2">{cvSections.map((item, index) => <li key={item} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-mint text-[10px] font-bold text-forest">{index + 1}</span>{item}</li>)}</ol>
         </div>
         <div className="rounded-2xl bg-ink p-5 text-white sm:p-6">
-          <p className="text-xs font-bold uppercase tracking-wider text-[#9edac7]">Contoh target sebelum lulus</p>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">{targets.map((item) => <li key={item} className="flex gap-2"><span className="text-[#9edac7]">✓</span>{item}</li>)}</ul>
+          <p className="text-xs font-bold uppercase tracking-wider text-[#bae6fd]">Contoh target sebelum lulus</p>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/75">{targets.map((item) => <li key={item} className="flex gap-2"><span className="text-[#bae6fd]">✓</span>{item}</li>)}</ul>
           <p className="mt-5 border-t border-white/10 pt-5 text-sm leading-6 text-white/65">Ini contoh, bukan syarat wajib. Jangan pernah mengarang pencapaian hanya agar CV terlihat penuh.</p>
         </div>
       </div>
@@ -863,7 +863,7 @@ function ThisWeekSection({ career, target, generatedActions }: { career: Career 
     { title: "Buat folder “Future Me”", text: "Simpan CV, sertifikat, proyek, riset kampus, dan riset beasiswamu di satu tempat." },
   ];
   return (
-    <section className="relative overflow-hidden rounded-[30px] bg-[#f6bc6e] p-6 shadow-card sm:p-10">
+    <section className="relative overflow-hidden rounded-[30px] bg-[#fb923c] p-6 shadow-card sm:p-10">
       <div aria-hidden="true" className="dot-grid absolute -bottom-10 -right-10 h-60 w-60 opacity-35" />
       <div className="relative">
         <p className="eyebrow text-ink/60">08 · Mulai bergerak</p>
@@ -1015,7 +1015,7 @@ function UnsureResult({ name, grade, onReset }: { name: string; grade: Grade; on
           </div>
           {selected && (
             <div className="animate-rise mt-6 rounded-2xl bg-ink p-5 text-left text-white sm:p-6">
-              <p className="text-sm font-bold text-[#9edac7]">Eksperimen kecil untuk {selected.title}</p>
+              <p className="text-sm font-bold text-[#bae6fd]">Eksperimen kecil untuk {selected.title}</p>
               <h3 className="mt-2 text-xl font-bold">Coba selama 7 hari, lalu lihat bagaimana rasanya.</h3>
               <ol className="mt-4 grid gap-3 text-sm text-white/70 sm:grid-cols-3"><li>1. Tonton satu pengantar profesi.</li><li>2. Buat satu proyek mini.</li><li>3. Catat: tertarik, netral, atau tidak cocok?</li></ol>
             </div>

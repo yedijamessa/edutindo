@@ -3,11 +3,11 @@
 .citacitaku {
   min-width: 320px;
   color-scheme: only light;
-  color: #17352f;
+  color: #122454;
   background:
-    radial-gradient(circle at 8% 10%, rgba(255, 215, 162, 0.22), transparent 26rem),
-    radial-gradient(circle at 95% 4%, rgba(148, 216, 195, 0.24), transparent 28rem),
-    #fbfcf8;
+    radial-gradient(circle at 8% 10%, rgba(249, 115, 22, 0.12), transparent 26rem),
+    radial-gradient(circle at 95% 4%, rgba(6, 182, 212, 0.16), transparent 28rem),
+    #f7fbff;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -39,8 +39,8 @@
 }
 
 .citacitaku ::selection {
-  color: #17352f;
-  background: #bce8d9;
+  color: #122454;
+  background: #bfdbfe;
 }
 
 .citacitaku .shell {
@@ -60,7 +60,7 @@
 }
 
 .citacitaku .primary-button {
-  @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-ink px-6 py-3.5 font-bold text-white shadow-[0_10px_25px_rgba(23,53,47,0.2)] transition duration-200 hover:-translate-y-0.5 hover:bg-forest focus:outline-none focus:ring-4 focus:ring-forest/20 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-ink px-6 py-3.5 font-bold text-white shadow-[0_10px_25px_rgba(18,36,84,0.2)] transition duration-200 hover:-translate-y-0.5 hover:bg-forest focus:outline-none focus:ring-4 focus:ring-forest/20 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .citacitaku .tag {
@@ -100,7 +100,7 @@
 }
 
 .citacitaku .dot-grid {
-  background-image: radial-gradient(rgba(29, 107, 87, 0.14) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(37, 99, 235, 0.14) 1px, transparent 1px);
   background-size: 18px 18px;
 }
 
