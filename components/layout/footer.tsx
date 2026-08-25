@@ -9,8 +9,9 @@ export function Footer() {
     const isPortalRoute = ["/student", "/teacher", "/parent", "/principal", "/admin"].some((prefix) =>
         pathname.startsWith(prefix)
     )
+    const isCitacitakuRoute = pathname.startsWith("/citacitaku")
 
-    if (isCurriculumLessonFocusRoute(pathname) || isPortalRoute) {
+    if (isCurriculumLessonFocusRoute(pathname) || isPortalRoute || isCitacitakuRoute) {
         return null
     }
 

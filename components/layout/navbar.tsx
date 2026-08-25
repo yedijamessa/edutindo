@@ -29,6 +29,7 @@ export function Navbar() {
     const [isAdminUser, setIsAdminUser] = React.useState(false)
     const [canManageAccessControls, setCanManageAccessControls] = React.useState(false)
     const pathname = usePathname()
+    const isCitacitakuRoute = pathname.startsWith("/citacitaku")
     const isLegacyFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isFocusedScienceRoute = isLegacyFocusedScienceRoute || isCurriculumLessonFocusRoute(pathname)
     const isPortalRoute = portalRoutePrefixes.some((prefix) => pathname.startsWith(prefix))
@@ -69,7 +70,7 @@ export function Navbar() {
         }
     }, [pathname])
 
-    if (isFocusedScienceRoute || isPortalRoute) {
+    if (isFocusedScienceRoute || isPortalRoute || isCitacitakuRoute) {
         return null
     }
 
