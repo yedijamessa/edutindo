@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       const match = await matchRagCareer(query);
       return NextResponse.json({ match: match || localMatch(query), source: match ? "rag" : "local" });
     }
-    const databaseCareers = await searchRagCareers(query, query ? 40 : 150);
+    const databaseCareers = await searchRagCareers(query, query ? 60 : 500);
     return NextResponse.json({ careers: databaseCareers.length ? databaseCareers : localSearch(query).slice(0, 40), source: databaseCareers.length ? "rag" : "local" });
   } catch (error) {
     console.error("[citacitaku:careers]", error instanceof Error ? error.message : error);

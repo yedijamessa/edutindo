@@ -30,22 +30,32 @@ export type EducationRagContext = {
     title: string;
     titleEn: string;
     cluster: string;
+    clusterEn: string | null;
     aliases: string[];
     whatTheyDo: string;
+    whatTheyDoEn: string | null;
     primaryMajors: string[];
+    primaryMajorsEn: string[];
     alternativeMajors: string[];
+    alternativeMajorsEn: string[];
     coreSkills: string[];
+    coreSkillsEn: string[];
     schoolSubjects: string[];
+    schoolSubjectsEn: string[];
     portfolioExample: string | null;
+    portfolioExampleEn: string | null;
     regulatedProfession: boolean;
+    regulatedKey: string | null;
     regulatedNote: string | null;
+    regulatedNoteEn: string | null;
     sourceIds: string[];
     lastChecked: string | null;
   };
-  routes: Array<{ name: string; type: string; description: string }>;
+  routes: Array<{ name: string; nameEn: string | null; type: string; description: string; descriptionEn: string | null }>;
   gradeAnswer: Record<string, unknown> | null;
   chunks: Array<{
     type: string;
+    language: string | null;
     title: string | null;
     text: string;
     sourceIds: string[];
@@ -208,18 +218,26 @@ export async function getEducationRagContext(
   try {
     const [profileResult, routesResult, answerResult, chunksResult] = await Promise.all([
       sql<{
-        career_id: string; title_id: string; title_en: string; cluster: string; aliases_json: unknown;
-        what_they_do: string; primary_majors_json: unknown; alternative_majors_json: unknown;
-        core_skills_json: unknown; school_subjects_json: unknown; portfolio_example: string | null;
-        regulated_profession: boolean; regulated_note: string | null; source_ids: string | null; last_checked: string | null;
+        career_id: string; title_id: string; title_en: string; cluster: string; cluster_en: string | null; aliases_json: unknown;
+        what_they_do: string; what_they_do_en: string | null;
+        primary_majors_json: unknown; primary_majors_en_json: unknown;
+        alternative_majors_json: unknown; alternative_majors_en_json: unknown;
+        core_skills_json: unknown; core_skills_en_json: unknown;
+        school_subjects_json: unknown; school_subjects_en_json: unknown;
+        portfolio_example: string | null; portfolio_example_en: string | null;
+        regulated_profession: boolean; regulated_key: string | null; regulated_note: string | null;
+        regulated_note_en: string | null; source_ids: string | null; last_checked: string | null;
       }>`
-        SELECT career_id, title_id, title_en, cluster, aliases_json, what_they_do, primary_majors_json,
-          alternative_majors_json, core_skills_json, school_subjects_json, portfolio_example,
-          regulated_profession, regulated_note, source_ids, last_checked::text
+        SELECT career_id, title_id, title_en, cluster, cluster_en, aliases_json, what_they_do, what_they_do_en,
+          primary_majors_json, primary_majors_en_json, alternative_majors_json, alternative_majors_en_json,
+          core_skills_json, core_skills_en_json, school_subjects_json, school_subjects_en_json,
+          portfolio_example, portfolio_example_en, regulated_profession, regulated_key,
+          regulated_note, regulated_note_en, source_ids, last_checked::text
         FROM citacitaku_rag_careers WHERE career_id = ${careerId.toUpperCase()} LIMIT 1
       `,
-      sql<{ route_name: string; route_type: string; route_description: string }>`
-        SELECT route_name, route_type, route_description FROM citacitaku_rag_career_routes
+      sql<{ route_name: string; route_name_en: string | null; route_type: string; route_description: string; route_description_en: string | null }>`
+        SELECT route_name, route_name_en, route_type, route_description, route_description_en
+        FROM citacitaku_rag_career_routes
         WHERE career_id = ${careerId.toUpperCase()} ORDER BY route_no
       `,
       sql<{ answer_json: Record<string, unknown> }>`
@@ -227,10 +245,10 @@ export async function getEducationRagContext(
         WHERE career_id = ${careerId.toUpperCase()} AND grade = ${gradeRoman(grade)} LIMIT 1
       `,
       sql<{
-        chunk_type: string; title: string | null; chunk_text: string; source_ids: string | null;
+        chunk_type: string; language: string | null; title: string | null; chunk_text: string; source_ids: string | null;
         document_id: string; page_number: number | null;
       }>`
-        SELECT chunk_type, title, chunk_text, source_ids, document_id, page_number
+        SELECT chunk_type, language, title, chunk_text, source_ids, document_id, page_number
         FROM citacitaku_rag_chunks
         WHERE (career_id = ${careerId.toUpperCase()} AND chunk_type IN ('career_overview', 'career_routes'))
           OR chunk_type IN ('policy', 'education_pathway', 'scholarship_guardrail')
@@ -244,10 +262,10 @@ export async function getEducationRagContext(
     if (!row) return empty;
 
     const pdfResult = await sql<{
-      chunk_type: string; title: string | null; chunk_text: string; source_ids: string | null;
+      chunk_type: string; language: string | null; title: string | null; chunk_text: string; source_ids: string | null;
       document_id: string; page_number: number | null;
     }>`
-      SELECT chunk_type, title, chunk_text, source_ids, document_id, page_number
+      SELECT chunk_type, language, title, chunk_text, source_ids, document_id, page_number
       FROM citacitaku_rag_chunks
       WHERE document_id = 'citacitaku-rag-konselor-2026-pdf'
         AND to_tsvector('simple', COALESCE(title, '') || ' ' || chunk_text) @@ plainto_tsquery('simple', ${row.title_id})
@@ -271,22 +289,38 @@ export async function getEducationRagContext(
         title: row.title_id,
         titleEn: row.title_en,
         cluster: row.cluster,
+        clusterEn: row.cluster_en,
         aliases: stringArray(row.aliases_json),
         whatTheyDo: row.what_they_do,
+        whatTheyDoEn: row.what_they_do_en,
         primaryMajors: stringArray(row.primary_majors_json),
+        primaryMajorsEn: stringArray(row.primary_majors_en_json),
         alternativeMajors: stringArray(row.alternative_majors_json),
+        alternativeMajorsEn: stringArray(row.alternative_majors_en_json),
         coreSkills: stringArray(row.core_skills_json),
+        coreSkillsEn: stringArray(row.core_skills_en_json),
         schoolSubjects: stringArray(row.school_subjects_json),
+        schoolSubjectsEn: stringArray(row.school_subjects_en_json),
         portfolioExample: row.portfolio_example,
+        portfolioExampleEn: row.portfolio_example_en,
         regulatedProfession: row.regulated_profession,
+        regulatedKey: row.regulated_key,
         regulatedNote: row.regulated_note,
+        regulatedNoteEn: row.regulated_note_en,
         sourceIds: sourceIdArray(row.source_ids),
         lastChecked: row.last_checked,
       },
-      routes: routesResult.rows.map((route) => ({ name: route.route_name, type: route.route_type, description: route.route_description })),
+      routes: routesResult.rows.map((route) => ({
+        name: route.route_name,
+        nameEn: route.route_name_en,
+        type: route.route_type,
+        description: route.route_description,
+        descriptionEn: route.route_description_en,
+      })),
       gradeAnswer: answerResult.rows[0]?.answer_json || null,
       chunks: allChunks.map((chunk) => ({
         type: chunk.chunk_type,
+        language: chunk.language,
         title: chunk.title,
         text: chunk.chunk_text,
         sourceIds: sourceIdArray(chunk.source_ids),
@@ -306,8 +340,14 @@ export async function getEducationRagContext(
   }
 }
 
-function answerStringArray(answer: Record<string, unknown> | null, key: string) {
-  return answer ? stringArray(answer[key]) : [];
+function weeklyActionsFromAnswer(answer: Record<string, unknown> | null) {
+  if (!answer || !Array.isArray(answer.aksi_mingguan)) return [];
+  return answer.aksi_mingguan.map((item) => {
+    if (typeof item === "string") return item;
+    if (!item || typeof item !== "object") return "";
+    const record = item as Record<string, unknown>;
+    return typeof record.aksi_id === "string" ? record.aksi_id : typeof record.action_en === "string" ? record.action_en : "";
+  }).filter(Boolean);
 }
 
 export function applyEducationRagFallback(
@@ -321,8 +361,11 @@ export function applyEducationRagFallback(
   const learning = answer && typeof answer.yang_perlu_dipelajari === "object" && answer.yang_perlu_dipelajari
     ? answer.yang_perlu_dipelajari as Record<string, unknown>
     : null;
-  const majors = stringArray(learning?.jurusan_utama).length ? stringArray(learning?.jurusan_utama) : career.primaryMajors;
-  const weekly = answerStringArray(answer, "aksi_mingguan");
+  const answerMajors = stringArray(learning?.jurusan_utama).length
+    ? stringArray(learning?.jurusan_utama)
+    : stringArray(learning?.jurusan_id);
+  const majors = answerMajors.length ? answerMajors : career.primaryMajors;
+  const weekly = weeklyActionsFromAnswer(answer);
   const portfolio = [
     career.portfolioExample,
     "Catatan riset profesi dari sumber resmi",

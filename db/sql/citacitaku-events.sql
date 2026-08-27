@@ -124,15 +124,26 @@ CREATE TABLE IF NOT EXISTS citacitaku_rag_careers (
   title_id TEXT NOT NULL,
   title_en TEXT NOT NULL,
   cluster TEXT NOT NULL,
+  cluster_en TEXT,
+  coverage_status TEXT,
   aliases_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   what_they_do TEXT NOT NULL,
+  what_they_do_en TEXT,
   primary_majors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  primary_majors_en_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   alternative_majors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  alternative_majors_en_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   core_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  core_skills_en_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   school_subjects_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  school_subjects_en_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   portfolio_example TEXT,
+  portfolio_example_en TEXT,
+  entry_route_type TEXT,
   regulated_profession BOOLEAN NOT NULL DEFAULT FALSE,
+  regulated_key TEXT,
   regulated_note TEXT,
+  regulated_note_en TEXT,
   source_ids TEXT,
   last_checked DATE,
   searchable_text TEXT NOT NULL DEFAULT '',
@@ -150,7 +161,9 @@ CREATE TABLE IF NOT EXISTS citacitaku_rag_career_aliases (
   alias_normalized TEXT PRIMARY KEY,
   career_id TEXT NOT NULL REFERENCES citacitaku_rag_careers(career_id) ON DELETE CASCADE,
   canonical_title TEXT NOT NULL,
+  canonical_title_en TEXT,
   cluster TEXT NOT NULL,
+  cluster_en TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -161,9 +174,12 @@ CREATE TABLE IF NOT EXISTS citacitaku_rag_career_routes (
   career_id TEXT NOT NULL REFERENCES citacitaku_rag_careers(career_id) ON DELETE CASCADE,
   route_no INTEGER NOT NULL,
   route_name TEXT NOT NULL,
+  route_name_en TEXT,
   route_type TEXT NOT NULL,
   route_description TEXT NOT NULL,
+  route_description_en TEXT,
   career_title TEXT NOT NULL,
+  career_title_en TEXT,
   cluster TEXT NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (career_id, route_no)
@@ -173,6 +189,7 @@ CREATE TABLE IF NOT EXISTS citacitaku_rag_career_answers (
   career_id TEXT NOT NULL REFERENCES citacitaku_rag_careers(career_id) ON DELETE CASCADE,
   grade TEXT NOT NULL,
   career_title TEXT NOT NULL,
+  career_title_en TEXT,
   answer_json JSONB NOT NULL,
   route_count INTEGER NOT NULL,
   weekly_action_count INTEGER NOT NULL,
@@ -186,6 +203,7 @@ CREATE TABLE IF NOT EXISTS citacitaku_rag_chunks (
   chunk_id TEXT PRIMARY KEY,
   document_id TEXT NOT NULL REFERENCES citacitaku_rag_documents(id) ON DELETE CASCADE,
   chunk_type TEXT NOT NULL,
+  language TEXT,
   career_id TEXT,
   grade TEXT,
   cluster TEXT,
@@ -213,6 +231,29 @@ CREATE TABLE IF NOT EXISTS citacitaku_rag_sources (
   source_name TEXT NOT NULL,
   official_url TEXT NOT NULL,
   how_used TEXT,
+  freshness_class TEXT,
+  last_checked DATE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_coverage_added (
+  career_id TEXT PRIMARY KEY,
+  title_id TEXT NOT NULL,
+  title_en TEXT NOT NULL,
+  cluster_id TEXT NOT NULL,
+  cluster_en TEXT NOT NULL,
+  source_ids TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_regulated_professions (
+  career_id TEXT PRIMARY KEY,
+  title_id TEXT NOT NULL,
+  title_en TEXT NOT NULL,
+  regulated_key TEXT NOT NULL,
+  regulated_note_id TEXT NOT NULL,
+  regulated_note_en TEXT NOT NULL,
+  source_ids TEXT,
   last_checked DATE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

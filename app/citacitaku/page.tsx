@@ -655,7 +655,7 @@ export default function Home() {
                 <DialogContent className="citacitaku max-h-[86vh] max-w-[min(92vw,34rem)] overflow-hidden rounded-[28px] border-ink/10 bg-white p-0 text-ink dark:bg-white">
                   <DialogHeader className="border-b border-ink/10 px-5 py-5">
                     <DialogTitle className="font-display text-2xl font-bold text-ink">Pilih cita-citamu</DialogTitle>
-                    <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">Cari dari 120 pekerjaan terkurasi. Kamu tetap bisa mengetik bebas kalau pilihanmu belum ada.</DialogDescription>
+                    <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">Cari dari 396 pekerjaan bilingual terkurasi. Kamu tetap bisa mengetik bebas kalau pilihanmu belum ada.</DialogDescription>
                     <label className="mt-4 block">
                       <span className="sr-only">Cari pekerjaan</span>
                       <input

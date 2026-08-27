@@ -73,7 +73,7 @@ export function buildGuidanceCacheKey(dream: string, grade: "10" | "11" | "12", 
     cacheDate,
     grade,
     normalizedDream,
-    cacheKey: `citacitaku:v2:${cacheDate}:${grade}:${hash(normalizedDream)}`,
+    cacheKey: `citacitaku:v3:${cacheDate}:${grade}:${hash(normalizedDream)}`,
   };
 }
 
