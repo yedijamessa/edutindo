@@ -77,7 +77,38 @@ function cleanBullets(value: unknown) {
     .slice(0, 8);
 }
 
+function localDetail(target: string, grade: string, section: string, title: string, summary: string, bullets: string[]): DetailResponse {
+  const contextBullets = bullets.length ? bullets : [summary];
+  return {
+    overview: `${title} adalah poin yang bisa kamu pakai untuk mendekatkan rencana menuju ${target}. Mulailah dari versi kecil yang realistis untuk dikerjakan sebagai siswa${grade ? ` kelas ${grade}` : ""}.`,
+    whyItMatters: `Poin ini membantu kamu mengubah rencana besar menjadi bukti konkret: catatan, shortlist, proyek, checklist, atau keputusan kecil yang bisa ditinjau lagi.`,
+    steps: [
+      { title: "Tulis ulang tujuannya", description: `Ringkas ${section.toLowerCase()} ini dalam satu kalimat: apa yang ingin kamu pahami, buat, atau putuskan.` },
+      { title: "Pecah jadi tugas kecil", description: "Ubah poin ini menjadi tugas 20-30 menit agar tidak terasa terlalu besar untuk dimulai." },
+      { title: "Kumpulkan bukti", description: "Simpan link resmi, catatan, screenshot, draft, atau file kerja di satu folder agar mudah dipakai lagi." },
+      { title: "Minta masukan", description: "Tunjukkan hasil awalmu ke guru, orang tua, kakak kelas, mentor, atau teman yang bisa memberi feedback jujur." },
+      { title: "Perbaiki versi berikutnya", description: "Pilih satu hal yang paling lemah, lalu rapikan sebelum menambah hal baru." },
+    ],
+    checklist: [
+      "Tujuan poin ini sudah ditulis dengan jelas",
+      "Ada satu tugas kecil yang bisa dikerjakan hari ini",
+      "Sumber penting disimpan di folder khusus",
+      "Ada catatan tentang hal yang belum kamu pahami",
+      ...contextBullets.slice(0, 2).map((item) => `Konteks diperiksa: ${item}`),
+    ].slice(0, 7),
+    exampleOutput: `Contoh hasil sederhana: satu dokumen berisi ringkasan ${title}, link sumber resmi, daftar hal yang perlu dicek, dan rencana langkah berikutnya untuk ${target}.`,
+    verificationNotes: [
+      "Cek informasi penting di website resmi kampus, penyedia beasiswa, pemerintah, atau lembaga terkait.",
+      "Jangan menganggap contoh ini sebagai jaminan diterima, mendapat beasiswa, atau berhasil di jalur tertentu.",
+      "Tanggal, syarat, biaya, dan kebijakan bisa berubah, jadi cek ulang sebelum mengambil keputusan.",
+    ],
+    firstStep: `Buka catatan baru dan tulis: "Untuk ${title}, langkah kecil pertamaku adalah..." lalu isi dengan satu aksi yang bisa selesai hari ini.`,
+  };
+}
+
 export async function POST(request: NextRequest) {
+  let fallbackDetail: DetailResponse | null = null;
+
   try {
     const body = await request.json().catch(() => null) as DetailRequest | null;
     const target = cleanText(body?.target, 100);
@@ -90,6 +121,8 @@ export async function POST(request: NextRequest) {
     if (!target || !section || !title || !summary) {
       return NextResponse.json({ error: "Data detail belum lengkap." }, { status: 400 });
     }
+
+    fallbackDetail = localDetail(target, grade, section, title, summary, bullets);
 
     const result = await generateStructuredObject<DetailResponse>({
       schemaName: "citacitaku_detail",
@@ -129,6 +162,13 @@ Aturan wajib:
     });
   } catch (error) {
     console.error("[citacitaku/detail]", error);
-    return NextResponse.json({ error: "Detail AI belum bisa dibuat. Coba lagi sebentar." }, { status: 500 });
+    if (fallbackDetail) {
+      return NextResponse.json({
+        detail: fallbackDetail,
+        provider: "local",
+        model: "local-fallback",
+      });
+    }
+    return NextResponse.json({ error: "Data detail belum lengkap." }, { status: 400 });
   }
 }

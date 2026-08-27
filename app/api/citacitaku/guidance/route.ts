@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
   if (providers.length === 0) {
     return NextResponse.json({
       guidance: fallback,
-      warning: "API AI belum dikonfigurasi; aplikasi memakai data lokal.",
+      warning: "Panduan lokal ditampilkan agar hasil tetap tersedia.",
     });
   }
 
@@ -379,6 +379,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     guidance: fallback,
-    warning: "Layanan AI sedang tidak tersedia; panduan lokal tetap ditampilkan.",
+    warning: "Panduan lokal ditampilkan agar hasil tetap tersedia.",
   });
 }

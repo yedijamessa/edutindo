@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,9 @@ const navItems = [
   ["Portfolio", "portfolio"],
   ["CV", "cv"],
 ] as const;
+
+const TRIAL_CODE = "yski-2026";
+const TRIAL_CODE_SESSION_KEY = "citacitaku-trial-code";
 
 const genericPathways: Pathway[] = [
   { icon: "🔎", title: "Kenali profesinya", description: "Cari tahu aktivitas sehari-hari, lingkungan kerja, dan dampak profesi ini.", preparation: ["Wawancara praktisi", "Video day-in-the-life", "Catat hal yang menarik", "Catat hal yang belum jelas"] },
@@ -311,12 +314,30 @@ function Brand() {
   );
 }
 export default function Home() {
+  const [trialUnlocked, setTrialUnlocked] = useState(false);
+  const [trialCode, setTrialCode] = useState("");
+  const [trialError, setTrialError] = useState("");
   const [form, setForm] = useState<FormData>({ name: "", dream: "", grade: "" });
   const [submitted, setSubmitted] = useState<FormData | null>(null);
   const [guidance, setGuidance] = useState<AIGuidance | null>(null);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [careerPickerOpen, setCareerPickerOpen] = useState(false);
+
+  useEffect(() => {
+    setTrialUnlocked(window.sessionStorage.getItem(TRIAL_CODE_SESSION_KEY) === TRIAL_CODE);
+  }, []);
+
+  function handleTrialSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (trialCode.trim() !== TRIAL_CODE) {
+      setTrialError("Kode belum sesuai.");
+      return;
+    }
+    window.sessionStorage.setItem(TRIAL_CODE_SESSION_KEY, TRIAL_CODE);
+    setTrialError("");
+    setTrialUnlocked(true);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -336,12 +357,47 @@ export default function Home() {
       setNotice(payload.warning || "");
     } catch {
       setGuidance(null);
-      setNotice("Koneksi ke layanan AI gagal; panduan lokal tetap ditampilkan.");
+      setNotice("Panduan lokal ditampilkan agar hasil tetap tersedia.");
     } finally {
       setLoading(false);
       setSubmitted(cleanForm);
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
     }
+  }
+
+  if (!trialUnlocked) {
+    return (
+      <div className="citacitaku min-h-screen overflow-hidden">
+        <header className="shell flex items-center justify-between py-5 sm:py-7">
+          <Brand />
+          <span className="hidden text-sm font-semibold text-ink/55 sm:block">Akses trial terbatas.</span>
+        </header>
+
+        <main className="shell grid min-h-[calc(100vh-6rem)] place-items-center py-10">
+          <form onSubmit={handleTrialSubmit} className="section-card w-full max-w-md text-center">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-mint text-xl font-bold text-forest">🔐</span>
+            <h1 className="mt-5 font-display text-3xl font-bold text-ink">Masukkan trial code</h1>
+            <p className="mt-2 text-sm leading-6 text-ink/55">Masukkan kode akses untuk membuka Cita-cita Ku.</p>
+            <label className="mt-6 block text-left">
+              <span className="mb-2 block text-sm font-bold text-ink/70">Trial code</span>
+              <input
+                value={trialCode}
+                onChange={(event) => {
+                  setTrialCode(event.target.value);
+                  setTrialError("");
+                }}
+                className="focusable min-h-14 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-center text-base font-bold tracking-wide text-ink placeholder:text-ink/35"
+                placeholder="yski-2026"
+                autoComplete="off"
+                required
+              />
+            </label>
+            {trialError && <p role="alert" className="mt-3 text-sm font-bold text-coral">{trialError}</p>}
+            <button type="submit" className="primary-button mt-6 w-full">Masuk</button>
+          </form>
+        </main>
+      </div>
+    );
   }
 
   if (submitted) {
