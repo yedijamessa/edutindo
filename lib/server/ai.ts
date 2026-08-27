@@ -5,6 +5,7 @@ interface GenerateTextParams {
   userPrompt: string;
   requestedProvider?: AiProvider;
   maxOutputTokens?: number;
+  providerTaskRunner?: <T>(provider: AiProvider, task: () => Promise<T>) => Promise<T>;
 }
 
 interface GenerateStructuredObjectParams extends GenerateTextParams {
@@ -132,6 +133,10 @@ function extractGeminiText(payload: unknown): string {
 
 function parseStructuredResult<T>(rawText: string): T {
   return JSON.parse(sanitizeJsonText(rawText)) as T;
+}
+
+function runProviderTask<T>(params: GenerateTextParams, provider: AiProvider, task: () => Promise<T>) {
+  return params.providerTaskRunner ? params.providerTaskRunner(provider, task) : task();
 }
 
 async function callOpenAiText(params: GenerateTextParams): Promise<AiGenerationSuccess<string>> {
@@ -313,10 +318,10 @@ export async function generateText(params: GenerateTextParams): Promise<AiGenera
   for (const provider of getAvailableProviders(params.requestedProvider)) {
     try {
       if (provider === "openai") {
-        return await callOpenAiText(params);
+        return await runProviderTask(params, provider, () => callOpenAiText(params));
       }
 
-      return await callGeminiText(params);
+      return await runProviderTask(params, provider, () => callGeminiText(params));
     } catch (error) {
       errors.push(`${provider}: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
@@ -333,10 +338,10 @@ export async function generateStructuredObject<T>(
   for (const provider of getAvailableProviders(params.requestedProvider)) {
     try {
       if (provider === "openai") {
-        return await callOpenAiStructured(params);
+        return await runProviderTask(params, provider, () => callOpenAiStructured(params));
       }
 
-      return await callGeminiStructured(params);
+      return await runProviderTask(params, provider, () => callGeminiStructured(params));
     } catch (error) {
       errors.push(`${provider}: ${error instanceof Error ? error.message : "Unknown error"}`);
     }

@@ -22,11 +22,26 @@ import {
   Skill,
   University,
 } from "@/lib/citacitaku/careers";
+import { CITACITAKU_CONSENT_TEXT, CITACITAKU_CONSENT_VERSION } from "@/lib/citacitaku/consent";
 import type { AIGuidance, GuidanceRoadmapStage, WeeklyAction } from "@/lib/citacitaku/guidance";
 
 type Grade = "10" | "11" | "12";
-type FormData = { name: string; dream: string; grade: Grade | "" };
+type FormData = { name: string; dream: string; grade: Grade | ""; consentAccepted: boolean };
 type FeedbackCategory = "feature" | "career" | "bug" | "other";
+
+const CITACITAKU_CLIENT_ID_KEY = "citacitaku_client_id";
+
+function getCitacitakuClientId() {
+  try {
+    const existing = window.localStorage.getItem(CITACITAKU_CLIENT_ID_KEY);
+    if (existing) return existing;
+    const created = window.crypto.randomUUID();
+    window.localStorage.setItem(CITACITAKU_CLIENT_ID_KEY, created);
+    return created;
+  } catch {
+    return "";
+  }
+}
 type DetailResponse = {
   overview: string;
   whyItMatters: string;
@@ -49,6 +64,18 @@ const navItems = [
 
 const TRIAL_CODE = "yski-2026";
 const TRIAL_CODE_SESSION_KEY = "citacitaku-trial-code";
+
+function formatResearchDate(value: string | null): string {
+  if (!value) return "";
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
 
 const genericPathways: Pathway[] = [
   { icon: "🔎", title: "Kenali profesinya", description: "Cari tahu aktivitas sehari-hari, lingkungan kerja, dan dampak profesi ini.", preparation: ["Wawancara praktisi", "Video day-in-the-life", "Catat hal yang menarik", "Catat hal yang belum jelas"] },
@@ -309,7 +336,7 @@ function Brand() {
   return (
     <div className="flex items-center gap-2.5 font-display font-bold text-ink">
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-forest text-white"><Spark /></span>
-      <span>Cita-cita Ku</span>
+      <span>Cita-citaku</span>
     </div>
   );
 }
@@ -317,10 +344,11 @@ export default function Home() {
   const [trialUnlocked, setTrialUnlocked] = useState(false);
   const [trialCode, setTrialCode] = useState("");
   const [trialError, setTrialError] = useState("");
-  const [form, setForm] = useState<FormData>({ name: "", dream: "", grade: "" });
+  const [form, setForm] = useState<FormData>({ name: "", dream: "", grade: "", consentAccepted: false });
   const [submitted, setSubmitted] = useState<FormData | null>(null);
   const [guidance, setGuidance] = useState<AIGuidance | null>(null);
   const [notice, setNotice] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
   const [careerPickerOpen, setCareerPickerOpen] = useState(false);
 
@@ -341,27 +369,37 @@ export default function Home() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.name.trim() || !form.dream.trim() || !form.grade) return;
-    const cleanForm = { name: form.name.trim(), dream: form.dream.trim(), grade: form.grade } as FormData & { grade: Grade };
+    if (!form.name.trim() || !form.dream.trim() || !form.grade || !form.consentAccepted) return;
+    const cleanForm = {
+      name: form.name.trim(),
+      dream: form.dream.trim(),
+      grade: form.grade,
+      consentAccepted: true,
+    } as FormData & { grade: Grade; consentAccepted: true };
     setLoading(true);
     setNotice("");
+    setSubmitError("");
     try {
       const response = await fetch("/api/citacitaku/guidance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cleanForm),
+        body: JSON.stringify({
+          ...cleanForm,
+          consentVersion: CITACITAKU_CONSENT_VERSION,
+          clientId: getCitacitakuClientId(),
+        }),
       });
       const payload = await response.json() as { guidance?: AIGuidance; warning?: string; error?: string };
       if (!response.ok || !payload.guidance) throw new Error(payload.error || "Panduan belum bisa dibuat.");
       setGuidance(payload.guidance);
       setNotice(payload.warning || "");
-    } catch {
-      setGuidance(null);
-      setNotice("Panduan lokal ditampilkan agar hasil tetap tersedia.");
-    } finally {
-      setLoading(false);
       setSubmitted(cleanForm);
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+    } catch (submitError) {
+      setGuidance(null);
+      setSubmitError(submitError instanceof Error ? submitError.message : "Panduan belum bisa dibuat.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -377,7 +415,7 @@ export default function Home() {
           <form onSubmit={handleTrialSubmit} className="section-card w-full max-w-md text-center">
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-mint text-xl font-bold text-forest">🔐</span>
             <h1 className="mt-5 font-display text-3xl font-bold text-ink">Masukkan trial code</h1>
-            <p className="mt-2 text-sm leading-6 text-ink/55">Masukkan kode akses untuk membuka Cita-cita Ku.</p>
+            <p className="mt-2 text-sm leading-6 text-ink/55">Masukkan kode akses untuk membuka Cita-citaku.</p>
             <label className="mt-6 block text-left">
               <span className="mb-2 block text-sm font-bold text-ink/70">Trial code</span>
               <input
@@ -525,7 +563,26 @@ export default function Home() {
             </div>
           </fieldset>
 
-          <button type="submit" className="primary-button mt-8 w-full" disabled={loading || !form.name.trim() || !form.dream.trim() || !form.grade}>
+          <label className="mt-7 flex cursor-pointer gap-3 rounded-2xl border border-ink/10 bg-[#f8fbff] p-4 text-sm leading-6 text-ink/60 transition hover:border-forest/25 hover:bg-mint/20">
+            <input
+              type="checkbox"
+              checked={form.consentAccepted}
+              onChange={(event) => {
+                setForm({ ...form, consentAccepted: event.target.checked });
+                setSubmitError("");
+              }}
+              className="focusable mt-1 h-5 w-5 shrink-0 rounded border-ink/20 accent-[#2563eb]"
+              required
+            />
+            <span>
+              <span className="block font-bold text-ink">Saya setuju data disimpan untuk statistik.</span>
+              {CITACITAKU_CONSENT_TEXT}
+            </span>
+          </label>
+
+          {submitError && <p role="alert" className="mt-4 text-sm font-bold text-coral">{submitError}</p>}
+
+          <button type="submit" className="primary-button mt-8 w-full" disabled={loading || !form.name.trim() || !form.dream.trim() || !form.grade || !form.consentAccepted}>
             {loading ? <><span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Sedang menyiapkan panduan...</> : <>Lihat Jalan Menuju Cita-Citaku <Arrow /></>}
           </button>
           <p className="mt-4 text-center text-xs font-semibold tracking-wide text-ink/45">Gratis <span className="mx-2">•</span> Tanpa login <span className="mx-2">•</span> Untuk siswa SMA</p>
@@ -579,6 +636,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
   if (unsure) return <UnsureResult name={data.name} grade={data.grade} onReset={onReset} />;
 
   const target = guidance?.targetTitle ?? career?.title ?? data.dream;
+  const researchDate = formatResearchDate(guidance?.researchedAt ?? null);
 
   return (
     <div className="citacitaku min-h-screen pb-16 xl:pl-56">
@@ -592,7 +650,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <p className="text-sm font-bold text-[#bae6fd]">Rencana masa depanmu</p>
-                {guidance && (guidance.researched || !guidance.generated) && <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/70">{guidance.researched ? `Diriset dengan ${guidance.provider === "openai" ? "OpenAI Search" : "Google Search"}` : "Data lokal"}</span>}
+                {guidance && (guidance.researched || !guidance.generated) && <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/70">{guidance.researched ? `Web terbaru${researchDate ? ` · ${researchDate}` : ""}` : "Data lokal"}</span>}
               </div>
               <h1 className="max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">Hai {data.name} <span aria-hidden="true">👋</span></h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-white/70 sm:text-lg">
@@ -605,7 +663,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
               {!career && (
                 <div className="mt-5 max-w-2xl rounded-2xl border border-white/15 bg-white/10 p-4 text-sm leading-6 text-white/75">
                   {guidance?.researched
-                    ? "Keren! Profesi ini belum ada di profil awal, jadi AI mencarikan konteks tambahan dari web. Lihat dan periksa sumber pencariannya di bawah."
+                    ? "Keren! Profesi ini belum ada di profil awal, jadi AI mencarikan konteks terbaru dari web. Lihat dan periksa sumber pencariannya di bawah."
                     : "Keren! Kami belum punya panduan khusus untuk profesi ini, jadi kami tidak akan menebak-nebak. Panduan di bawah membantumu mencari jalur yang tepat dari sumber tepercaya."}
                 </div>
               )}
@@ -624,7 +682,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
           <PathwaysSection career={career} guidance={guidance} target={target} grade={data.grade} />
           {guidance?.sources && guidance.sources.length > 0 && <ResearchSourcesSection guidance={guidance} />}
           <UniversitiesSection career={career} target={target} grade={data.grade} />
-          <ScholarshipsSection career={career} target={target} grade={data.grade} />
+          <ScholarshipsSection career={career} guidance={guidance} target={target} grade={data.grade} />
           <RoadmapSection grade={data.grade} target={target} stages={guidance?.roadmap} />
           <SkillsSection career={career} generatedSkills={guidance?.skills} target={target} grade={data.grade} />
           <PortfolioSection career={career} target={target} grade={data.grade} generatedIdeas={guidance?.portfolioIdeas} />
@@ -640,12 +698,13 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
 }
 
 function ResearchSourcesSection({ guidance }: { guidance: AIGuidance }) {
+  const researchDate = formatResearchDate(guidance.researchedAt);
   return (
     <section className="section-card border-forest/20 bg-mint/20">
       <SectionHeading
         eyebrow="Sumber riset AI"
         title="Sumber untuk profesi spesifikmu"
-        description="Tautan ini dikembalikan oleh alat pencarian provider, bukan dibuat dari ingatan model. Buka sumbernya sebelum mengambil keputusan penting."
+        description={`Tautan ini dikembalikan oleh pencarian web${researchDate ? ` pada ${researchDate}` : ""}, bukan dibuat dari ingatan model. Buka sumbernya sebelum mengambil keputusan penting.`}
       />
       <div className="grid gap-3 sm:grid-cols-2">
         {guidance.sources.map((source, index) => (
@@ -746,7 +805,17 @@ function DetailButton({ target, grade, section, title, summary, bullets = [] }: 
       const response = await fetch("/api/citacitaku/detail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target, grade, section, title, summary, bullets }),
+        body: JSON.stringify({
+          target,
+          grade,
+          section,
+          title,
+          summary,
+          bullets,
+          consentAccepted: true,
+          consentVersion: CITACITAKU_CONSENT_VERSION,
+          clientId: getCitacitakuClientId(),
+        }),
       });
       const payload = await response.json() as { detail?: DetailResponse; error?: string };
       if (!response.ok || !payload.detail) throw new Error(payload.error || "Detail belum bisa dibuat.");
@@ -1012,34 +1081,69 @@ function UnknownUniversities({ target, grade }: { target: string; grade: Grade }
   );
 }
 
-function ScholarshipsSection({ career, target, grade }: { career: Career | null; target: string; grade: Grade }) {
+function ScholarshipsSection({ career, guidance, target, grade }: { career: Career | null; guidance: AIGuidance | null; target: string; grade: Grade }) {
+  const databaseScholarships = guidance?.scholarshipMatches || [];
   const scholarships = career?.scholarships ?? allScholarships;
   const indonesiaScholarships = scholarships.filter((item) => item.country === "Indonesia");
   const overseasScholarships = scholarships.filter((item) => item.country !== "Indonesia");
 
   return (
     <section id="beasiswa" className="section-card">
-      <SectionHeading eyebrow="03 · Dukungan biaya" title="Beasiswa yang bisa kamu cari" description="Mulai dari nama programnya, lalu baca kembali ketentuan tahun pendaftaranmu di sumber resmi." />
-      <div className="grid gap-3 md:grid-cols-2">
-        <RegionDialogButton
-          label="🇮🇩 Dalam Negeri"
-          description={`${indonesiaScholarships.length} opsi beasiswa Indonesia untuk kamu cek lebih lanjut.`}
-          dialogTitle="🇮🇩 Beasiswa Dalam Negeri"
-          dialogDescription="Mulai dari nama programnya, lalu cek ulang jadwal, sasaran penerima, dan dokumen wajib di website resmi."
-        >
-          <ScholarshipGroup scholarships={indonesiaScholarships} target={target} grade={grade} />
-        </RegionDialogButton>
-        <RegionDialogButton
-          label="🌍 Luar Negeri"
-          description={`${overseasScholarships.length} opsi funding luar negeri untuk riset awal.`}
-          dialogTitle="🌍 Beasiswa Luar Negeri"
-          dialogDescription="Bandingkan negara, kampus, cakupan biaya, persyaratan bahasa, dan deadline dari sumber resmi tiap program."
-        >
-          <ScholarshipGroup scholarships={overseasScholarships} target={target} grade={grade} />
-        </RegionDialogButton>
-      </div>
+      <SectionHeading eyebrow="03 · Dukungan biaya" title="Beasiswa yang bisa kamu cari" description="Mulai dari hasil pencocokan database, lalu baca kembali ketentuan tahun pendaftaranmu di sumber resmi." />
+      {databaseScholarships.length > 0 ? (
+        <DatabaseScholarshipGroup scholarships={databaseScholarships} target={target} grade={grade} />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          <RegionDialogButton
+            label="🇮🇩 Dalam Negeri"
+            description={`${indonesiaScholarships.length} opsi beasiswa Indonesia untuk kamu cek lebih lanjut.`}
+            dialogTitle="🇮🇩 Beasiswa Dalam Negeri"
+            dialogDescription="Mulai dari nama programnya, lalu cek ulang jadwal, sasaran penerima, dan dokumen wajib di website resmi."
+          >
+            <ScholarshipGroup scholarships={indonesiaScholarships} target={target} grade={grade} />
+          </RegionDialogButton>
+          <RegionDialogButton
+            label="🌍 Luar Negeri"
+            description={`${overseasScholarships.length} opsi funding luar negeri untuk riset awal.`}
+            dialogTitle="🌍 Beasiswa Luar Negeri"
+            dialogDescription="Bandingkan negara, kampus, cakupan biaya, persyaratan bahasa, dan deadline dari sumber resmi tiap program."
+          >
+            <ScholarshipGroup scholarships={overseasScholarships} target={target} grade={grade} />
+          </RegionDialogButton>
+        </div>
+      )}
       <p className="mt-5 text-sm font-semibold text-coral">Periksa informasi terbaru di website resmi.</p>
     </section>
+  );
+}
+
+function DatabaseScholarshipGroup({ scholarships, target, grade }: { scholarships: NonNullable<AIGuidance["scholarshipMatches"]>; target: string; grade: Grade }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {scholarships.map((item) => (
+        <article key={`${item.name}-${item.level}-${item.officialSourceUrl || item.destination}`} className="flex flex-col rounded-2xl border border-ink/10 p-5">
+          <p className="text-xs font-bold uppercase tracking-wider text-forest">{item.destination || "Beasiswa"} · {item.level}</p>
+          <h4 className="mt-2 text-lg font-bold">{item.name}</h4>
+          <p className="mt-2 text-sm font-semibold text-ink/70">{item.fundingLevel || item.coverage || "Cek cakupan di sumber resmi"}</p>
+          <p className="mt-2 text-sm leading-6 text-ink/55">{item.coverage || item.eligibleMajors || item.matchReason}</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {item.status && <span className="tag">{item.status}</span>}
+            {item.recommendedAction && <span className="tag">{item.recommendedAction}</span>}
+          </div>
+          {item.applicationWindow && <p className="mt-3 text-xs font-semibold text-ink/50">{item.applicationWindow}</p>}
+          {item.officialSourceUrl && <a href={item.officialSourceUrl} target="_blank" rel="noreferrer" className="focusable mt-4 inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-bold text-forest hover:underline">Sumber resmi <span aria-hidden="true">↗</span></a>}
+          {item.lastChecked && <p className="mt-2 text-[10px] text-ink/35">Database diverifikasi: {item.lastChecked}</p>}
+          <DetailButton
+            target={target}
+            grade={grade}
+            section="Beasiswa dari database"
+            title={item.name}
+            summary={`${item.fundingLevel || item.coverage || "Cek cakupan di sumber resmi"}. ${item.keyEligibility || item.eligibleMajors || item.matchReason}`}
+            bullets={[item.destination || "", item.level, item.status || "", item.applicationWindow || "", item.officialSourceUrl || ""].filter(Boolean)}
+          />
+        </article>
+      ))}
+    </div>
   );
 }
 

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CITACITAKU_CONSENT_TEXT, CITACITAKU_CONSENT_VERSION } from "@/lib/citacitaku/consent";
+import { checkCitacitakuRateLimit, withAiProviderSlot } from "@/lib/citacitaku/scalability";
+import { saveCitacitakuEvent } from "@/lib/citacitaku/submissions";
 import { generateStructuredObject } from "@/lib/server/ai";
 
 export const runtime = "nodejs";
@@ -10,6 +13,9 @@ type DetailRequest = {
   title?: unknown;
   summary?: unknown;
   bullets?: unknown;
+  consentAccepted?: unknown;
+  consentVersion?: unknown;
+  clientId?: unknown;
 };
 
 type DetailResponse = {
@@ -107,8 +113,6 @@ function localDetail(target: string, grade: string, section: string, title: stri
 }
 
 export async function POST(request: NextRequest) {
-  let fallbackDetail: DetailResponse | null = null;
-
   try {
     const body = await request.json().catch(() => null) as DetailRequest | null;
     const target = cleanText(body?.target, 100);
@@ -117,17 +121,53 @@ export async function POST(request: NextRequest) {
     const summary = cleanText(body?.summary, 800);
     const grade = cleanText(body?.grade, 10);
     const bullets = cleanBullets(body?.bullets);
+    const consentAccepted = body?.consentAccepted === true;
+    const consentVersion = typeof body?.consentVersion === "string" && body.consentVersion.trim()
+      ? body.consentVersion.trim().slice(0, 40)
+      : CITACITAKU_CONSENT_VERSION;
+    const clientId = typeof body?.clientId === "string" ? body.clientId.trim().slice(0, 100) : "";
+
+    try {
+      const rateLimit = await checkCitacitakuRateLimit(request, clientId);
+      if (rateLimit.limited) {
+        return NextResponse.json(
+          { error: "Terlalu banyak permintaan. Coba lagi sebentar." },
+          { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+        );
+      }
+    } catch (error) {
+      console.error("[citacitaku:detail:rate-limit]", error instanceof Error ? error.message : error);
+      return NextResponse.json({ error: "Layanan pembatas permintaan belum siap." }, { status: 503 });
+    }
 
     if (!target || !section || !title || !summary) {
       return NextResponse.json({ error: "Data detail belum lengkap." }, { status: 400 });
     }
 
-    fallbackDetail = localDetail(target, grade, section, title, summary, bullets);
+    if (!consentAccepted) {
+      return NextResponse.json({ error: "Persetujuan penyimpanan data wajib dicentang." }, { status: 400 });
+    }
 
-    const result = await generateStructuredObject<DetailResponse>({
-      schemaName: "citacitaku_detail",
-      schema: detailJsonSchema,
-      systemPrompt: `Kamu adalah konselor pendidikan untuk siswa SMA Indonesia.
+    const input = {
+      target,
+      grade: grade || null,
+      section,
+      title,
+      summary,
+      bullets,
+      consentAccepted: true,
+      consentVersion,
+    };
+    const fallbackDetail = localDetail(target, grade, section, title, summary, bullets);
+    let responsePayload: { detail: DetailResponse; provider: string; model: string };
+    let status: "completed" | "fallback" = "completed";
+
+    try {
+      const result = await generateStructuredObject<DetailResponse>({
+        providerTaskRunner: withAiProviderSlot,
+        schemaName: "citacitaku_detail",
+        schema: detailJsonSchema,
+        systemPrompt: `Kamu adalah konselor pendidikan untuk siswa SMA Indonesia.
 Tulis dalam Bahasa Indonesia yang hangat, praktis, detail, dan mudah diikuti.
 
 Aturan wajib:
@@ -141,34 +181,56 @@ Aturan wajib:
 - Setiap field harus berupa kalimat yang rapi dan siap ditampilkan di UI.
 - Untuk steps, buat judul pendek dan deskripsi 1–2 kalimat yang konkret.
 - Untuk checklist, gunakan item pendek yang bisa dicek satu per satu.`,
-      userPrompt: JSON.stringify({
-        studentContext: { target, grade: grade || null },
-        requestedDetail: { section, title, summary, bullets },
-        outputNeeds: [
-          "jelaskan maksud poin ini dengan bahasa sederhana",
-          "beri langkah konkret yang bisa dikerjakan siswa",
-          "beri checklist kecil",
-          "beri contoh hasil/produk yang bisa dibuat",
-          "beri risiko atau hal yang perlu diverifikasi",
-          "akhiri dengan satu langkah pertama yang paling ringan",
-        ],
-      }),
-    });
+        userPrompt: JSON.stringify({
+          studentContext: { target, grade: grade || null },
+          requestedDetail: { section, title, summary, bullets },
+          outputNeeds: [
+            "jelaskan maksud poin ini dengan bahasa sederhana",
+            "beri langkah konkret yang bisa dikerjakan siswa",
+            "beri checklist kecil",
+            "beri contoh hasil/produk yang bisa dibuat",
+            "beri risiko atau hal yang perlu diverifikasi",
+            "akhiri dengan satu langkah pertama yang paling ringan",
+          ],
+        }),
+      });
 
-    return NextResponse.json({
-      detail: result.data,
-      provider: result.provider,
-      model: result.model,
-    });
-  } catch (error) {
-    console.error("[citacitaku/detail]", error);
-    if (fallbackDetail) {
-      return NextResponse.json({
+      responsePayload = {
+        detail: result.data,
+        provider: result.provider,
+        model: result.model,
+      };
+    } catch (error) {
+      console.error("[citacitaku/detail]", error);
+      status = "fallback";
+      responsePayload = {
         detail: fallbackDetail,
         provider: "local",
         model: "local-fallback",
-      });
+      };
     }
+
+    try {
+      await saveCitacitakuEvent({
+        eventType: "detail",
+        input,
+        output: responsePayload,
+        metadata: { section, target, generated: status === "completed" },
+        consentAccepted: true,
+        consentVersion,
+        consentText: CITACITAKU_CONSENT_TEXT,
+        provider: responsePayload.provider,
+        model: responsePayload.model,
+        status,
+      });
+    } catch (error) {
+      console.error("[citacitaku:detail:save]", error instanceof Error ? error.message : error);
+      return NextResponse.json({ error: "Detail belum bisa ditampilkan karena database penyimpanan belum siap." }, { status: 503 });
+    }
+
+    return NextResponse.json(responsePayload);
+  } catch (error) {
+    console.error("[citacitaku/detail:request]", error);
     return NextResponse.json({ error: "Data detail belum lengkap." }, { status: 400 });
   }
 }

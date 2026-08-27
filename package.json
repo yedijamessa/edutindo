@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "export": "echo \"next export is no longer needed; run npm run build\"",
+    "import:citacitaku-scholarships": "tsx scripts/import-citacitaku-scholarships.ts",
     "seed:english-ielts": "tsx scripts/seed-english-curriculum-from-ielts.ts",
     "seed:science-year7": "tsx scripts/seed-year7-science-curriculum.ts"
   },
@@ -28,6 +29,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-markdown": "^10.1.0",
+    "read-excel-file": "^9.3.10",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",

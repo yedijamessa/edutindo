@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./citacitaku.css";
 
 export const metadata: Metadata = {
-  title: "Cita-cita Ku — Ada banyak jalan menuju masa depanmu",
+  title: "Cita-citaku — Ada banyak jalan menuju masa depanmu",
   description: "Panduan sederhana untuk pelajar SMA Indonesia merencanakan langkah menuju cita-cita.",
 };
 

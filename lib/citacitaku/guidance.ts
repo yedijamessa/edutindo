@@ -18,11 +18,29 @@ export type ResearchSource = {
   url: string;
 };
 
+export type ScholarshipGuidanceMatch = {
+  name: string;
+  level: string;
+  destination: string | null;
+  status: string | null;
+  applicationWindow: string | null;
+  fundingLevel: string | null;
+  coverage: string | null;
+  eligibleMajors: string | null;
+  keyEligibility: string | null;
+  recommendedAction: string | null;
+  officialSourceUrl: string | null;
+  lastChecked: string | null;
+  matchReason: string;
+};
+
 export type AIGuidance = {
   provider: GuidanceProvider;
   generated: boolean;
   researched: boolean;
+  researchedAt: string | null;
   sources: ResearchSource[];
+  scholarshipMatches?: ScholarshipGuidanceMatch[];
   targetTitle: string;
   careerDescription: string;
   intro: string;
@@ -172,7 +190,9 @@ export function buildLocalGuidance(
     provider: "local",
     generated: false,
     researched: false,
+    researchedAt: null,
     sources: [],
+    scholarshipMatches: [],
     targetTitle: target,
     careerDescription: career?.description ?? "Mulai dengan memahami profesinya, kualifikasi yang dibutuhkan, dan beberapa jalur pendidikan yang mungkin.",
     intro: `Ini beberapa jalan yang bisa kamu mulai dari Kelas ${grade}.`,
@@ -194,7 +214,7 @@ function isStringArray(value: unknown, minimum = 1): value is string[] {
   return Array.isArray(value) && value.length >= minimum && value.every((item) => typeof item === "string" && item.trim().length > 0);
 }
 
-export function isValidGuidance(value: unknown): value is Omit<AIGuidance, "provider" | "generated" | "researched" | "sources"> {
+export function isValidGuidance(value: unknown): value is Omit<AIGuidance, "provider" | "generated" | "researched" | "researchedAt" | "sources"> {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
   const isObject = (candidate: unknown): candidate is Record<string, unknown> => Boolean(candidate) && typeof candidate === "object";

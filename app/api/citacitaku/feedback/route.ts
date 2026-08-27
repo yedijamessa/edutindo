@@ -1,6 +1,5 @@
-import { mkdir, appendFile } from "node:fs/promises";
-import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
+import { saveCitacitakuEvent } from "@/lib/citacitaku/submissions";
 
 export const runtime = "nodejs";
 
@@ -60,16 +59,19 @@ function cleanContext(value: unknown): FeedbackRecord["context"] {
   };
 }
 
-function feedbackFilePath(): string {
-  if (process.env.FEEDBACK_FILE_PATH) return process.env.FEEDBACK_FILE_PATH;
-  return path.join(process.cwd(), ".feedback", "feature-requests.jsonl");
-}
-
 async function saveFeedback(record: FeedbackRecord) {
-  // Replace this function with a database insert when the production DB is ready.
-  const filePath = feedbackFilePath();
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await appendFile(filePath, `${JSON.stringify(record)}\n`, "utf8");
+  await saveCitacitakuEvent({
+    eventType: "feedback",
+    input: {
+      category: record.category,
+      message: record.message,
+      contact: record.contact,
+      context: record.context,
+    },
+    output: { ok: true, id: record.id, status: record.status },
+    metadata: { page: record.context.page ?? null },
+    status: "completed",
+  });
 }
 
 export async function POST(request: NextRequest) {

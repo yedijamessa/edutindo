@@ -1,5 +1,5 @@
 
-import { pgTable, text, timestamp, boolean, jsonb, integer, serial } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, jsonb, integer, serial, date, primaryKey } from 'drizzle-orm/pg-core';
 
 // --- Users ---
 export const users = pgTable('users', {
@@ -62,4 +62,93 @@ export const mindmaps = pgTable('mindmaps', {
     createdBy: text('created_by').references(() => users.id),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// --- Cita-cita Ku Events ---
+export const citacitakuEvents = pgTable('citacitaku_events', {
+    id: text('id').primaryKey(),
+    eventType: text('event_type').notNull(),
+    inputJson: jsonb('input_json').notNull(),
+    outputJson: jsonb('output_json').notNull(),
+    metadataJson: jsonb('metadata_json').default({}).notNull(),
+    consentAccepted: boolean('consent_accepted'),
+    consentVersion: text('consent_version'),
+    consentText: text('consent_text'),
+    provider: text('provider'),
+    model: text('model'),
+    status: text('status').default('completed').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const citacitakuGuidanceCache = pgTable('citacitaku_guidance_cache', {
+    cacheKey: text('cache_key').primaryKey(),
+    cacheDate: date('cache_date').notNull(),
+    dreamNormalized: text('dream_normalized').notNull(),
+    grade: text('grade').notNull(),
+    responseJson: jsonb('response_json').notNull(),
+    metadataJson: jsonb('metadata_json').default({}).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+export const citacitakuGenerationLocks = pgTable('citacitaku_generation_locks', {
+    cacheKey: text('cache_key').primaryKey(),
+    ownerId: text('owner_id').notNull(),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const citacitakuProviderSlots = pgTable('citacitaku_provider_slots', {
+    provider: text('provider').notNull(),
+    slotNumber: integer('slot_number').notNull(),
+    ownerId: text('owner_id'),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }),
+}, (table) => [primaryKey({ columns: [table.provider, table.slotNumber] })]);
+
+export const citacitakuRateLimitBuckets = pgTable('citacitaku_rate_limit_buckets', {
+    bucketKey: text('bucket_key').primaryKey(),
+    requestCount: integer('request_count').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+export const citacitakuScholarships = pgTable('citacitaku_scholarships', {
+    id: text('id').primaryKey(),
+    sourceSheet: text('source_sheet').notNull(),
+    level: text('level').notNull(),
+    scholarship: text('scholarship').notNull(),
+    provider: text('provider'),
+    destination: text('destination'),
+    type: text('type'),
+    status: text('status'),
+    applicationWindow: text('application_window'),
+    fundingLevel: text('funding_level'),
+    coverage: text('coverage'),
+    eligibleMajors: text('eligible_majors'),
+    keyEligibility: text('key_eligibility'),
+    language: text('language'),
+    admissionOfferFirst: text('admission_offer_first'),
+    ageLimit: text('age_limit'),
+    bondReturnObligation: text('bond_return_obligation'),
+    recommendedAction: text('recommended_action'),
+    officialSourceUrl: text('official_source_url'),
+    sourceQuality: text('source_quality'),
+    lastChecked: date('last_checked'),
+    historical: boolean('historical').default(false).notNull(),
+    searchableText: text('searchable_text').default('').notNull(),
+    rawJson: jsonb('raw_json').default({}).notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const citacitakuScholarshipFieldGuides = pgTable('citacitaku_scholarship_field_guides', {
+    id: text('id').primaryKey(),
+    scholarship: text('scholarship').notNull(),
+    fieldGroup: text('field_group'),
+    majorsSubjects: text('majors_subjects'),
+    importantNotes: text('important_notes'),
+    officialSourceUrl: text('official_source_url'),
+    searchableText: text('searchable_text').default('').notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
