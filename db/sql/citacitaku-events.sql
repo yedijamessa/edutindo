@@ -107,3 +107,112 @@ CREATE TABLE IF NOT EXISTS citacitaku_scholarship_field_guides (
 
 CREATE INDEX IF NOT EXISTS citacitaku_scholarship_field_guides_scholarship_idx
 ON citacitaku_scholarship_field_guides (scholarship);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_documents (
+  id TEXT PRIMARY KEY,
+  file_name TEXT NOT NULL,
+  source_type TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  page_count INTEGER,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_careers (
+  career_id TEXT PRIMARY KEY,
+  title_id TEXT NOT NULL,
+  title_en TEXT NOT NULL,
+  cluster TEXT NOT NULL,
+  aliases_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  what_they_do TEXT NOT NULL,
+  primary_majors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  alternative_majors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  core_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  school_subjects_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  portfolio_example TEXT,
+  regulated_profession BOOLEAN NOT NULL DEFAULT FALSE,
+  regulated_note TEXT,
+  source_ids TEXT,
+  last_checked DATE,
+  searchable_text TEXT NOT NULL DEFAULT '',
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS citacitaku_rag_careers_title_idx
+ON citacitaku_rag_careers (title_id);
+
+CREATE INDEX IF NOT EXISTS citacitaku_rag_careers_cluster_idx
+ON citacitaku_rag_careers (cluster);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_career_aliases (
+  alias_normalized TEXT PRIMARY KEY,
+  career_id TEXT NOT NULL REFERENCES citacitaku_rag_careers(career_id) ON DELETE CASCADE,
+  canonical_title TEXT NOT NULL,
+  cluster TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS citacitaku_rag_career_aliases_career_idx
+ON citacitaku_rag_career_aliases (career_id);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_career_routes (
+  career_id TEXT NOT NULL REFERENCES citacitaku_rag_careers(career_id) ON DELETE CASCADE,
+  route_no INTEGER NOT NULL,
+  route_name TEXT NOT NULL,
+  route_type TEXT NOT NULL,
+  route_description TEXT NOT NULL,
+  career_title TEXT NOT NULL,
+  cluster TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (career_id, route_no)
+);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_career_answers (
+  career_id TEXT NOT NULL REFERENCES citacitaku_rag_careers(career_id) ON DELETE CASCADE,
+  grade TEXT NOT NULL,
+  career_title TEXT NOT NULL,
+  answer_json JSONB NOT NULL,
+  route_count INTEGER NOT NULL,
+  weekly_action_count INTEGER NOT NULL,
+  source_ids TEXT,
+  last_checked DATE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (career_id, grade)
+);
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_chunks (
+  chunk_id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES citacitaku_rag_documents(id) ON DELETE CASCADE,
+  chunk_type TEXT NOT NULL,
+  career_id TEXT,
+  grade TEXT,
+  cluster TEXT,
+  title TEXT,
+  chunk_text TEXT NOT NULL,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  source_ids TEXT,
+  page_number INTEGER,
+  last_checked DATE,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS citacitaku_rag_chunks_career_grade_idx
+ON citacitaku_rag_chunks (career_id, grade, chunk_type);
+
+CREATE INDEX IF NOT EXISTS citacitaku_rag_chunks_document_idx
+ON citacitaku_rag_chunks (document_id, page_number);
+
+CREATE INDEX IF NOT EXISTS citacitaku_rag_chunks_search_idx
+ON citacitaku_rag_chunks USING GIN (to_tsvector('simple', COALESCE(title, '') || ' ' || chunk_text));
+
+CREATE TABLE IF NOT EXISTS citacitaku_rag_sources (
+  source_id TEXT PRIMARY KEY,
+  source_name TEXT NOT NULL,
+  official_url TEXT NOT NULL,
+  how_used TEXT,
+  last_checked DATE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

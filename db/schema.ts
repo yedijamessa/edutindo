@@ -64,7 +64,7 @@ export const mindmaps = pgTable('mindmaps', {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// --- Cita-cita Ku Events ---
+// --- Cita-citaku Events ---
 export const citacitakuEvents = pgTable('citacitaku_events', {
     id: text('id').primaryKey(),
     eventType: text('event_type').notNull(),
@@ -150,5 +150,95 @@ export const citacitakuScholarshipFieldGuides = pgTable('citacitaku_scholarship_
     officialSourceUrl: text('official_source_url'),
     searchableText: text('searchable_text').default('').notNull(),
     importedAt: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// --- Cita-citaku Education RAG ---
+export const citacitakuRagDocuments = pgTable('citacitaku_rag_documents', {
+    id: text('id').primaryKey(),
+    fileName: text('file_name').notNull(),
+    sourceType: text('source_type').notNull(),
+    contentHash: text('content_hash').notNull(),
+    pageCount: integer('page_count'),
+    metadataJson: jsonb('metadata_json').default({}).notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const citacitakuRagCareers = pgTable('citacitaku_rag_careers', {
+    careerId: text('career_id').primaryKey(),
+    titleId: text('title_id').notNull(),
+    titleEn: text('title_en').notNull(),
+    cluster: text('cluster').notNull(),
+    aliasesJson: jsonb('aliases_json').default([]).notNull(),
+    whatTheyDo: text('what_they_do').notNull(),
+    primaryMajorsJson: jsonb('primary_majors_json').default([]).notNull(),
+    alternativeMajorsJson: jsonb('alternative_majors_json').default([]).notNull(),
+    coreSkillsJson: jsonb('core_skills_json').default([]).notNull(),
+    schoolSubjectsJson: jsonb('school_subjects_json').default([]).notNull(),
+    portfolioExample: text('portfolio_example'),
+    regulatedProfession: boolean('regulated_profession').default(false).notNull(),
+    regulatedNote: text('regulated_note'),
+    sourceIds: text('source_ids'),
+    lastChecked: date('last_checked'),
+    searchableText: text('searchable_text').default('').notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const citacitakuRagCareerAliases = pgTable('citacitaku_rag_career_aliases', {
+    aliasNormalized: text('alias_normalized').primaryKey(),
+    careerId: text('career_id').references(() => citacitakuRagCareers.careerId).notNull(),
+    canonicalTitle: text('canonical_title').notNull(),
+    cluster: text('cluster').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const citacitakuRagCareerRoutes = pgTable('citacitaku_rag_career_routes', {
+    careerId: text('career_id').references(() => citacitakuRagCareers.careerId).notNull(),
+    routeNo: integer('route_no').notNull(),
+    routeName: text('route_name').notNull(),
+    routeType: text('route_type').notNull(),
+    routeDescription: text('route_description').notNull(),
+    careerTitle: text('career_title').notNull(),
+    cluster: text('cluster').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [primaryKey({ columns: [table.careerId, table.routeNo] })]);
+
+export const citacitakuRagCareerAnswers = pgTable('citacitaku_rag_career_answers', {
+    careerId: text('career_id').references(() => citacitakuRagCareers.careerId).notNull(),
+    grade: text('grade').notNull(),
+    careerTitle: text('career_title').notNull(),
+    answerJson: jsonb('answer_json').notNull(),
+    routeCount: integer('route_count').notNull(),
+    weeklyActionCount: integer('weekly_action_count').notNull(),
+    sourceIds: text('source_ids'),
+    lastChecked: date('last_checked'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [primaryKey({ columns: [table.careerId, table.grade] })]);
+
+export const citacitakuRagChunks = pgTable('citacitaku_rag_chunks', {
+    chunkId: text('chunk_id').primaryKey(),
+    documentId: text('document_id').references(() => citacitakuRagDocuments.id).notNull(),
+    chunkType: text('chunk_type').notNull(),
+    careerId: text('career_id'),
+    grade: text('grade'),
+    cluster: text('cluster'),
+    title: text('title'),
+    chunkText: text('chunk_text').notNull(),
+    metadataJson: jsonb('metadata_json').default({}).notNull(),
+    sourceIds: text('source_ids'),
+    pageNumber: integer('page_number'),
+    lastChecked: date('last_checked'),
+    importedAt: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const citacitakuRagSources = pgTable('citacitaku_rag_sources', {
+    sourceId: text('source_id').primaryKey(),
+    sourceName: text('source_name').notNull(),
+    officialUrl: text('official_url').notNull(),
+    howUsed: text('how_used'),
+    lastChecked: date('last_checked'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

@@ -26,8 +26,20 @@ import { CITACITAKU_CONSENT_TEXT, CITACITAKU_CONSENT_VERSION } from "@/lib/citac
 import type { AIGuidance, GuidanceRoadmapStage, WeeklyAction } from "@/lib/citacitaku/guidance";
 
 type Grade = "10" | "11" | "12";
-type FormData = { name: string; dream: string; grade: Grade | ""; consentAccepted: boolean };
+type FormData = { name: string; dream: string; careerId: string | null; grade: Grade | ""; consentAccepted: boolean };
 type FeedbackCategory = "feature" | "career" | "bug" | "other";
+type CareerOption = { id: string; title: string; titleEn: string; cluster: string; aliases: string[]; description: string };
+type CareerMatch = {
+  careerId: string;
+  title: string;
+  titleEn: string;
+  cluster: string;
+  matchedAlias: string;
+  confidence: number;
+  requiresConfirmation: boolean;
+};
+type PreparedForm = FormData & { grade: Grade; consentAccepted: true };
+type CareerMatchDecision = CareerMatch & { accepted: boolean; autoResolved?: boolean };
 
 const CITACITAKU_CLIENT_ID_KEY = "citacitaku_client_id";
 
@@ -344,17 +356,42 @@ export default function Home() {
   const [trialUnlocked, setTrialUnlocked] = useState(false);
   const [trialCode, setTrialCode] = useState("");
   const [trialError, setTrialError] = useState("");
-  const [form, setForm] = useState<FormData>({ name: "", dream: "", grade: "", consentAccepted: false });
+  const [form, setForm] = useState<FormData>({ name: "", dream: "", careerId: null, grade: "", consentAccepted: false });
   const [submitted, setSubmitted] = useState<FormData | null>(null);
   const [guidance, setGuidance] = useState<AIGuidance | null>(null);
   const [notice, setNotice] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
   const [careerPickerOpen, setCareerPickerOpen] = useState(false);
+  const [careerSearch, setCareerSearch] = useState("");
+  const [careerOptions, setCareerOptions] = useState<CareerOption[]>([]);
+  const [careerOptionsLoading, setCareerOptionsLoading] = useState(false);
+  const [pendingCareerMatch, setPendingCareerMatch] = useState<{ form: PreparedForm; match: CareerMatch } | null>(null);
 
   useEffect(() => {
     setTrialUnlocked(window.sessionStorage.getItem(TRIAL_CODE_SESSION_KEY) === TRIAL_CODE);
   }, []);
+
+  useEffect(() => {
+    if (!careerPickerOpen) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setCareerOptionsLoading(true);
+      try {
+        const response = await fetch(`/api/citacitaku/careers?q=${encodeURIComponent(careerSearch)}`, { signal: controller.signal });
+        const payload = await response.json() as { careers?: CareerOption[] };
+        if (response.ok) setCareerOptions(payload.careers || []);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setCareerOptions([]);
+      } finally {
+        if (!controller.signal.aborted) setCareerOptionsLoading(false);
+      }
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [careerPickerOpen, careerSearch]);
 
   function handleTrialSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -367,24 +404,18 @@ export default function Home() {
     setTrialUnlocked(true);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!form.name.trim() || !form.dream.trim() || !form.grade || !form.consentAccepted) return;
-    const cleanForm = {
-      name: form.name.trim(),
-      dream: form.dream.trim(),
-      grade: form.grade,
-      consentAccepted: true,
-    } as FormData & { grade: Grade; consentAccepted: true };
-    setLoading(true);
-    setNotice("");
-    setSubmitError("");
-    try {
+  async function sendGuidance(
+    cleanForm: PreparedForm,
+    originalDream: string | null = null,
+    careerMatch: CareerMatchDecision | null = null,
+  ) {
       const response = await fetch("/api/citacitaku/guidance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...cleanForm,
+          originalDream,
+          careerMatch,
           consentVersion: CITACITAKU_CONSENT_VERSION,
           clientId: getCitacitakuClientId(),
         }),
@@ -395,12 +426,91 @@ export default function Home() {
       setNotice(payload.warning || "");
       setSubmitted(cleanForm);
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+  }
+
+  async function submitPreparedForm(
+    cleanForm: PreparedForm,
+    originalDream: string | null = null,
+    careerMatch: CareerMatchDecision | null = null,
+  ) {
+    setLoading(true);
+    setNotice("");
+    setSubmitError("");
+    try {
+      await sendGuidance(cleanForm, originalDream, careerMatch);
     } catch (submitError) {
       setGuidance(null);
       setSubmitError(submitError instanceof Error ? submitError.message : "Panduan belum bisa dibuat.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!form.name.trim() || !form.dream.trim() || !form.grade || !form.consentAccepted) return;
+    const cleanForm = {
+      name: form.name.trim(),
+      dream: form.dream.trim(),
+      careerId: form.careerId,
+      grade: form.grade,
+      consentAccepted: true,
+    } as PreparedForm;
+
+    if (cleanForm.careerId || isUnsure(cleanForm.dream)) {
+      await submitPreparedForm(cleanForm);
+      return;
+    }
+
+    setLoading(true);
+    setNotice("");
+    setSubmitError("");
+    try {
+      const response = await fetch("/api/citacitaku/careers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: cleanForm.dream }),
+      });
+      const payload = await response.json() as { match?: CareerMatch | null };
+      const match = response.ok ? payload.match : null;
+      if (match?.requiresConfirmation) {
+        setPendingCareerMatch({ form: cleanForm, match });
+        return;
+      }
+      if (match) {
+        const matchedForm = { ...cleanForm, dream: match.title, careerId: match.careerId };
+        setForm(matchedForm);
+        await sendGuidance(
+          matchedForm,
+          cleanForm.dream === match.title ? null : cleanForm.dream,
+          { ...match, accepted: true, autoResolved: true },
+        );
+        return;
+      }
+      await sendGuidance(cleanForm);
+    } catch (submitError) {
+      setGuidance(null);
+      setSubmitError(submitError instanceof Error ? submitError.message : "Panduan belum bisa dibuat.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function acceptCareerMatch() {
+    if (!pendingCareerMatch) return;
+    const { form: pendingForm, match } = pendingCareerMatch;
+    const matchedForm: PreparedForm = { ...pendingForm, dream: match.title, careerId: match.careerId };
+    setPendingCareerMatch(null);
+    setForm(matchedForm);
+    await submitPreparedForm(matchedForm, pendingForm.dream, { ...match, accepted: true });
+  }
+
+  async function rejectCareerMatch() {
+    if (!pendingCareerMatch) return;
+    const pendingForm = pendingCareerMatch.form;
+    const match = pendingCareerMatch.match;
+    setPendingCareerMatch(null);
+    await submitPreparedForm(pendingForm, null, { ...match, accepted: false });
   }
 
   if (!trialUnlocked) {
@@ -457,6 +567,31 @@ export default function Home() {
   return (
     <div className="citacitaku min-h-screen overflow-hidden">
       {loading && <RoadmapLoading />}
+      <Dialog open={Boolean(pendingCareerMatch)} onOpenChange={(open) => !open && setPendingCareerMatch(null)}>
+        <DialogContent className="citacitaku max-w-[min(92vw,30rem)] rounded-[28px] border-ink/10 bg-white p-0 text-ink dark:bg-white">
+          <DialogHeader className="border-b border-ink/10 px-6 py-5 text-left">
+            <DialogTitle className="font-display text-2xl font-bold text-ink">Apakah maksudmu ini?</DialogTitle>
+            <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">
+              Kami menemukan pekerjaan di daftar Edutindo yang mirip dengan tulisanmu.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingCareerMatch && (
+            <div className="p-6">
+              <div className="rounded-2xl border border-forest/20 bg-mint/40 p-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-forest/70">Saran pekerjaan</p>
+                <p className="mt-2 text-xl font-bold text-ink">{pendingCareerMatch.match.title}</p>
+                <p className="mt-1 text-sm font-semibold text-forest">English: {pendingCareerMatch.match.titleEn}</p>
+                <p className="mt-1 text-sm text-ink/55">{pendingCareerMatch.match.cluster}</p>
+                <p className="mt-3 text-xs leading-5 text-ink/45">Kamu menulis: “{pendingCareerMatch.form.dream}”</p>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={acceptCareerMatch} className="primary-button min-h-12">Ya, benar</button>
+                <button type="button" onClick={rejectCareerMatch} className="focusable min-h-12 rounded-2xl border border-ink/15 bg-white px-4 text-sm font-bold text-ink/70 hover:bg-ink/5">Tidak, pakai tulisanku</button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       <header className="shell flex items-center justify-between py-5 sm:py-7">
         <Brand />
         <span className="hidden text-sm font-semibold text-ink/55 sm:block">Ada banyak jalan menuju masa depanmu.</span>
@@ -506,7 +641,7 @@ export default function Home() {
               <input
                 id="dream-input"
                 value={form.dream}
-                onChange={(event) => setForm({ ...form, dream: event.target.value })}
+                onChange={(event) => setForm({ ...form, dream: event.target.value, careerId: null })}
                 className="focusable min-h-14 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-base text-ink placeholder:text-ink/35"
                 placeholder="Contoh: Software Engineer atau Belum tahu"
                 required
@@ -520,24 +655,54 @@ export default function Home() {
                 <DialogContent className="citacitaku max-h-[86vh] max-w-[min(92vw,34rem)] overflow-hidden rounded-[28px] border-ink/10 bg-white p-0 text-ink dark:bg-white">
                   <DialogHeader className="border-b border-ink/10 px-5 py-5">
                     <DialogTitle className="font-display text-2xl font-bold text-ink">Pilih cita-citamu</DialogTitle>
-                    <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">Kamu juga tetap bisa ketik bebas kalau pilihanmu belum ada di daftar.</DialogDescription>
+                    <DialogDescription className="mt-2 text-sm leading-6 text-ink/55">Cari dari 120 pekerjaan terkurasi. Kamu tetap bisa mengetik bebas kalau pilihanmu belum ada.</DialogDescription>
+                    <label className="mt-4 block">
+                      <span className="sr-only">Cari pekerjaan</span>
+                      <input
+                        value={careerSearch}
+                        onChange={(event) => setCareerSearch(event.target.value)}
+                        className="focusable min-h-12 w-full rounded-2xl border border-ink/15 bg-[#fcfdfb] px-4 text-sm text-ink placeholder:text-ink/35"
+                        placeholder="Cari pekerjaan, alias, atau bidang..."
+                        autoFocus
+                      />
+                    </label>
                   </DialogHeader>
-                  <div className="max-h-[calc(86vh-9rem)] overflow-y-auto px-4 py-4">
+                  <div className="max-h-[calc(86vh-13rem)] overflow-y-auto px-4 py-4">
                     <div className="grid gap-2">
-                      {[...careers.map((career) => career.title), "Belum tahu"].map((option) => (
+                      {(!careerSearch.trim() || "belum tahu".includes(careerSearch.trim().toLocaleLowerCase("id-ID"))) && (
                         <button
-                          key={option}
+                          key="Belum tahu"
                           type="button"
                           onClick={() => {
-                            setForm((current) => ({ ...current, dream: option }));
+                            setForm((current) => ({ ...current, dream: "Belum tahu", careerId: null }));
                             setCareerPickerOpen(false);
                           }}
-                          className={`focusable rounded-2xl border p-4 text-left transition hover:border-forest/30 hover:bg-mint/35 ${form.dream === option ? "border-forest bg-mint/60" : "border-ink/10 bg-[#fcfdfb]"}`}
+                          className={`focusable rounded-2xl border p-4 text-left transition hover:border-forest/30 hover:bg-mint/35 ${form.dream === "Belum tahu" ? "border-forest bg-mint/60" : "border-ink/10 bg-[#fcfdfb]"}`}
                         >
-                          <span className="block font-bold text-ink">{option}</span>
-                          <span className="mt-1 block text-xs leading-5 text-ink/50">{option === "Belum tahu" ? "Mulai dari eksplorasi area minat dulu." : "Pilih ini sebagai target awal. Bisa diubah kapan saja."}</span>
+                          <span className="block font-bold text-ink">Belum tahu</span>
+                          <span className="mt-1 block text-xs leading-5 text-ink/50">Mulai dari eksplorasi area minat dulu.</span>
+                        </button>
+                      )}
+                      {careerOptionsLoading && <p className="rounded-2xl bg-ink/5 p-4 text-center text-sm font-semibold text-ink/45">Mencari pekerjaan...</p>}
+                      {!careerOptionsLoading && careerOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => {
+                            setForm((current) => ({ ...current, dream: option.title, careerId: option.id }));
+                            setCareerPickerOpen(false);
+                          }}
+                          className={`focusable rounded-2xl border p-4 text-left transition hover:border-forest/30 hover:bg-mint/35 ${form.careerId === option.id ? "border-forest bg-mint/60" : "border-ink/10 bg-[#fcfdfb]"}`}
+                        >
+                          <span className="block font-bold text-ink">{option.title}</span>
+                          <span className="mt-1 block text-xs font-semibold text-forest">English: {option.titleEn}</span>
+                          <span className="mt-1 block text-xs font-semibold text-forest/70">{option.cluster}</span>
+                          <span className="mt-1 block text-xs leading-5 text-ink/50">{option.description}</span>
                         </button>
                       ))}
+                      {!careerOptionsLoading && careerOptions.length === 0 && (
+                        <p className="rounded-2xl border border-dashed border-ink/15 p-5 text-center text-sm leading-6 text-ink/50">Belum ada hasil. Tutup daftar lalu ketik pekerjaanmu sendiri—AI tetap akan membantu mencocokkannya.</p>
+                      )}
                     </div>
                   </div>
                 </DialogContent>
@@ -650,6 +815,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <p className="text-sm font-bold text-[#bae6fd]">Rencana masa depanmu</p>
+                {guidance?.ragGrounded && <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/70">RAG Edutindo</span>}
                 {guidance && (guidance.researched || !guidance.generated) && <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/70">{guidance.researched ? `Web terbaru${researchDate ? ` · ${researchDate}` : ""}` : "Data lokal"}</span>}
               </div>
               <h1 className="max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">Hai {data.name} <span aria-hidden="true">👋</span></h1>
@@ -660,7 +826,7 @@ function Result({ data, guidance, notice, onReset }: { data: FormData & { grade:
               <p className="mt-4 max-w-3xl rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs font-semibold leading-5 text-white/65">
                 Disclaimer: panduan ini dibuat dengan bantuan AI sebagai titik awal eksplorasi. Informasi kampus, beasiswa, syarat, dan jadwal tetap perlu dicek kembali di sumber resmi.
               </p>
-              {!career && (
+              {!career && !guidance?.ragGrounded && (
                 <div className="mt-5 max-w-2xl rounded-2xl border border-white/15 bg-white/10 p-4 text-sm leading-6 text-white/75">
                   {guidance?.researched
                     ? "Keren! Profesi ini belum ada di profil awal, jadi AI mencarikan konteks terbaru dari web. Lihat dan periksa sumber pencariannya di bawah."

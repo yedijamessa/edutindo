@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "export": "echo \"next export is no longer needed; run npm run build\"",
+    "import:citacitaku-rag": "tsx scripts/import-citacitaku-rag.ts",
     "import:citacitaku-scholarships": "tsx scripts/import-citacitaku-scholarships.ts",
     "seed:english-ielts": "tsx scripts/seed-english-curriculum-from-ielts.ts",
     "seed:science-year7": "tsx scripts/seed-year7-science-curriculum.ts"
@@ -26,6 +27,7 @@
     "next": "16.0.10",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.10",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-markdown": "^10.1.0",

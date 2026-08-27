@@ -41,6 +41,8 @@ export type AIGuidance = {
   researchedAt: string | null;
   sources: ResearchSource[];
   scholarshipMatches?: ScholarshipGuidanceMatch[];
+  ragGrounded?: boolean;
+  ragCareerId?: string | null;
   targetTitle: string;
   careerDescription: string;
   intro: string;
