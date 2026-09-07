@@ -1413,7 +1413,8 @@ export function ModuleEditor({
                                   <select
                                     aria-label="Font size"
                                     defaultValue=""
-                                    className="h-9 rounded-xl border border-[#dfe7f5] bg-white px-3 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
+                                    className="h-9 w-11 rounded-xl border border-[#dfe7f5] bg-white px-2 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
+                                    title="Font size"
                                     onChange={(event) => {
                                       applyTextFontSize(block.id, event.target.value);
                                       event.target.value = "";
@@ -1442,12 +1443,13 @@ export function ModuleEditor({
                                       key={`${block.id}-${action}`}
                                       type="button"
                                       variant="outline"
-                                      size="sm"
-                                      className="h-9 rounded-xl border-[#dfe7f5] bg-white px-3 text-slate-600 shadow-none hover:bg-[#f7faff]"
+                                      size="icon"
+                                      className="h-9 w-9 rounded-xl border-[#dfe7f5] bg-white text-slate-600 shadow-none hover:bg-[#f7faff]"
                                       onClick={() => applyTextFormatting(block.id, action)}
+                                      aria-label={label}
+                                      title={label}
                                     >
-                                      <Icon className="mr-1.5 h-3.5 w-3.5" />
-                                      {label}
+                                      <Icon className="h-3.5 w-3.5" />
                                     </Button>
                                   ))}
                                 </div>
