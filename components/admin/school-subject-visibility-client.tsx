@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { FormEvent, useEffect, useId, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button, cn } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 type SubjectVisibilityAction = "show" | "hide" | "remove";
 
@@ -29,7 +39,14 @@ async function parseActionResponse(response: Response) {
     throw new Error(payload?.error || "Action failed.");
   }
 
-  return payload as { applied?: boolean };
+  return payload as {
+    applied?: boolean;
+    node?: {
+      id?: string;
+      title?: string;
+      slug?: string;
+    };
+  };
 }
 
 function sortSubjects(subjects: SubjectItem[]) {
@@ -45,15 +62,102 @@ export function SchoolSubjectVisibilityClient({
   subjects,
 }: SchoolSubjectVisibilityClientProps) {
   const router = useRouter();
+  const subjectNameId = useId();
+  const subjectCodeId = useId();
+  const subjectDescriptionId = useId();
   const [localSubjects, setLocalSubjects] = useState(() => sortSubjects(subjects));
   const [busyKey, setBusyKey] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [subjectName, setSubjectName] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
+  const [subjectDescription, setSubjectDescription] = useState("");
+  const [createError, setCreateError] = useState("");
   const [, startTransition] = useTransition();
 
   useEffect(() => {
     setLocalSubjects(sortSubjects(subjects));
   }, [subjects]);
+
+  function handleCreateDialogChange(open: boolean) {
+    if (busyKey === "create") return;
+
+    setCreateDialogOpen(open);
+    setCreateError("");
+    if (!open) {
+      setSubjectName("");
+      setSubjectCode("");
+      setSubjectDescription("");
+    }
+  }
+
+  async function createSubject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = subjectName.trim();
+    const curriculumCode = subjectCode.trim();
+    const description = subjectDescription.trim();
+    if (!title) {
+      setCreateError("Enter a subject name.");
+      return;
+    }
+
+    setBusyKey("create");
+    setCreateError("");
+    setMessage("");
+    setError("");
+
+    try {
+      const payload = await parseActionResponse(
+        await fetch("/api/admin/curriculum", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nodeType: "subject",
+            parentId: null,
+            title,
+            metadata: {
+              schoolSlug,
+              curriculumCode,
+              description,
+              uniqueIdentifier: curriculumCode || title,
+              assignmentTags: [{ schoolSlug, yearSlug: "year-7" }],
+            },
+          }),
+        })
+      );
+
+      const createdSubject = payload.node;
+      if (!createdSubject?.id || !createdSubject.slug) {
+        throw new Error("The subject was created, but its details could not be loaded.");
+      }
+
+      setLocalSubjects((currentSubjects) =>
+        sortSubjects([
+          ...currentSubjects,
+          {
+            id: createdSubject.id!,
+            title: createdSubject.title || title,
+            slug: createdSubject.slug!,
+            chapterCount: 0,
+            lessonCount: 0,
+            isVisible: true,
+          },
+        ])
+      );
+      setMessage(`${createdSubject.title || title} created for ${schoolTitle}.`);
+      setCreateDialogOpen(false);
+      setSubjectName("");
+      setSubjectCode("");
+      setSubjectDescription("");
+      startTransition(() => router.refresh());
+    } catch (caughtError) {
+      setCreateError(caughtError instanceof Error ? caughtError.message : "Failed to create subject.");
+    } finally {
+      setBusyKey("");
+    }
+  }
 
   async function submitSubjectAction(subject: SubjectItem, action: SubjectVisibilityAction) {
     if (action === "remove") {
@@ -174,9 +278,100 @@ export function SchoolSubjectVisibilityClient({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[22px] border border-[#dbe5ff] bg-white/86 px-4 py-3 text-sm text-slate-600 shadow-sm">
-        Use Show or Hide to control whether a subject appears for {schoolTitle}. Remove deletes the subject immediately.
+      <div className="flex flex-col gap-3 rounded-[22px] border border-[#dbe5ff] bg-white/86 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-600">
+          Use Show or Hide to control whether a subject appears for {schoolTitle}. Remove deletes the subject immediately.
+        </p>
+        <Button
+          type="button"
+          onClick={() => setCreateDialogOpen(true)}
+          disabled={Boolean(busyKey)}
+          className="h-10 shrink-0 self-start px-5 sm:self-auto"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Create Subject
+        </Button>
       </div>
+
+      <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogChange}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          <form onSubmit={createSubject} className="space-y-5">
+            <DialogHeader>
+              <DialogTitle>Create Subject</DialogTitle>
+              <DialogDescription>
+                Add a new subject to {schoolTitle}. You can add chapters and lessons after it is created.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor={subjectNameId} className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Subject name
+                </label>
+                <Input
+                  id={subjectNameId}
+                  value={subjectName}
+                  onChange={(event) => setSubjectName(event.target.value)}
+                  placeholder="Example: Mathematics"
+                  autoFocus
+                  maxLength={180}
+                  disabled={busyKey === "create"}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor={subjectCodeId} className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Subject code <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <Input
+                  id={subjectCodeId}
+                  value={subjectCode}
+                  onChange={(event) => setSubjectCode(event.target.value)}
+                  placeholder="Example: MATH"
+                  maxLength={80}
+                  disabled={busyKey === "create"}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor={subjectDescriptionId} className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Description <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <Textarea
+                  id={subjectDescriptionId}
+                  value={subjectDescription}
+                  onChange={(event) => setSubjectDescription(event.target.value)}
+                  placeholder="Briefly describe what this subject covers."
+                  rows={3}
+                  maxLength={280}
+                  disabled={busyKey === "create"}
+                />
+              </div>
+            </div>
+
+            {createError ? (
+              <p role="alert" className="text-sm font-semibold text-red-600">
+                {createError}
+              </p>
+            ) : null}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleCreateDialogChange(false)}
+                disabled={busyKey === "create"}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busyKey === "create" || !subjectName.trim()}>
+                {busyKey === "create" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {busyKey === "create" ? "Creating..." : "Create Subject"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {message ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">

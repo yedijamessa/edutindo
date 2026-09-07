@@ -298,6 +298,7 @@ function normalizeMetadata(
 
   if (nodeType === "subject") {
     return {
+      schoolSlug: normalizeOptionalSlug(input.schoolSlug),
       description: sanitizeText(input.description, 280),
       curriculumCode: sanitizeText(input.curriculumCode, 80),
       uniqueIdentifier: sanitizeText(input.uniqueIdentifier, 120),
@@ -466,6 +467,11 @@ function slugify(value: string) {
   return base || "item";
 }
 
+function normalizeOptionalSlug(value: unknown) {
+  const cleaned = sanitizeText(value, 180);
+  return cleaned ? slugify(cleaned) : "";
+}
+
 async function ensureUniqueSlug(input: {
   parentId: string | null;
   desiredSlug: string;
@@ -500,7 +506,22 @@ async function findSiblingWithSameTitle(input: {
   nodeType: CurriculumNodeType;
   title: string;
   excludeNodeId?: string | null;
+  schoolSlug?: string;
 }) {
+  if (input.nodeType === "subject" && input.schoolSlug) {
+    const subjects = buildTree(await listAllCurriculumNodesFlat(), null).filter(
+      (node) => node.nodeType === "subject" && node.parentId === null
+    );
+    const duplicate = subjects.find(
+      (subject) =>
+        subject.id !== input.excludeNodeId &&
+        subject.title.trim().toLowerCase() === input.title.trim().toLowerCase() &&
+        curriculumSubjectBelongsToSchool(subject, input.schoolSlug!)
+    );
+
+    return duplicate?.id ?? null;
+  }
+
   const result = await sql<{ id: string }>`
     SELECT id
     FROM curriculum_nodes
@@ -877,6 +898,21 @@ async function getNodeById(nodeId: string) {
   return result.rows[0] ?? null;
 }
 
+async function ensureSchoolSlugExists(schoolSlug: string) {
+  const schoolResult = await sql<{ id: string }>`
+    SELECT id
+    FROM curriculum_nodes
+    WHERE parent_id IS NULL
+      AND node_type = 'school'
+      AND slug = ${schoolSlug}
+    LIMIT 1
+  `;
+
+  if (!schoolResult.rows[0]) {
+    throw new Error("School was not found.");
+  }
+}
+
 async function getNextPosition(parentId: string | null) {
   const result = await sql<{ next_position: number }>`
     SELECT COALESCE(MAX(position), -1) + 1 AS next_position
@@ -1046,6 +1082,8 @@ export async function createCurriculumNode(input: {
   }
   const actorUserId = normalizeId(input.actorUserId);
   const expectedParentType = parentTypeByNode[nodeType];
+  const subjectSchoolSlug =
+    nodeType === "subject" ? sanitizeText(metadata.schoolSlug, 180) : "";
 
   if (expectedParentType === null) {
     if (parentId) {
@@ -1068,10 +1106,15 @@ export async function createCurriculumNode(input: {
     }
   }
 
+  if (subjectSchoolSlug) {
+    await ensureSchoolSlugExists(subjectSchoolSlug);
+  }
+
   const duplicateSiblingId = await findSiblingWithSameTitle({
     parentId,
     nodeType,
     title,
+    schoolSlug: subjectSchoolSlug || undefined,
   });
 
   if (duplicateSiblingId) {
@@ -1171,11 +1214,25 @@ export async function updateCurriculumNode(input: {
     metadata.isReadingWeek = isReadingWeekLesson({ title });
   }
 
+  if (nodeType === "subject") {
+    const currentSchoolSlug = normalizeOptionalSlug(mapRow(existing).metadata.schoolSlug);
+    const nextSchoolSlug = normalizeOptionalSlug(metadata.schoolSlug);
+
+    if (currentSchoolSlug && nextSchoolSlug !== currentSchoolSlug) {
+      throw new Error("A subject cannot be moved to another school.");
+    }
+
+    if (nextSchoolSlug) {
+      await ensureSchoolSlugExists(nextSchoolSlug);
+    }
+  }
+
   const duplicateSiblingId = await findSiblingWithSameTitle({
     parentId: existing.parent_id,
     nodeType,
     title,
     excludeNodeId: nodeId,
+    schoolSlug: nodeType === "subject" ? sanitizeText(metadata.schoolSlug, 180) || undefined : undefined,
   });
 
   if (duplicateSiblingId) {
@@ -1394,6 +1451,30 @@ function getTopLevelSubjects(tree: CurriculumNode[]) {
   return tree.filter((node) => node.nodeType === "subject" && node.parentId === null);
 }
 
+function nodeHasSchoolAssignment(node: CurriculumNode, schoolSlug: string) {
+  return [
+    ...normalizeAssignmentTags(node.metadata.assignmentTags),
+    ...normalizeAssignmentTags(node.metadata.hiddenAssignmentTags),
+  ].some((tag) => tag.schoolSlug === schoolSlug);
+}
+
+export function curriculumSubjectBelongsToSchool(
+  subject: CurriculumNode,
+  schoolSlugInput: string
+) {
+  if (subject.nodeType !== "subject" || subject.parentId !== null) return false;
+
+  const schoolSlug = normalizeOptionalSlug(schoolSlugInput);
+  if (!schoolSlug) return false;
+
+  const ownerSchoolSlug = normalizeOptionalSlug(subject.metadata.schoolSlug);
+  if (ownerSchoolSlug) return ownerSchoolSlug === schoolSlug;
+
+  return [subject, ...subject.children, ...subject.children.flatMap((child) => child.children)].some(
+    (node) => nodeHasSchoolAssignment(node, schoolSlug)
+  );
+}
+
 function matchesAssignmentTag(
   tags: CurriculumAssignmentTag[],
   schoolSlug: string,
@@ -1454,6 +1535,9 @@ function mapSubjectForScope(
   schoolSlug: string,
   yearSlug: string
 ) {
+  const ownerSchoolSlug = normalizeOptionalSlug(subjectNode.metadata.schoolSlug);
+  if (ownerSchoolSlug && ownerSchoolSlug !== schoolSlug) return null;
+
   const visibleChapters = getVisibleChaptersForScope(subjectNode, schoolSlug, yearSlug);
   const subjectTags = extractAssignmentTags(subjectNode.metadata);
   if (visibleChapters.length === 0 && !matchesAssignmentTag(subjectTags, schoolSlug, yearSlug)) {

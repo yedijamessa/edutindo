@@ -4,7 +4,11 @@ import { notFound } from "next/navigation";
 import { AdminBreadcrumb } from "@/components/admin/admin-breadcrumb";
 import { CurriculumPortal } from "@/components/admin/curriculum-portal";
 import { Button } from "@/components/ui/button";
-import { listCurriculumSchools, listCurriculumTree } from "@/lib/curriculum-portal";
+import {
+  curriculumSubjectBelongsToSchool,
+  listCurriculumSchools,
+  listCurriculumTree,
+} from "@/lib/curriculum-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +30,7 @@ export default async function AdminSchoolSubjectCurriculumPage({
   const subject = tree.find(
     (node) => node.nodeType === "subject" && node.parentId === null && node.slug === subjectSlug
   ) ?? null;
-  if (!subject) {
+  if (!subject || !curriculumSubjectBelongsToSchool(subject, school.slug)) {
     notFound();
   }
 

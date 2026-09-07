@@ -2,6 +2,7 @@ import "@/lib/server-only";
 
 import {
   CURRICULUM_YEAR_OPTIONS,
+  curriculumSubjectBelongsToSchool,
   deleteCurriculumNode,
   listCurriculumTree,
   updateCurriculumNode,
@@ -219,6 +220,10 @@ export async function applyCurriculumSubjectVisibilityAction(input: {
 
   if (!subject) {
     throw new Error("Subject was not found.");
+  }
+
+  if (!curriculumSubjectBelongsToSchool(subject, school.slug)) {
+    throw new Error("Subject does not belong to this school.");
   }
 
   if (input.action === "show") {

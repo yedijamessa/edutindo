@@ -4,7 +4,11 @@ import { AdminBreadcrumb } from "@/components/admin/admin-breadcrumb";
 import { SchoolSubjectVisibilityClient } from "@/components/admin/school-subject-visibility-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { listCurriculumSchools, listCurriculumTree } from "@/lib/curriculum-portal";
+import {
+  curriculumSubjectBelongsToSchool,
+  listCurriculumSchools,
+  listCurriculumTree,
+} from "@/lib/curriculum-portal";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +50,12 @@ export default async function AdminSchoolCurriculumPage({ params }: AdminSchoolC
       return countsBySlug;
     }, new Map<string, { chapterCount: number; lessonCount: number }>());
   const allSubjects = tree
-    .filter((node) => node.nodeType === "subject" && node.parentId === null)
+    .filter(
+      (node) =>
+        node.nodeType === "subject" &&
+        node.parentId === null &&
+        curriculumSubjectBelongsToSchool(node, school.slug)
+    )
     .map((subject) => {
       const counts = selectedSubjectCounts.get(subject.slug) ?? {
         chapterCount: 0,
