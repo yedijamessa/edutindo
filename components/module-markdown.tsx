@@ -6,11 +6,29 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 
+const moduleFontSizeClasses = {
+  "module-font-size-xs": "text-xs leading-relaxed",
+  "module-font-size-sm": "text-sm leading-relaxed",
+  "module-font-size-base": "text-base leading-relaxed",
+  "module-font-size-lg": "text-lg leading-relaxed",
+  "module-font-size-xl": "text-xl leading-relaxed",
+};
+
 const moduleMarkdownSchema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), "u"],
+  tagNames: [...(defaultSchema.tagNames ?? []), "span", "u"],
   attributes: {
     ...defaultSchema.attributes,
+    span: [
+      [
+        "className",
+        "module-font-size-xs",
+        "module-font-size-sm",
+        "module-font-size-base",
+        "module-font-size-lg",
+        "module-font-size-xl",
+      ],
+    ],
     u: [],
   },
 };
@@ -34,6 +52,15 @@ export function ModuleMarkdown({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, [rehypeSanitize, moduleMarkdownSchema]]}
+        components={{
+          span: ({ className, children }) => {
+            const sizeClassName = String(className ?? "")
+              .split(/\s+/)
+              .find((name): name is keyof typeof moduleFontSizeClasses => name in moduleFontSizeClasses);
+
+            return <span className={sizeClassName ? moduleFontSizeClasses[sizeClassName] : undefined}>{children}</span>;
+          },
+        }}
       >
         {content || emptyFallback}
       </ReactMarkdown>

@@ -288,6 +288,13 @@ type TextFormattingAction =
   | "numbered-list"
   | "quote";
 
+const FONT_SIZE_OPTIONS = [
+  { label: "Small", value: "sm", className: "module-font-size-sm" },
+  { label: "Normal", value: "base", className: "module-font-size-base" },
+  { label: "Large", value: "lg", className: "module-font-size-lg" },
+  { label: "X Large", value: "xl", className: "module-font-size-xl" },
+];
+
 function wrapSelection(
   value: string,
   selectionStart: number,
@@ -672,6 +679,42 @@ export function ModuleEditor({
     }
 
     if (!result) return;
+
+    updateBlock(blockId, (current) => ({
+      ...current,
+      type: "text",
+      title: current.type === "text" ? current.title : "",
+      body: result.nextValue,
+    }));
+
+    window.requestAnimationFrame(() => {
+      const nextTextarea = textAreaRefs.current[blockId];
+      if (!nextTextarea) return;
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(result.selectionStart, result.selectionEnd);
+    });
+  };
+
+  const applyTextFontSize = (blockId: string, className: string) => {
+    if (!className) return;
+
+    const textarea = textAreaRefs.current[blockId];
+    if (!textarea) return;
+
+    const allowedClassName = FONT_SIZE_OPTIONS.find((option) => option.className === className)?.className;
+    if (!allowedClassName) return;
+
+    const value = textarea.value;
+    const selectionStart = textarea.selectionStart ?? value.length;
+    const selectionEnd = textarea.selectionEnd ?? value.length;
+    const result = wrapSelection(
+      value,
+      selectionStart,
+      selectionEnd,
+      `<span class="${allowedClassName}">`,
+      "</span>",
+      "sized text"
+    );
 
     updateBlock(blockId, (current) => ({
       ...current,
@@ -1304,10 +1347,28 @@ export function ModuleEditor({
                                 <div>
                                   <label className="text-sm font-semibold text-slate-700">Body</label>
                                   <p className="mt-1 text-xs text-slate-500">
-                                    Supports bold, italic, underline, links, bullet lists, numbered lists, and quotes.
+                                    Supports bold, italic, underline, links, font sizes, bullet lists, numbered lists, and quotes.
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
+                                  <select
+                                    aria-label="Font size"
+                                    defaultValue=""
+                                    className="h-9 rounded-xl border border-[#dfe7f5] bg-white px-3 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
+                                    onChange={(event) => {
+                                      applyTextFontSize(block.id, event.target.value);
+                                      event.target.value = "";
+                                    }}
+                                  >
+                                    <option value="" disabled>
+                                      Size
+                                    </option>
+                                    {FONT_SIZE_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.className}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
                                   {[
                                     { label: "Bold", icon: Bold, action: "bold" as const },
                                     { label: "Italic", icon: Italic, action: "italic" as const },

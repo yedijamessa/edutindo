@@ -165,9 +165,23 @@ const COVER_IMAGE_EXTENSIONS = new Map([
 
 function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDropzoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const temporaryPreviewUrlRef = useRef<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(value);
   const [uploadError, setUploadError] = useState("");
+
+  useEffect(() => {
+    setPreviewUrl(value);
+  }, [value]);
+
+  useEffect(() => {
+    return () => {
+      if (temporaryPreviewUrlRef.current) {
+        URL.revokeObjectURL(temporaryPreviewUrlRef.current);
+      }
+    };
+  }, []);
 
   const uploadImage = async (file: File | null | undefined) => {
     if (!file || disabled) return;
@@ -185,6 +199,11 @@ function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDro
 
     setIsUploading(true);
     setUploadError("");
+    if (temporaryPreviewUrlRef.current) {
+      URL.revokeObjectURL(temporaryPreviewUrlRef.current);
+    }
+    temporaryPreviewUrlRef.current = URL.createObjectURL(file);
+    setPreviewUrl(temporaryPreviewUrlRef.current);
 
     try {
       const uploadId =
@@ -196,8 +215,14 @@ function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDro
       const downloadUrl = await getDownloadURL(snapshot.ref);
 
       onChange(downloadUrl);
+      setPreviewUrl(downloadUrl);
+      if (temporaryPreviewUrlRef.current) {
+        URL.revokeObjectURL(temporaryPreviewUrlRef.current);
+        temporaryPreviewUrlRef.current = null;
+      }
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Failed to upload image.");
+      setPreviewUrl(value);
     } finally {
       setIsUploading(false);
       setIsDragging(false);
@@ -235,9 +260,9 @@ function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDro
           disabled && "cursor-not-allowed opacity-60"
         )}
       >
-        {value ? (
+        {previewUrl ? (
           <img
-            src={value}
+            src={previewUrl}
             alt="Cover preview"
             className="h-16 w-24 shrink-0 rounded-xl border border-[#edf2f8] object-cover"
           />
@@ -248,10 +273,10 @@ function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDro
         )}
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold text-slate-900">
-            {isUploading ? "Uploading image..." : "Drag and drop cover image"}
+            {isUploading ? "Uploading image..." : previewUrl ? "Cover image uploaded" : "Drag and drop cover image"}
           </span>
           <span className="mt-1 block truncate text-xs font-medium text-slate-500">
-            {value || "or click to choose JPG, PNG, WEBP, or GIF"}
+            {value || (previewUrl ? "Save to keep this cover image" : "or click to choose JPG, PNG, WEBP, or GIF")}
           </span>
         </span>
         {isUploading ? <Loader2 className="h-5 w-5 animate-spin text-[#2f6fff]" /> : null}
