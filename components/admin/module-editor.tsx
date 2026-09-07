@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -268,6 +268,79 @@ function getQuizTypeLabel(quizType: ModuleEditorQuizType) {
 
 function createInitialPages() {
   return [createPage(1)];
+}
+
+const MODULE_EDITOR_AUTOSAVE_DELAY_MS = 1500;
+const MODULE_EDITOR_DRAFT_PREFIX = "edutindo:module-editor:draft:";
+
+type ModuleEditorLocalDraft = {
+  version: 1;
+  savedAt: number;
+  moduleId: string | null;
+  title: string;
+  moduleCode: string;
+  uniqueIdentifier: string;
+  pages: ModuleEditorPage[];
+};
+
+function getModuleEditorDraftKey({
+  moduleId,
+  lessonId,
+  subjectSlug,
+  chapterSlug,
+}: {
+  moduleId: string | null;
+  lessonId: string | null;
+  subjectSlug: string | null;
+  chapterSlug: string | null;
+}) {
+  const identity = moduleId
+    ? `module:${moduleId}`
+    : lessonId
+      ? `lesson:${lessonId}`
+      : `catalog:${subjectSlug || "subject"}:${chapterSlug || "chapter"}`;
+
+  return `${MODULE_EDITOR_DRAFT_PREFIX}${encodeURIComponent(identity)}`;
+}
+
+function readModuleEditorDraft(key: string): ModuleEditorLocalDraft | null {
+  try {
+    const value = window.localStorage.getItem(key);
+    if (!value) return null;
+
+    const draft = JSON.parse(value) as Partial<ModuleEditorLocalDraft>;
+    if (
+      draft.version !== 1 ||
+      typeof draft.savedAt !== "number" ||
+      typeof draft.title !== "string" ||
+      typeof draft.moduleCode !== "string" ||
+      typeof draft.uniqueIdentifier !== "string" ||
+      !Array.isArray(draft.pages) ||
+      draft.pages.length === 0
+    ) {
+      return null;
+    }
+
+    return draft as ModuleEditorLocalDraft;
+  } catch {
+    return null;
+  }
+}
+
+function writeModuleEditorDraft(key: string, draft: ModuleEditorLocalDraft) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // Database autosave remains active if browser storage is unavailable or full.
+  }
+}
+
+function removeModuleEditorDrafts(keys: string[]) {
+  try {
+    new Set(keys).forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // A saved database copy is already available, so draft cleanup can be skipped.
+  }
 }
 
 function countWords(value: string) {
@@ -611,22 +684,73 @@ export function ModuleEditor({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [autosaveRetryToken, setAutosaveRetryToken] = useState(0);
   const textAreaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const editVersionRef = useRef(0);
+  const saveInFlightRef = useRef(false);
+  const saveQueuedRef = useRef(false);
+  const assignmentCompleteRef = useRef(Boolean(initialModuleId) || !initialLessonId);
+  const hasUpdatedRouteRef = useRef(Boolean(initialModuleId));
+  const fallbackDraftKey = getModuleEditorDraftKey({
+    moduleId: initialModuleId,
+    lessonId: initialLessonId,
+    subjectSlug,
+    chapterSlug,
+  });
+  const activeDraftKey = getModuleEditorDraftKey({
+    moduleId,
+    lessonId: initialLessonId,
+    subjectSlug,
+    chapterSlug,
+  });
+  const activeDraftKeyRef = useRef(activeDraftKey);
+  const latestDocumentRef = useRef({ moduleId, title, moduleCode, uniqueIdentifier, pages });
+
+  activeDraftKeyRef.current = activeDraftKey;
+  latestDocumentRef.current = { moduleId, title, moduleCode, uniqueIdentifier, pages };
 
   useEffect(() => {
+    const serverTitle = initialDocument?.title ?? initialTitle;
+    const serverModuleCode = initialDocument?.moduleCode ?? initialModuleCode;
+    const serverUniqueIdentifier = initialDocument?.uniqueIdentifier ?? initialUniqueIdentifier;
+    const serverPages = initialDocument?.pages ?? createInitialPages();
+    const serverSavedAt = initialDocument?.updatedAt ? new Date(initialDocument.updatedAt).getTime() : 0;
+    const moduleDraftKey = getModuleEditorDraftKey({
+      moduleId: initialModuleId,
+      lessonId: initialLessonId,
+      subjectSlug,
+      chapterSlug,
+    });
+    const draft = readModuleEditorDraft(moduleDraftKey);
+    const shouldRestoreDraft = Boolean(draft && draft.savedAt > serverSavedAt);
+    const nextPages = shouldRestoreDraft && draft ? draft.pages : serverPages;
+
     setModuleId(initialModuleId);
-    setTitle(initialDocument?.title ?? initialTitle);
-    setModuleCode(initialDocument?.moduleCode ?? initialModuleCode);
-    setUniqueIdentifier(initialDocument?.uniqueIdentifier ?? initialUniqueIdentifier);
-    const nextPages = initialDocument?.pages ?? createInitialPages();
+    setTitle(shouldRestoreDraft && draft ? draft.title : serverTitle);
+    setModuleCode(shouldRestoreDraft && draft ? draft.moduleCode : serverModuleCode);
+    setUniqueIdentifier(shouldRestoreDraft && draft ? draft.uniqueIdentifier : serverUniqueIdentifier);
     setPages(nextPages);
     setSelectedPageId(nextPages[0]?.id ?? "");
     setUpdatedAt(initialDocument?.updatedAt ?? null);
     setSaving(false);
-    setDirty(false);
-    setMessage("");
+    setDirty(shouldRestoreDraft);
+    editVersionRef.current = shouldRestoreDraft ? 1 : 0;
+    saveInFlightRef.current = false;
+    saveQueuedRef.current = false;
+    assignmentCompleteRef.current = Boolean(initialModuleId) || !initialLessonId;
+    hasUpdatedRouteRef.current = Boolean(initialModuleId);
+    setMessage(shouldRestoreDraft ? "Recovered your unsaved browser draft." : "");
     setError("");
-  }, [chapterSlug, initialDocument, initialModuleCode, initialModuleId, initialTitle, initialUniqueIdentifier, subjectSlug]);
+  }, [
+    chapterSlug,
+    initialDocument,
+    initialLessonId,
+    initialModuleCode,
+    initialModuleId,
+    initialTitle,
+    initialUniqueIdentifier,
+    subjectSlug,
+  ]);
 
   useEffect(() => {
     if (pages.some((page) => page.id === selectedPageId)) return;
@@ -638,11 +762,16 @@ export function ModuleEditor({
     [pages, selectedPageId]
   );
 
-  const updatePages = (updater: (current: ModuleEditorPage[]) => ModuleEditorPage[]) => {
-    setPages((current) => updater(current));
+  const markDirty = () => {
+    editVersionRef.current += 1;
     setDirty(true);
     setMessage("");
     setError("");
+  };
+
+  const updatePages = (updater: (current: ModuleEditorPage[]) => ModuleEditorPage[]) => {
+    setPages((current) => updater(current));
+    markDirty();
   };
 
   const updateSelectedPage = (updater: (page: ModuleEditorPage) => ModuleEditorPage) => {
@@ -790,28 +919,37 @@ export function ModuleEditor({
     });
   };
 
-  const saveDocument = async () => {
+  const saveDocument = useCallback(async (automatic = false) => {
     if (!subjectSlug || !chapterSlug) {
       setError("Choose subject and chapter first.");
       setMessage("");
       return;
     }
 
+    if (saveInFlightRef.current) {
+      saveQueuedRef.current = true;
+      return;
+    }
+
+    const snapshot = latestDocumentRef.current;
+    const saveVersion = editVersionRef.current;
+    const savedDraftKey = activeDraftKeyRef.current;
+    saveInFlightRef.current = true;
     setSaving(true);
     setMessage("");
     setError("");
 
     try {
-      const currentModuleId = moduleId;
+      const currentModuleId = snapshot.moduleId;
       const endpoint = currentModuleId ? `/api/admin/module-editor/${currentModuleId}` : "/api/admin/module-editor";
       const response = await fetch(endpoint, {
         method: currentModuleId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
-          moduleCode,
-          uniqueIdentifier,
-          pages,
+          title: snapshot.title,
+          moduleCode: snapshot.moduleCode,
+          uniqueIdentifier: snapshot.uniqueIdentifier,
+          pages: snapshot.pages,
           subjectSlug,
           subjectTitle,
           chapterSlug,
@@ -821,18 +959,14 @@ export function ModuleEditor({
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        setError(data.error || "Failed to save module.");
-        return;
+        throw new Error(data.error || "Failed to save module.");
       }
 
+      latestDocumentRef.current = { ...latestDocumentRef.current, moduleId: data.document.id };
       setModuleId(data.document.id);
-      setTitle(data.document.title);
-      setModuleCode(data.document.moduleCode ?? "");
-      setUniqueIdentifier(data.document.uniqueIdentifier ?? "");
-      setPages(data.document.pages);
       setUpdatedAt(data.document.updatedAt);
 
-      if (!currentModuleId && initialLessonId) {
+      if (initialLessonId && !assignmentCompleteRef.current) {
         const assignmentResponse = await fetch("/api/admin/module-assignments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -841,24 +975,130 @@ export function ModuleEditor({
         const assignmentData = await assignmentResponse.json();
 
         if (!assignmentResponse.ok || !assignmentData?.ok) {
-          setError(assignmentData?.error || "Module saved, but failed to assign it to this lesson.");
-          return;
+          throw new Error(assignmentData?.error || "Module saved, but failed to assign it to this lesson.");
         }
+
+        assignmentCompleteRef.current = true;
       }
 
-      setDirty(false);
-      setMessage("Module saved in the materials catalog.");
-      router.replace(
-        `/admin/module-editor?subjectSlug=${encodeURIComponent(subjectSlug)}&chapterSlug=${encodeURIComponent(chapterSlug)}&moduleId=${encodeURIComponent(data.document.id)}`
-      );
-      router.refresh();
+      const savedLatestVersion = editVersionRef.current === saveVersion;
+
+      if (savedLatestVersion) {
+        const normalizedDocument = {
+          moduleId: data.document.id as string,
+          title: data.document.title as string,
+          moduleCode: (data.document.moduleCode ?? "") as string,
+          uniqueIdentifier: (data.document.uniqueIdentifier ?? "") as string,
+          pages: data.document.pages as ModuleEditorPage[],
+        };
+
+        latestDocumentRef.current = normalizedDocument;
+        setTitle(normalizedDocument.title);
+        setModuleCode(normalizedDocument.moduleCode);
+        setUniqueIdentifier(normalizedDocument.uniqueIdentifier);
+        setPages(normalizedDocument.pages);
+        setDirty(false);
+        removeModuleEditorDrafts([
+          savedDraftKey,
+          fallbackDraftKey,
+          getModuleEditorDraftKey({
+            moduleId: data.document.id,
+            lessonId: initialLessonId,
+            subjectSlug,
+            chapterSlug,
+          }),
+        ]);
+        setMessage(automatic ? "All changes autosaved." : "Module saved in the materials catalog.");
+      } else {
+        saveQueuedRef.current = true;
+      }
+
+      if (!hasUpdatedRouteRef.current && savedLatestVersion) {
+        hasUpdatedRouteRef.current = true;
+        router.replace(
+          `/admin/module-editor?subjectSlug=${encodeURIComponent(subjectSlug)}&chapterSlug=${encodeURIComponent(chapterSlug)}&moduleId=${encodeURIComponent(data.document.id)}`
+        );
+      }
     } catch (saveError) {
       console.error(saveError);
-      setError("Failed to save module.");
+      setError(saveError instanceof Error ? saveError.message : "Failed to save module.");
+      if (automatic) {
+        window.setTimeout(() => setAutosaveRetryToken((current) => current + 1), 10000);
+      }
     } finally {
+      const shouldSaveAgain = saveQueuedRef.current;
+      saveQueuedRef.current = false;
+      saveInFlightRef.current = false;
       setSaving(false);
+      if (shouldSaveAgain) {
+        setAutosaveRetryToken((current) => current + 1);
+      }
     }
-  };
+  }, [
+    chapterSlug,
+    chapterTitle,
+    fallbackDraftKey,
+    initialLessonId,
+    router,
+    subjectSlug,
+    subjectTitle,
+  ]);
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    writeModuleEditorDraft(activeDraftKey, {
+      version: 1,
+      savedAt: Date.now(),
+      moduleId,
+      title,
+      moduleCode,
+      uniqueIdentifier,
+      pages,
+    });
+  }, [activeDraftKey, dirty, moduleCode, moduleId, pages, title, uniqueIdentifier]);
+
+  useEffect(() => {
+    if (!dirty || !subjectSlug || !chapterSlug) return;
+
+    const timeout = window.setTimeout(() => {
+      void saveDocument(true);
+    }, MODULE_EDITOR_AUTOSAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    autosaveRetryToken,
+    chapterSlug,
+    dirty,
+    moduleCode,
+    pages,
+    saveDocument,
+    subjectSlug,
+    title,
+    uniqueIdentifier,
+  ]);
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const snapshot = latestDocumentRef.current;
+      writeModuleEditorDraft(activeDraftKeyRef.current, {
+        version: 1,
+        savedAt: Date.now(),
+        moduleId: snapshot.moduleId,
+        title: snapshot.title,
+        moduleCode: snapshot.moduleCode,
+        uniqueIdentifier: snapshot.uniqueIdentifier,
+        pages: snapshot.pages,
+      });
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty]);
 
   const pageIndex = selectedPage ? pages.findIndex((page) => page.id === selectedPage.id) : -1;
   const currentYear = new Date().getFullYear();
@@ -921,7 +1161,7 @@ export function ModuleEditor({
                 className="h-11 rounded-2xl bg-[linear-gradient(135deg,#2f6fff_0%,#1d4ed8_100%)] px-6 text-white shadow-[0_22px_42px_-26px_rgba(37,99,235,0.88)] hover:brightness-105"
               >
                 <Save className="mr-2 h-4 w-4" />
-                {saving ? "Saving..." : "Save Module"}
+                {saving ? "Saving..." : "Save now"}
               </Button>
             </div>
           </div>
@@ -956,14 +1196,19 @@ export function ModuleEditor({
               icon={Cloud}
               label="Last Saved"
               value={formatTimestamp(updatedAt)}
-              hint={moduleId ? "Reusable module ready for curriculum placement." : "Draft has not been saved yet."}
+              hint={moduleId ? "Changes autosave after you pause typing." : "This draft will autosave after your first edit."}
             />
           </div>
-          {(dirty || message || error) && (
+          {(saving || dirty || message || error) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#edf2fb] pt-3 text-sm">
-              {dirty && (
+              {saving && (
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                  Saving changes...
+                </span>
+              )}
+              {dirty && !saving && (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-medium text-amber-700">
-                  Unsaved changes
+                  Autosave pending
                 </span>
               )}
               {message && (
@@ -997,9 +1242,7 @@ export function ModuleEditor({
                     value={title}
                     onChange={(event) => {
                       setTitle(event.target.value);
-                      setDirty(true);
-                      setMessage("");
-                      setError("");
+                      markDirty();
                     }}
                     placeholder="Module title"
                   />
@@ -1011,9 +1254,7 @@ export function ModuleEditor({
                     value={moduleCode}
                     onChange={(event) => {
                       setModuleCode(event.target.value);
-                      setDirty(true);
-                      setMessage("");
-                      setError("");
+                      markDirty();
                     }}
                     placeholder="Module code"
                   />
@@ -1025,9 +1266,7 @@ export function ModuleEditor({
                     value={uniqueIdentifier}
                     onChange={(event) => {
                       setUniqueIdentifier(event.target.value);
-                      setDirty(true);
-                      setMessage("");
-                      setError("");
+                      markDirty();
                     }}
                     placeholder="Unique ID"
                   />
@@ -1259,7 +1498,7 @@ export function ModuleEditor({
                   <SummaryRow
                     icon={Cloud}
                     label="Last edited"
-                    value={dirty ? "Unsaved" : updatedAt ? "Saved" : "Draft"}
+                    value={saving ? "Saving..." : dirty ? "Autosave pending" : updatedAt ? "Saved" : "Draft"}
                   />
                 </div>
               </CardContent>
@@ -1413,7 +1652,7 @@ export function ModuleEditor({
                                   <select
                                     aria-label="Font size"
                                     defaultValue=""
-                                    className="h-9 w-11 rounded-xl border border-[#dfe7f5] bg-white px-2 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
+                                    className="h-9 w-24 rounded-xl border border-[#dfe7f5] bg-white px-3 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
                                     title="Font size"
                                     onChange={(event) => {
                                       applyTextFontSize(block.id, event.target.value);
