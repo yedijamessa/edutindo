@@ -443,15 +443,19 @@ function prefixSelectedLines(
   };
 }
 
-function insertMarkdownTable(value: string, selectionStart: number, selectionEnd: number) {
-  const prefix = selectionStart > 0 && value[selectionStart - 1] !== "\n" ? "\n\n" : "";
-  const suffix = selectionEnd < value.length && value[selectionEnd] !== "\n" ? "\n\n" : "";
-  const table = [
+function createDefaultMarkdownTable() {
+  return [
     "| Heading 1 | Heading 2 | Heading 3 |",
     "| --- | --- | --- |",
     "| Cell 1 | Cell 2 | Cell 3 |",
     "| Cell 4 | Cell 5 | Cell 6 |",
   ].join("\n");
+}
+
+function insertMarkdownTable(value: string, selectionStart: number, selectionEnd: number) {
+  const prefix = selectionStart > 0 && value[selectionStart - 1] !== "\n" ? "\n\n" : "";
+  const suffix = selectionEnd < value.length && value[selectionEnd] !== "\n" ? "\n\n" : "";
+  const table = createDefaultMarkdownTable();
   const replacement = `${prefix}${table}${suffix}`;
   const nextValue = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`;
   const tableStart = selectionStart + prefix.length;
@@ -461,6 +465,232 @@ function insertMarkdownTable(value: string, selectionStart: number, selectionEnd
     selectionStart: tableStart,
     selectionEnd: tableStart + table.length,
   };
+}
+
+type MarkdownTableData = {
+  headers: string[];
+  rows: string[][];
+};
+
+function parseMarkdownTableRow(line: string) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells: string[] = [];
+  let cell = "";
+
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const character = trimmed[index];
+    const nextCharacter = trimmed[index + 1];
+
+    if (character === "\\" && nextCharacter === "|") {
+      cell += "|";
+      index += 1;
+    } else if (character === "|") {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+
+  cells.push(cell.trim());
+  return cells;
+}
+
+function parseMarkdownTable(value: string): MarkdownTableData | null {
+  const lines = value
+    .trim()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2 || !lines[0].includes("|") || !lines[1].includes("|")) return null;
+
+  const headers = parseMarkdownTableRow(lines[0]);
+  const separators = parseMarkdownTableRow(lines[1]);
+  const isSeparatorRow =
+    headers.length > 0 &&
+    separators.length === headers.length &&
+    separators.every((cell) => /^:?-{3,}:?$/.test(cell));
+
+  if (!isSeparatorRow) return null;
+
+  const rows = lines.slice(2).map((line) => {
+    const cells = parseMarkdownTableRow(line).slice(0, headers.length);
+    return [...cells, ...Array(Math.max(0, headers.length - cells.length)).fill("")];
+  });
+
+  return {
+    headers,
+    rows: rows.length > 0 ? rows : [headers.map(() => "")],
+  };
+}
+
+function escapeMarkdownTableCell(value: string) {
+  return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+}
+
+function serializeMarkdownTable(table: MarkdownTableData) {
+  const renderRow = (cells: string[]) => `| ${cells.map(escapeMarkdownTableCell).join(" | ")} |`;
+
+  return [
+    renderRow(table.headers),
+    renderRow(table.headers.map(() => "---")),
+    ...table.rows.map(renderRow),
+  ].join("\n");
+}
+
+function VisualMarkdownTableEditor({
+  table,
+  onChange,
+}: {
+  table: MarkdownTableData;
+  onChange: (table: MarkdownTableData) => void;
+}) {
+  const updateHeader = (columnIndex: number, value: string) => {
+    onChange({
+      ...table,
+      headers: table.headers.map((header, index) => (index === columnIndex ? value : header)),
+    });
+  };
+
+  const updateCell = (rowIndex: number, columnIndex: number, value: string) => {
+    onChange({
+      ...table,
+      rows: table.rows.map((row, index) =>
+        index === rowIndex ? row.map((cell, cellIndex) => (cellIndex === columnIndex ? value : cell)) : row
+      ),
+    });
+  };
+
+  const addColumn = () => {
+    if (table.headers.length >= 8) return;
+    const nextColumnNumber = table.headers.length + 1;
+    onChange({
+      headers: [...table.headers, `Heading ${nextColumnNumber}`],
+      rows: table.rows.map((row) => [...row, ""]),
+    });
+  };
+
+  const removeColumn = (columnIndex: number) => {
+    if (table.headers.length <= 1) return;
+    onChange({
+      headers: table.headers.filter((_, index) => index !== columnIndex),
+      rows: table.rows.map((row) => row.filter((_, index) => index !== columnIndex)),
+    });
+  };
+
+  const addRow = () => {
+    if (table.rows.length >= 30) return;
+    onChange({ ...table, rows: [...table.rows, table.headers.map(() => "")] });
+  };
+
+  const removeRow = (rowIndex: number) => {
+    if (table.rows.length <= 1) return;
+    onChange({ ...table, rows: table.rows.filter((_, index) => index !== rowIndex) });
+  };
+
+  return (
+    <div className="overflow-hidden rounded-[18px] border border-[#cfdbef] bg-white shadow-[0_16px_40px_-34px_rgba(15,23,42,0.5)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dfe7f5] bg-[#f8faff] px-3 py-2.5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Table className="h-4 w-4 text-[#2f6fff]" />
+          <span>
+            {table.rows.length} row{table.rows.length === 1 ? "" : "s"} · {table.headers.length} column
+            {table.headers.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl border-[#cbd9f3] bg-white px-3 text-slate-700 shadow-none"
+            onClick={addColumn}
+            disabled={table.headers.length >= 8}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Column
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl border-[#cbd9f3] bg-white px-3 text-slate-700 shadow-none"
+            onClick={addRow}
+            disabled={table.rows.length >= 30}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Row
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-[42rem] table-fixed border-collapse text-left">
+          <thead>
+            <tr className="bg-[#edf4ff]">
+              {table.headers.map((header, columnIndex) => (
+                <th key={`header-${columnIndex}`} className="border-b border-r border-[#cfdbef] p-0 last:border-r-0">
+                  <div className="flex min-h-12 items-center">
+                    <input
+                      value={header}
+                      onChange={(event) => updateHeader(columnIndex, event.target.value)}
+                      className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:bg-white"
+                      aria-label={`Column ${columnIndex + 1} heading`}
+                      placeholder={`Heading ${columnIndex + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeColumn(columnIndex)}
+                      disabled={table.headers.length <= 1}
+                      className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+                      aria-label={`Delete column ${columnIndex + 1}`}
+                      title="Delete column"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </th>
+              ))}
+              <th className="w-11 border-b border-l border-[#cfdbef] bg-[#f8faff]" aria-label="Row actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, rowIndex) => (
+              <tr key={`row-${rowIndex}`} className="group even:bg-[#fbfcff]">
+                {table.headers.map((_, columnIndex) => (
+                  <td
+                    key={`cell-${rowIndex}-${columnIndex}`}
+                    className="border-b border-r border-[#e1e8f3] p-0 group-last:border-b-0 last:border-r-0"
+                  >
+                    <input
+                      value={row[columnIndex] ?? ""}
+                      onChange={(event) => updateCell(rowIndex, columnIndex, event.target.value)}
+                      className="min-h-12 w-full bg-transparent px-3 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:bg-[#f7faff]"
+                      aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}`}
+                      placeholder="Enter content"
+                    />
+                  </td>
+                ))}
+                <td className="w-11 border-b border-l border-[#e1e8f3] bg-white p-1 group-last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => removeRow(rowIndex)}
+                    disabled={table.rows.length <= 1}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+                    aria-label={`Delete row ${rowIndex + 1}`}
+                    title="Delete row"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function getEstimatedReadTime(page: ModuleEditorPage | null) {
@@ -856,6 +1086,23 @@ export function ModuleEditor({
     }
 
     if (action === "table") {
+      if (value.trim()) {
+        const tableBlock: ModuleEditorBlock = {
+          id: createId(),
+          type: "text",
+          title: "",
+          body: createDefaultMarkdownTable(),
+        };
+
+        updateSelectedPage((page) => {
+          const blockIndex = page.blocks.findIndex((block) => block.id === blockId);
+          const nextBlocks = [...page.blocks];
+          nextBlocks.splice(blockIndex >= 0 ? blockIndex + 1 : nextBlocks.length, 0, tableBlock);
+          return { ...page, blocks: nextBlocks };
+        });
+        return;
+      }
+
       result = insertMarkdownTable(value, selectionStart, selectionEnd);
     }
 
@@ -1645,71 +1892,89 @@ export function ModuleEditor({
                                 <div>
                                   <label className="text-sm font-semibold text-slate-700">Body</label>
                                   <p className="mt-1 text-xs text-slate-500">
-                                    Supports bold, italic, underline, links, font sizes, bullet lists, numbered lists, tables, and quotes.
+                                    {parseMarkdownTable(block.body)
+                                      ? "Click any table cell to edit it. Add or remove rows and columns as needed."
+                                      : "Supports bold, italic, underline, links, font sizes, bullet lists, numbered lists, tables, and quotes."}
                                   </p>
                                 </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <select
-                                    aria-label="Font size"
-                                    defaultValue=""
-                                    className="h-9 w-24 rounded-xl border border-[#dfe7f5] bg-white px-3 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
-                                    title="Font size"
-                                    onChange={(event) => {
-                                      applyTextFontSize(block.id, event.target.value);
-                                      event.target.value = "";
-                                    }}
-                                  >
-                                    <option value="" disabled>
-                                      Size
-                                    </option>
-                                    {FONT_SIZE_OPTIONS.map((option) => (
-                                      <option key={option.value} value={option.className}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {[
-                                    { label: "Bold", icon: Bold, action: "bold" as const },
-                                    { label: "Italic", icon: Italic, action: "italic" as const },
-                                    { label: "Underline", icon: Underline, action: "underline" as const },
-                                    { label: "Link", icon: Link2, action: "link" as const },
-                                    { label: "Bullets", icon: List, action: "bullet-list" as const },
-                                    { label: "Numbered", icon: ListOrdered, action: "numbered-list" as const },
-                                    { label: "Table", icon: Table, action: "table" as const },
-                                    { label: "Quote", icon: Quote, action: "quote" as const },
-                                  ].map(({ label, icon: Icon, action }) => (
-                                    <Button
-                                      key={`${block.id}-${action}`}
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-9 w-9 rounded-xl border-[#dfe7f5] bg-white text-slate-600 shadow-none hover:bg-[#f7faff]"
-                                      onClick={() => applyTextFormatting(block.id, action)}
-                                      aria-label={label}
-                                      title={label}
+                                {!parseMarkdownTable(block.body) && (
+                                  <div className="flex flex-wrap gap-2">
+                                    <select
+                                      aria-label="Font size"
+                                      defaultValue=""
+                                      className="h-9 w-24 rounded-xl border border-[#dfe7f5] bg-white px-3 text-sm font-semibold text-slate-600 shadow-none outline-none transition-colors hover:bg-[#f7faff] focus:border-[#2f6fff] focus:ring-2 focus:ring-[#2f6fff]/15"
+                                      title="Font size"
+                                      onChange={(event) => {
+                                        applyTextFontSize(block.id, event.target.value);
+                                        event.target.value = "";
+                                      }}
                                     >
-                                      <Icon className="h-3.5 w-3.5" />
-                                    </Button>
-                                  ))}
-                                </div>
+                                      <option value="" disabled>
+                                        Size
+                                      </option>
+                                      {FONT_SIZE_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.className}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    {[
+                                      { label: "Bold", icon: Bold, action: "bold" as const },
+                                      { label: "Italic", icon: Italic, action: "italic" as const },
+                                      { label: "Underline", icon: Underline, action: "underline" as const },
+                                      { label: "Link", icon: Link2, action: "link" as const },
+                                      { label: "Bullets", icon: List, action: "bullet-list" as const },
+                                      { label: "Numbered", icon: ListOrdered, action: "numbered-list" as const },
+                                      { label: "Table", icon: Table, action: "table" as const },
+                                      { label: "Quote", icon: Quote, action: "quote" as const },
+                                    ].map(({ label, icon: Icon, action }) => (
+                                      <Button
+                                        key={`${block.id}-${action}`}
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-9 w-9 rounded-xl border-[#dfe7f5] bg-white text-slate-600 shadow-none hover:bg-[#f7faff]"
+                                        onClick={() => applyTextFormatting(block.id, action)}
+                                        aria-label={label}
+                                        title={label}
+                                      >
+                                        <Icon className="h-3.5 w-3.5" />
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                              <Textarea
-                                ref={(element) => {
-                                  textAreaRefs.current[block.id] = element;
-                                }}
-                                className="min-h-[120px] rounded-[20px] border-[#dfe7f5] bg-white"
-                                value={block.body}
-                                onChange={(event) =>
-                                  updateBlock(block.id, (current) => ({
-                                    ...current,
-                                    type: "text",
-                                    title: current.type === "text" ? current.title : "",
-                                    body: event.target.value,
-                                  }))
-                                }
-                                rows={5}
-                                placeholder="Write the teaching content here."
-                              />
+                              {parseMarkdownTable(block.body) ? (
+                                <VisualMarkdownTableEditor
+                                  table={parseMarkdownTable(block.body)!}
+                                  onChange={(table) =>
+                                    updateBlock(block.id, (current) => ({
+                                      ...current,
+                                      type: "text",
+                                      title: current.type === "text" ? current.title : "",
+                                      body: serializeMarkdownTable(table),
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <Textarea
+                                  ref={(element) => {
+                                    textAreaRefs.current[block.id] = element;
+                                  }}
+                                  className="min-h-[120px] rounded-[20px] border-[#dfe7f5] bg-white"
+                                  value={block.body}
+                                  onChange={(event) =>
+                                    updateBlock(block.id, (current) => ({
+                                      ...current,
+                                      type: "text",
+                                      title: current.type === "text" ? current.title : "",
+                                      body: event.target.value,
+                                    }))
+                                  }
+                                  rows={5}
+                                  placeholder="Write the teaching content here."
+                                />
+                              )}
                             </div>
                           </div>
                         )}
