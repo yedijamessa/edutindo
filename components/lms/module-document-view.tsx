@@ -257,6 +257,35 @@ function buildQuizQuestionResults(
   });
 }
 
+function hashString(value: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function getShuffledMatchingOptions(block: ModuleEditorQuizBlock) {
+  const shuffled = block.matchingPairs
+    .map((pair, index) => ({
+      value: pair.match,
+      originalIndex: index,
+      weight: hashString(`${block.id}:${pair.id}:${pair.match}:${index}`),
+    }))
+    .sort((first, second) => first.weight - second.weight || first.originalIndex - second.originalIndex);
+
+  const stayedInOrder = shuffled.every((item, index) => item.originalIndex === index);
+  if (stayedInOrder && shuffled.length > 1) {
+    const [first] = shuffled.splice(0, 1);
+    shuffled.push(first);
+  }
+
+  return shuffled.map((item) => item.value);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,6 +314,7 @@ function QuestionBlock({
   const canScoreTextAnswer = isTextAnswerQuiz && acceptedTextAnswers.length > 0;
   const textAnswerCorrect = canScoreTextAnswer && acceptedTextAnswers.includes(normalizeAnswer(answer.textAnswer));
   const interactive = !showAnswers && !submitted;
+  const matchOptions = block.quizType === "matching" ? getShuffledMatchingOptions(block) : [];
 
   return (
     <div className="rounded-[20px] border border-[#ffedd5] bg-[#fffaf5]">
@@ -437,9 +467,6 @@ function QuestionBlock({
           {!showAnswers && block.quizType === "matching" && (
             <div className="mt-3 space-y-2">
               {block.matchingPairs.map((pair) => {
-                 // Sort the matches alphabetically so they aren't obviously in the correct order
-                 const matchOptions = [...block.matchingPairs].map(p => p.match).sort((a, b) => a.localeCompare(b));
-                 
                  return (
                    <div key={pair.id} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-[14px] border border-[#e8eef8] bg-white px-4 py-2.5 text-sm">
                      <span className="flex-1 font-medium text-slate-700">{pair.prompt}</span>

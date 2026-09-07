@@ -16,7 +16,17 @@ const moduleFontSizeClasses = {
 
 const moduleMarkdownSchema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), "span", "u"],
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    "span",
+    "u",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+  ],
   attributes: {
     ...defaultSchema.attributes,
     span: [
@@ -60,6 +70,23 @@ export function ModuleMarkdown({
 
             return <span className={sizeClassName ? moduleFontSizeClasses[sizeClassName] : undefined}>{children}</span>;
           },
+          table: ({ children }) => (
+            <div className="my-4 overflow-x-auto rounded-[14px] border border-[#dfe7f5] bg-white">
+              <table className="my-0 min-w-full border-collapse text-left text-sm">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-[#f7faff] text-slate-900">{children}</thead>,
+          th: ({ children }) => (
+            <th className="border-b border-r border-[#dfe7f5] px-3 py-2 font-semibold last:border-r-0">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border-b border-r border-[#e8eef8] px-3 py-2 align-top last:border-r-0">
+              {children}
+            </td>
+          ),
+          tr: ({ children }) => <tr className="last:[&_td]:border-b-0">{children}</tr>,
         }}
       >
         {content || emptyFallback}

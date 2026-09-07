@@ -24,6 +24,7 @@ import {
   Plus,
   Quote,
   Save,
+  Table,
   Trash2,
   CircleHelp,
   Underline,
@@ -223,6 +224,35 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1) {
   return next;
 }
 
+function hashString(value: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function getShuffledMatchingMatches(block: ModuleEditorQuizBlock) {
+  const shuffled = block.matchingPairs
+    .map((pair, index) => ({
+      value: pair.match || `Match ${index + 1}`,
+      originalIndex: index,
+      weight: hashString(`${block.id}:${pair.id}:${pair.match}:${index}`),
+    }))
+    .sort((first, second) => first.weight - second.weight || first.originalIndex - second.originalIndex);
+
+  const stayedInOrder = shuffled.every((item, index) => item.originalIndex === index);
+  if (stayedInOrder && shuffled.length > 1) {
+    const [first] = shuffled.splice(0, 1);
+    shuffled.push(first);
+  }
+
+  return shuffled.map((item) => item.value);
+}
+
 function formatTimestamp(value: string | null) {
   if (!value) return "Not saved yet";
 
@@ -286,6 +316,7 @@ type TextFormattingAction =
   | "link"
   | "bullet-list"
   | "numbered-list"
+  | "table"
   | "quote";
 
 const FONT_SIZE_OPTIONS = [
@@ -336,6 +367,26 @@ function prefixSelectedLines(
     nextValue,
     selectionStart: blockStart,
     selectionEnd: blockStart + replacement.length,
+  };
+}
+
+function insertMarkdownTable(value: string, selectionStart: number, selectionEnd: number) {
+  const prefix = selectionStart > 0 && value[selectionStart - 1] !== "\n" ? "\n\n" : "";
+  const suffix = selectionEnd < value.length && value[selectionEnd] !== "\n" ? "\n\n" : "";
+  const table = [
+    "| Heading 1 | Heading 2 | Heading 3 |",
+    "| --- | --- | --- |",
+    "| Cell 1 | Cell 2 | Cell 3 |",
+    "| Cell 4 | Cell 5 | Cell 6 |",
+  ].join("\n");
+  const replacement = `${prefix}${table}${suffix}`;
+  const nextValue = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`;
+  const tableStart = selectionStart + prefix.length;
+
+  return {
+    nextValue,
+    selectionStart: tableStart,
+    selectionEnd: tableStart + table.length,
   };
 }
 
@@ -457,20 +508,24 @@ function PreviewPageContent({ page }: { page: ModuleEditorPage | null }) {
                 </div>
               ) : usesMatchingPairs(block.quizType) ? (
                 <div className="space-y-2">
-                  {block.matchingPairs.map((pair, index) => (
-                    <div
-                      key={pair.id}
-                      className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_auto_1fr]"
-                    >
-                      <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
-                        {pair.prompt || `Prompt ${index + 1}`}
+                  {(() => {
+                    const shuffledMatches = getShuffledMatchingMatches(block);
+
+                    return block.matchingPairs.map((pair, index) => (
+                      <div
+                        key={pair.id}
+                        className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_auto_1fr]"
+                      >
+                        <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
+                          {pair.prompt || `Prompt ${index + 1}`}
+                        </div>
+                        <div className="flex items-center justify-center text-slate-400">=</div>
+                        <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
+                          {shuffledMatches[index]}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-center text-slate-400">=</div>
-                      <div className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
-                        {pair.match || `Match ${index + 1}`}
-                      </div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               ) : usesOrderingItems(block.quizType) ? (
                 <div className="space-y-2">
@@ -669,6 +724,10 @@ export function ModuleEditor({
         (line, index) => `${index + 1}. ${line.trim() || `Item ${index + 1}`}`,
         "List item"
       );
+    }
+
+    if (action === "table") {
+      result = insertMarkdownTable(value, selectionStart, selectionEnd);
     }
 
     if (action === "quote") {
@@ -1347,7 +1406,7 @@ export function ModuleEditor({
                                 <div>
                                   <label className="text-sm font-semibold text-slate-700">Body</label>
                                   <p className="mt-1 text-xs text-slate-500">
-                                    Supports bold, italic, underline, links, font sizes, bullet lists, numbered lists, and quotes.
+                                    Supports bold, italic, underline, links, font sizes, bullet lists, numbered lists, tables, and quotes.
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -1376,6 +1435,7 @@ export function ModuleEditor({
                                     { label: "Link", icon: Link2, action: "link" as const },
                                     { label: "Bullets", icon: List, action: "bullet-list" as const },
                                     { label: "Numbered", icon: ListOrdered, action: "numbered-list" as const },
+                                    { label: "Table", icon: Table, action: "table" as const },
                                     { label: "Quote", icon: Quote, action: "quote" as const },
                                   ].map(({ label, icon: Icon, action }) => (
                                     <Button
