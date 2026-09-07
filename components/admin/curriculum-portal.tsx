@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
   ArrowRight,
   BarChart3,
@@ -55,6 +56,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { storage } from "@/lib/firebase";
 import { createQuiz, getQuizzes } from "@/lib/firestore-services";
 import type { Question, QuestionType, Quiz } from "@/types/lms";
 
@@ -153,6 +155,14 @@ type CoverImageDropzoneProps = {
   disabled?: boolean;
 };
 
+const MAX_COVER_IMAGE_BYTES = 5 * 1024 * 1024;
+const COVER_IMAGE_EXTENSIONS = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+  ["image/gif", "gif"],
+]);
+
 function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDropzoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -162,8 +172,14 @@ function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDro
   const uploadImage = async (file: File | null | undefined) => {
     if (!file || disabled) return;
 
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Please upload an image file.");
+    const extension = COVER_IMAGE_EXTENSIONS.get(file.type);
+    if (!extension) {
+      setUploadError("Use JPG, PNG, WEBP, or GIF images.");
+      return;
+    }
+
+    if (file.size > MAX_COVER_IMAGE_BYTES) {
+      setUploadError("Image must be 5MB or smaller.");
       return;
     }
 
@@ -171,20 +187,15 @@ function CoverImageDropzone({ value, onChange, disabled = false }: CoverImageDro
     setUploadError("");
 
     try {
-      const formData = new FormData();
-      formData.append("image", file);
+      const uploadId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2, 12);
+      const storageRef = ref(storage, `curriculum-covers/${Date.now()}-${uploadId}.${extension}`);
+      const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
+      const downloadUrl = await getDownloadURL(snapshot.ref);
 
-      const response = await fetch("/api/admin/curriculum/cover-upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || "Failed to upload image.");
-      }
-
-      onChange(String(data.url || ""));
+      onChange(downloadUrl);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Failed to upload image.");
     } finally {
