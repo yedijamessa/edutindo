@@ -1,0 +1,26 @@
+{
+  "generator": "Built-in image generation",
+  "purpose": "Illustrative imagery for the reference-inspired homepage; not photographs of actual Edutindo participants.",
+  "prompts": [
+    {
+      "key": "hero",
+      "prompt": "Use case: photorealistic-natural. Asset type: a photograph for an Indonesian Christian STEAM education foundation homepage. Create one warm natural editorial photograph, landscape 4:3. A smiling Indonesian schoolgirl around age 12 with dark hair tied back, wearing a light lavender short sleeve school uniform shirt and navy tie, sitting at a worn wooden desk with an open notebook and pencil. She is in the right foreground, looking upward to the left toward a teacher off camera with hopeful attentive expression. Several Indonesian classmates at desks softly out of focus in the left background, simple rural classroom, big wooden windows with tropical greenery, golden morning light. Realistic anatomy and natural skin texture, rich warm earthy colors, compassionate and optimistic, no staged stock photo poses. No text, logos, graphic elements, collage, frame, border, or watermark. Fill entire canvas with the photograph."
+    },
+    {
+      "key": "engagement",
+      "prompt": "Use case: photorealistic-natural. Asset type: education foundation website card photo. One wide landscape 16:9 editorial photograph of three Indonesian schoolchildren ages 12-14 and a friendly male Indonesian teacher in tan short sleeve shirt sharing a learning activity at a wooden table outdoors in rural East Nusa Tenggara. Students wear light lavender school uniforms, and colorful local woven headbands. Open books on table, green tropical schoolyard and a modest school in background. Candid engaged smiles, collaborative discussion, warm late afternoon sunlight, realistic natural hands and faces. Composition framed waist up, group centered with room around edges. No text, logos, frames or watermarks."
+    },
+    {
+      "key": "innovation",
+      "prompt": "Use case: photorealistic-natural. Asset type: education foundation website card photo. One wide landscape 16:9 editorial photograph of three Indonesian teenage school students in light lavender school uniforms working together on a small robotics and electronics project at a wooden classroom workbench in a rural East Nusa Tenggara school. A boy wearing a colorful local woven headband works on a circuit board, a girl smiles beside a laptop, another student watches. Colorful wires, simple science projects, handmade educational posters out of focus in background. Warm natural daylight from windows, authentic modest classroom, optimistic teamwork. Realistic faces and anatomy. No readable text, no logos, no frame or watermark."
+    },
+    {
+      "key": "transformation",
+      "prompt": "Use case: photorealistic-natural. Asset type: education foundation website card photo. One wide landscape 16:9 editorial photograph of five Indonesian teenagers, boys and girls in light lavender school uniforms and local woven scarves, gathered in a small friendly discussion circle beside the sea in rural East Nusa Tenggara at warm sunset. They are sitting, smiling and listening to each other, one holds a closed small book. Warm peaceful faith and community atmosphere, tropical shoreline, small boats and distant hills. Medium group shot, natural gestures, realistic faces and hands. Warm orange sunlight, blue water. No text, logos, borders, collage or watermarks."
+    },
+    {
+      "key": "landscape",
+      "prompt": "Use case: illustration-story. Asset type: very wide landscape background for an Indonesian education nonprofit website. Create a panoramic 3:1 image of remote East Nusa Tenggara island hills, layered blue-green mountain silhouettes, some palms and tropical trees, small tranquil bay at the right, warm sunrise glowing from right horizon. Beautiful soft watercolor mixed with atmospheric landscape photography, cream paper texture, soft pale warm ivory upper two thirds with lots of empty space. The landscape sits in bottom third, fading into cream and mist upward. Small pale cyan and golden ochre dry-brush accents at far edges, no buildings, no people. Understated, optimistic, premium editorial art, desaturated misty colors, feathered watercolor edges. No text, typography, logo, border or watermark."
+    }
+  ]
+}

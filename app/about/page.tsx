@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
-import { Check, CheckCircle2, Heart } from "lucide-react";
-import { Section } from "@/components/ui/section";
-import { cn } from "@/components/ui/button";
+import Link from "next/link";
+import {
+  BriefcaseBusiness,
+  Check,
+  GraduationCap,
+  Heart,
+  Mail,
+} from "lucide-react";
+import styles from "./about.module.css";
 
 type Founder = {
   role: string;
@@ -121,171 +127,178 @@ function getInitials(name: string) {
   return name
     .split(/\s+/)
     .filter(Boolean)
-    .map((part) => part[0]?.toUpperCase() ?? "")
+    .map((part) => part[0])
     .join("")
     .slice(0, 2);
 }
 
-function getFounderCardSpanClassName(index: number) {
-  if (FOUNDERS.length % 4 === 0) return "lg:col-span-3";
-  if (index < 3) return "lg:col-span-4";
-  return "lg:col-span-3";
-}
-
 function FounderAvatar({
   founder,
-  className,
+  large = false,
 }: {
   founder: Founder;
-  className?: string;
+  large?: boolean;
 }) {
-  const { imageSrc, imageAlt, imagePosition, imageScale, name } = founder;
   const [imageFailed, setImageFailed] = useState(false);
-  const resolvedImageSrc = imageFailed ? undefined : imageSrc;
-
   return (
-    <div className={cn("relative overflow-hidden rounded-full", className)}>
-      {resolvedImageSrc ? (
+    <div className={large ? styles.largeAvatar : styles.avatar}>
+      {founder.imageSrc && !imageFailed ? (
         <Image
-          src={resolvedImageSrc}
-          alt={imageAlt}
+          src={founder.imageSrc}
+          alt={founder.imageAlt}
           fill
-          className="object-cover"
+          sizes={large ? "(min-width: 760px) 300px, 230px" : "100px"}
+          className={styles.portrait}
           onError={() => setImageFailed(true)}
           style={{
-            objectPosition: imagePosition ?? "center",
-            transform: `scale(${imageScale ?? 1})`,
+            objectPosition: founder.imagePosition ?? "center",
+            transform: `scale(${founder.imageScale ?? 1})`,
           }}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 text-xl font-bold text-white">
-          {getInitials(name)}
-        </div>
+        <span className={styles.initials}>{getInitials(founder.name)}</span>
       )}
     </div>
   );
 }
 
-function FounderDetail({ founder }: { founder: Founder }) {
+function Leaves({ className }: { className: string }) {
   return (
-    <div className="overflow-hidden rounded-[2rem] border border-sky-100/80 bg-white/95 shadow-[0_34px_90px_-54px_rgba(15,23,42,0.45)] backdrop-blur-sm">
-      <div className="grid lg:grid-cols-[430px_1fr]">
-        <div className="relative isolate overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.55),_transparent_34%),linear-gradient(180deg,#eef6ff,#ffffff)] px-8 py-10 sm:px-10 sm:py-12">
-          <div className="absolute left-6 top-6 grid grid-cols-5 gap-2 opacity-70">
-            {Array.from({ length: 20 }).map((_, index) => (
-              <span key={index} className="h-1.5 w-1.5 rounded-full bg-sky-200" />
-            ))}
-          </div>
-
-          <div className="relative mx-auto flex max-w-[240px] flex-col items-center">
-            <div className="relative h-52 w-52 overflow-hidden rounded-full border-4 border-white shadow-[0_22px_48px_-24px_rgba(30,64,175,0.45)] ring-1 ring-sky-100">
-              <FounderAvatar founder={founder} className="h-full w-full" />
-            </div>
-
-            <p className="mt-6 inline-flex rounded-full border border-sky-200 bg-white/95 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-700 shadow-sm">
-              {founder.role}
-            </p>
-          </div>
-        </div>
-
-        <div className="px-8 py-10 sm:px-10 sm:py-12">
-          <h2
-            translate="no"
-            className="notranslate font-serif text-4xl font-semibold tracking-tight text-[#122454] md:text-5xl"
-          >
-            {founder.name}
-          </h2>
-
-          <div className="mt-8 space-y-5">
-            {founder.lines.map((line) => (
-              <div key={line} className="flex items-start gap-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
-                <p className="text-base leading-relaxed text-slate-600">{line}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+    <svg
+      className={className}
+      viewBox="0 0 120 240"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M20 235C32 162 70 98 91 12"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <g fill="currentColor" opacity=".72">
+        <path d="M84 42C61 22 78 6 93 0c8 19 2 29-9 42ZM78 63C88 30 110 29 118 29c-7 23-17 30-40 34ZM70 87C43 62 52 44 61 32c15 12 21 32 9 55ZM60 115C76 81 96 78 111 81c-12 25-28 34-51 34ZM50 141C24 117 30 98 39 85c16 13 21 34 11 56ZM40 167C54 136 76 130 93 133c-11 23-31 34-53 34ZM29 199C9 181 8 159 15 145c17 14 21 32 14 54ZM23 220C39 191 56 185 73 188c-8 21-26 31-50 32Z" />
+      </g>
+    </svg>
   );
 }
 
 export default function AboutPage() {
   const [activeIndex, setActiveIndex] = useState(FOUNDERS.length - 1);
+  const detailRef = useRef<HTMLElement>(null);
   const activeFounder = FOUNDERS[activeIndex];
 
+  const selectFounder = (index: number) => {
+    setActiveIndex(index);
+    if (window.matchMedia("(max-width: 759px)").matches) {
+      requestAnimationFrame(() =>
+        detailRef.current?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "auto"
+            : "smooth",
+          block: "start",
+        }),
+      );
+    }
+  };
+
   return (
-    <div className="min-h-screen overflow-hidden bg-[#f7fbff]">
-      <Section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(191,219,254,0.32),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)]">
-        <div className="pointer-events-none absolute -left-24 top-0 h-[420px] w-[420px] rounded-full border border-white/60 bg-white/35 blur-[1px]" />
-        <div className="pointer-events-none absolute right-[-140px] top-16 h-[520px] w-[520px] rounded-full bg-blue-100/40 blur-3xl" />
-        <div className="pointer-events-none absolute left-[-120px] bottom-0 h-[420px] w-[420px] rounded-full bg-sky-100/50 blur-3xl" />
-
-        <div className="relative mx-auto max-w-6xl">
-          <div className="mx-auto max-w-4xl text-center">
-
-            <h1 className="mt-6 font-serif text-5xl font-semibold tracking-tight text-[#122454] md:text-7xl">
-              The Serving Team
-            </h1>
-
-            <div className="mt-5 flex items-center justify-center gap-3 text-blue-500">
-              <span className="h-[2px] w-24 rounded-full bg-gradient-to-r from-transparent via-blue-500 to-blue-500" />
-              <Heart className="h-5 w-5" strokeWidth={1.8} />
-              <span className="h-[2px] w-24 rounded-full bg-gradient-to-l from-transparent via-blue-500 to-blue-500" />
-            </div>
-
-            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
-              Dedicated professionals and educators serving with heart and purpose.
-            </p>
+    <div className={styles.page}>
+      <div className={styles.scenery} aria-hidden="true" />
+      <div className={styles.sunWash} aria-hidden="true" />
+      <div className={styles.headingDots} aria-hidden="true" />
+      <Leaves className={styles.headingLeaves} />
+      <div className={styles.container}>
+        <section className={styles.intro} aria-labelledby="about-heading">
+          <p className={styles.eyebrow}>Our people</p>
+          <h1 id="about-heading">The Serving Team</h1>
+          <div className={styles.heartDivider} aria-hidden="true">
+            <span />
+            <Heart size={21} strokeWidth={1.8} />
+            <span />
           </div>
+          <p className={styles.subtitle}>
+            Dedicated professionals and educators serving with heart and
+            purpose.
+          </p>
+        </section>
 
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-12">
-            {FOUNDERS.map((founder, index) => {
-              const isActive = index === activeIndex;
-
-              return (
-                <button
-                  key={founder.name}
-                  type="button"
-                  onClick={() => setActiveIndex(index)}
-                  className={cn(
-                    "group relative rounded-[1.75rem] border bg-white/95 px-6 py-5 text-center shadow-[0_22px_60px_-42px_rgba(15,23,42,0.38)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-                    getFounderCardSpanClassName(index),
-                    isActive
-                      ? "border-blue-400 shadow-[0_28px_70px_-42px_rgba(37,99,235,0.45)]"
-                      : "border-sky-100/80 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white"
-                  )}
-                >
-                  {isActive ? (
-                    <span className="absolute right-4 top-4 inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_10px_20px_-12px_rgba(37,99,235,0.8)]">
-                      <Check className="h-4 w-4" strokeWidth={3} />
-                    </span>
-                  ) : null}
-
-                  <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-slate-200 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.35)]">
-                    <FounderAvatar founder={founder} className="h-full w-full" />
-                  </div>
-
-                  <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">
-                    {founder.role}
-                  </p>
-                  <h2
-                    translate="no"
-                    className="notranslate mt-2 font-serif text-[1.15rem] font-semibold leading-tight text-[#122454] md:text-[1.35rem]"
-                  >
-                    {founder.name}
-                  </h2>
-                  <span className={cn("mx-auto mt-4 block h-[2px] w-7 rounded-full", isActive ? "bg-blue-500" : "bg-blue-300")} />
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-7">
-            <FounderDetail founder={activeFounder} />
-          </div>
+        <div
+          className={styles.teamGrid}
+          role="group"
+          aria-label="Meet the Edutindo team"
+        >
+          {FOUNDERS.map((founder, index) => {
+            const selected = index === activeIndex;
+            return (
+              <button
+                key={founder.name}
+                type="button"
+                onClick={() => selectFounder(index)}
+                className={`${styles.memberCard} ${selected ? styles.selected : ""}`}
+                aria-pressed={selected}
+                aria-controls="team-profile"
+              >
+                {selected && (
+                  <span className={styles.selectedBadge}>
+                    <Check size={16} strokeWidth={3} aria-hidden="true" />
+                  </span>
+                )}
+                <FounderAvatar founder={founder} />
+                <span className={styles.memberRole}>{founder.role}</span>
+                <h2 translate="no" className="notranslate">
+                  {founder.name}
+                </h2>
+                <span className={styles.cardUnderline} aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
-      </Section>
+
+        <section
+          id="team-profile"
+          ref={detailRef}
+          className={styles.detail}
+          aria-labelledby="profile-name"
+        >
+          <div className={styles.detailDots} aria-hidden="true" />
+          <Leaves className={styles.detailLeavesLeft} />
+          <Leaves className={styles.detailLeavesRight} />
+          <div key={activeFounder.name} className={styles.detailGrid}>
+            <div className={styles.profileVisual}>
+              <FounderAvatar founder={activeFounder} large />
+              <p className={styles.roleBadge}>{activeFounder.role}</p>
+            </div>
+            <div
+              className={styles.profileContent}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <h2 id="profile-name" translate="no" className="notranslate">
+                {activeFounder.name}
+              </h2>
+              <ul className={styles.credentials}>
+                {activeFounder.lines.map((line, index) => {
+                  const Icon = index === 0 ? GraduationCap : BriefcaseBusiness;
+                  return (
+                    <li key={line}>
+                      <span className={styles.credentialIcon}>
+                        <Icon size={25} strokeWidth={1.7} aria-hidden="true" />
+                      </span>
+                      <p>{line}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className={styles.contactRow}>
+                <Link href="/contact" className={styles.contactLink}>
+                  <Mail size={21} aria-hidden="true" /> Get in Touch
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,969 @@
+.home {
+  --navy: #08183c;
+  --blue: #0665ff;
+  --cyan: #00afc8;
+  --orange: #ff781f;
+  color: var(--navy);
+  background: #fffaf1;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.container {
+  width: min(1180px, 85%);
+  margin-inline: auto;
+  position: relative;
+  z-index: 2;
+}
+.home h1,
+.home h2,
+.home h3,
+.home p {
+  margin: 0;
+}
+.home h1,
+.home h2 {
+  font-weight: 800;
+  letter-spacing: -1.7px;
+}
+.home h1 {
+  font-size: clamp(36px, 4.22vw, 62px);
+  line-height: 1.04;
+  white-space: nowrap;
+}
+.home h2 {
+  font-size: clamp(29px, 3.05vw, 43px);
+  line-height: 1.09;
+}
+.gradient {
+  background: linear-gradient(100deg, #0061ff 8%, #006cff 48%, #00b6c7 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.home .eyebrow {
+  display: table;
+  margin-bottom: 18px;
+  padding: 6px 10px;
+  border-radius: 30px;
+  background: #fff0da;
+  color: #e85d00;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+.hero {
+  position: relative;
+  padding: 49px 0 75px;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      ellipse at 40% 30%,
+      #fffaf1 20%,
+      #fffaf1dd 47%,
+      #fffaf100 76%
+    ),
+    url("/homepage/redesign/landscape.webp") center bottom / 100% auto no-repeat,
+    #fffaf1;
+}
+.hero:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/homepage/1-section-bg.png") center / cover;
+  opacity: 0.23;
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
+.heroGrid {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  align-items: center;
+  gap: 50px;
+  width: min(1100px, 79%);
+}
+.heroCopy {
+  position: relative;
+  z-index: 2;
+  padding: 3px 0 0;
+}
+.home .intro {
+  font-size: clamp(15px, 1.35vw, 19px);
+  line-height: 1.45;
+  max-width: 510px;
+  margin-top: 17px;
+  color: #49617f;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 19px;
+  margin-top: 25px;
+}
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 13px 25px;
+  border-radius: 40px;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  min-height: 44px;
+}
+.primaryButton {
+  color: white;
+  background: linear-gradient(100deg, #0069ff, #0055ff);
+  border: 2px solid #ffffff30;
+  box-shadow: 0 5px 14px #0064ff30;
+}
+.secondaryButton {
+  color: var(--navy);
+  background: #ffffff75;
+  border: 1px solid #dfe3e5;
+  box-shadow: 0 5px 14px #24385205;
+}
+.primaryButton:hover,
+.secondaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px #0055ff25;
+}
+.heroArtwork {
+  position: relative;
+  min-width: 0;
+  padding: 1px 0 9px;
+}
+.heroPhoto {
+  position: relative;
+  aspect-ratio: 1.28;
+  transform: rotate(2.5deg);
+  border: 4px solid white;
+  border-radius: 29px;
+  box-shadow: 0 13px 26px #ac7f3920;
+  overflow: hidden;
+}
+.cover {
+  object-fit: cover;
+}
+.sunWash {
+  position: absolute;
+  left: -52px;
+  top: -30px;
+  width: 205px;
+  height: 165px;
+  border-radius: 48% 52% 42% 58%;
+  background:
+    repeating-linear-gradient(155deg, transparent 0 9px, #fff8e250 10px 12px),
+    #ffcd7b75;
+  transform: rotate(-29deg);
+  outline: 1px solid #f8cb7b80;
+  outline-offset: 8px;
+}
+.heroLeaves {
+  position: absolute;
+  right: -69px;
+  top: 25%;
+  width: 100px;
+  height: 240px;
+  color: #6c9c7a;
+  transform: rotate(14deg);
+}
+.sunRays {
+  position: absolute;
+  right: -17px;
+  top: -39px;
+  width: 67px;
+  height: 60px;
+  z-index: 3;
+  transform: rotate(4deg);
+}
+.sunRays i {
+  position: absolute;
+  display: block;
+  width: 7px;
+  height: 28px;
+  background: #ffa34f;
+  border: 1px solid white;
+  border-radius: 8px;
+  transform: rotate(21deg);
+  left: 20px;
+  top: 0;
+}
+.sunRays i:nth-child(2) {
+  transform: rotate(48deg);
+  left: 47px;
+  top: 15px;
+  height: 29px;
+}
+.sunRays i:nth-child(3) {
+  transform: rotate(75deg);
+  left: 63px;
+  top: 42px;
+  height: 21px;
+}
+.sunRays i:nth-child(4) {
+  transform: rotate(-5deg);
+  left: 0;
+  top: 15px;
+  height: 16px;
+  width: 5px;
+}
+/* Blend the scenery into the same cream used at the top of the next section. */
+.hero:after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: clamp(100px, 12vw, 180px);
+  background: linear-gradient(
+    to bottom,
+    #fffaf100 0%,
+    #fffaf130 30%,
+    #fffaf1b3 68%,
+    #fffaf1 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+.vision {
+  position: relative;
+  padding: 18px 0 32px;
+  background:
+    linear-gradient(
+      to bottom,
+      #fffaf1 0%,
+      #fffaf100 18%,
+      #fffaf100 70%,
+      #fffaf1 100%
+    ),
+    radial-gradient(ellipse at 0 85%, #cceef380, transparent 40%),
+    linear-gradient(#fffaf1ee, #fffaf1e6),
+    url("/homepage/redesign/landscape.webp") center 0 / cover no-repeat,
+    #fffaf1;
+}
+.visionIntro {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 35px;
+  align-items: center;
+  padding: 0 3.5%;
+}
+.vision .eyebrow {
+  padding: 2px 4px;
+  margin-bottom: 10px;
+}
+.visionDescription {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #49617f;
+  margin-top: 16px !important;
+  max-width: 600px;
+}
+.approach {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  background: #ffffff8c;
+  border: 1px solid white;
+  border-radius: 13px;
+  padding: 26px 22px;
+  box-shadow: 0 12px 40px #99856c06;
+  margin-top: 30px;
+}
+.targetIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 57px;
+  height: 57px;
+  border-radius: 50%;
+  color: #ff791b;
+  background: #ffe9ce;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #ffe7d0;
+}
+.approach h3 {
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #13517c;
+  font-size: 10px;
+  margin-bottom: 14px;
+}
+.approach p {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #4a5e77;
+}
+.pathways {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 36px;
+  position: relative;
+  z-index: 1;
+}
+.pathway {
+  border-radius: 17px;
+  background: #fffefd;
+  overflow: hidden;
+  border: 2px solid white;
+  box-shadow: 0 12px 30px #745c3710;
+  --story: #ff6b09;
+  --pale: #ffebd8;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.pathway:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 17px 32px #745c371c;
+}
+.pathway.cyan {
+  --story: #00afca;
+  --pale: #dcf5fa;
+}
+.pathway.gold {
+  --story: #f4a000;
+  --pale: #fff2ce;
+}
+.pathwayPhoto {
+  position: relative;
+  aspect-ratio: 2.13;
+  overflow: hidden;
+}
+.pathwayPhoto img {
+  transition: transform 0.4s;
+}
+.pathway:hover .pathwayPhoto img {
+  transform: scale(1.035);
+}
+.pathwayBody {
+  position: relative;
+  padding: 27px 21px 23px;
+  min-height: 162px;
+}
+.pathwayIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  left: 17px;
+  top: -40px;
+  width: 62px;
+  height: 62px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--story), white 30%),
+    var(--story)
+  );
+  color: white;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 3px 9px #7b67551a;
+}
+.pathway h3 {
+  color: var(--story);
+  font-size: 21px;
+  line-height: 1.17;
+  letter-spacing: -0.7px;
+  font-weight: 700;
+}
+.cyan h3 {
+  color: #006384;
+}
+.cyan h3 span {
+  color: var(--story);
+}
+.gold h3 {
+  color: #9c4a00;
+}
+.gold h3 span {
+  color: #e58a00;
+}
+.pathway p {
+  margin-top: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4c607c;
+  padding-right: 36px;
+}
+.cardLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: 17px;
+  right: 16px;
+  width: 37px;
+  height: 37px;
+  border-radius: 50%;
+  background: var(--pale);
+  color: var(--story);
+  transition: background 0.2s;
+}
+.cardLink:hover {
+  background: var(--story);
+  color: white;
+}
+.building {
+  position: relative;
+  padding: 42px 0 60px;
+  background:
+    linear-gradient(to bottom, #fffaf1, #fffaf100 150px),
+    linear-gradient(160deg, #fffdf8e3, #f5fbffda 60%, #fff6e7d9),
+    url("/homepage/1-section-bg.png") center / cover;
+}
+.buildingHeading {
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+.buildingHeading .eyebrow {
+  margin: 0 auto 9px;
+  background: none;
+  font-size: 10px;
+}
+.buildingHeading p:last-child {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #49617f;
+  margin-top: 9px;
+}
+.diagram {
+  position: relative;
+  display: grid;
+  grid-template-columns: 29% 42% 29%;
+  align-items: center;
+  margin: -35px auto 0;
+  width: 90%;
+  max-width: 1000px;
+}
+.connections {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.blockColumn {
+  display: grid;
+  gap: 11px;
+  position: relative;
+  z-index: 2;
+}
+.block {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 92px;
+  padding: 10px 15px 10px 12px;
+  border-radius: 15px;
+  border: 1px solid #e2eef9;
+  border-left: 3px solid #0790ff;
+  background: #ffffffdf;
+  box-shadow: 0 12px 28px #235d7d11;
+}
+.blockIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 63px;
+  height: 63px;
+  flex-shrink: 0;
+  color: #008bff;
+  border-radius: 50%;
+  background: #eaf4ff;
+}
+.block h3 {
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  max-width: 135px;
+}
+.block p {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #687f9c;
+  margin-top: 4px;
+}
+.block:nth-child(3) {
+  border-left-color: #00b4cb;
+}
+.block:nth-child(3) .blockIcon {
+  background: #e7f7f8;
+  color: #00a3be;
+}
+.rightBlocks .block {
+  border-left: 0;
+  border-right: 3px solid #00b7cb;
+}
+.rightBlocks .blockIcon {
+  background: #e7f7f8;
+  color: #00a3be;
+}
+.rightBlocks .block:nth-child(2) .blockIcon {
+  background: #eaf4ff;
+  color: #008bff;
+}
+.schoolOrb {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  align-self: center;
+  width: 188px;
+  height: 188px;
+  margin-top: 16px;
+  text-align: center;
+  border-radius: 50%;
+  border: 5px solid white;
+  background:
+    radial-gradient(ellipse at 34% 10%, #63d9ff, transparent 34%),
+    linear-gradient(145deg, #00c3f3 10%, #008cff 55%, #005aff);
+  box-shadow:
+    0 0 0 3px #9ce4ff,
+    0 13px 35px #0099ff44,
+    inset 6px 5px 0 #ffffff24,
+    inset -7px -4px 0 #0050ff22;
+  color: white;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.buildingLeavesLeft,
+.buildingLeavesRight {
+  position: absolute;
+  bottom: -22px;
+  width: 130px;
+  height: 240px;
+  color: #7fbdc9;
+  transform: rotate(18deg);
+  left: -15px;
+  opacity: 0.6;
+}
+.buildingLeavesRight {
+  left: auto;
+  right: -4px;
+  transform: rotate(25deg);
+  color: #62a991;
+}
+.home a:focus-visible {
+  outline: 3px solid #153d81;
+  outline-offset: 5px;
+}
+@media (min-width: 1400px) {
+  .hero {
+    padding-top: 60px;
+    padding-bottom: 90px;
+  }
+  .heroGrid {
+    gap: 55px;
+  }
+  .hero h1 {
+    font-size: 58px;
+  }
+  .diagram {
+    margin-top: -28px;
+  }
+  .pathwayBody {
+    min-height: 180px;
+  }
+  .visionDescription {
+    font-size: 16px;
+  }
+  .approach p {
+    font-size: 14px;
+  }
+  .pathway p {
+    font-size: 14px;
+  }
+  .pathway h3 {
+    font-size: 24px;
+  }
+  .building {
+    padding-bottom: 70px;
+  }
+}
+@media (max-width: 1100px) {
+  .heroGrid {
+    gap: 32px;
+  }
+  .hero {
+    padding-top: 32px;
+    padding-bottom: 43px;
+  }
+  .actions {
+    gap: 15px;
+    margin-top: 20px;
+  }
+  .primaryButton,
+  .secondaryButton {
+    padding: 12px 19px;
+    font-size: 12px;
+  }
+  .visionIntro {
+    gap: 35px;
+  }
+  .approach {
+    gap: 14px;
+    padding: 23px 17px;
+  }
+  .pathwayBody {
+    padding: 23px 19px 18px;
+    min-height: 147px;
+  }
+  .pathway h3 {
+    font-size: 19px;
+  }
+  .pathway p {
+    font-size: 12px;
+  }
+  .block {
+    gap: 11px;
+    padding: 9px 11px;
+    min-height: 85px;
+  }
+  .blockIcon {
+    width: 56px;
+    height: 56px;
+  }
+  .block h3 {
+    font-size: 14px;
+  }
+  .block p {
+    font-size: 11px;
+  }
+  .diagram {
+    grid-template-columns: 30% 40% 30%;
+    margin-top: -32px;
+  }
+  .schoolOrb {
+    width: 174px;
+    height: 174px;
+  }
+  .building {
+    padding-top: 26px;
+    padding-bottom: 35px;
+  }
+}
+@media (max-width: 899px) {
+  .container {
+    width: 88%;
+  }
+  .heroGrid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    width: 88%;
+  }
+  .heroCopy {
+    max-width: 600px;
+    margin: auto;
+    text-align: center;
+  }
+  .hero .eyebrow {
+    margin-inline: auto;
+  }
+  .home h1 {
+    font-size: clamp(34px, 6.4vw, 53px);
+  }
+  .home .intro {
+    margin-inline: auto;
+    font-size: 17px;
+  }
+  .actions {
+    justify-content: center;
+  }
+  .heroArtwork {
+    width: 80%;
+    max-width: 560px;
+    margin: auto;
+  }
+  .heroPhoto {
+    aspect-ratio: 1.5;
+  }
+  .hero {
+    padding-bottom: 60px;
+  }
+  .vision {
+    padding-top: 12px;
+  }
+  .visionIntro {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 0;
+  }
+  .home h2 {
+    font-size: 35px;
+  }
+  .visionDescription {
+    font-size: 15px;
+  }
+  .approach {
+    margin-top: 0;
+    padding: 22px;
+  }
+  .approach p {
+    font-size: 13px;
+  }
+  .approach h3 {
+    margin-bottom: 8px;
+  }
+  .pathways {
+    gap: 15px;
+    margin-top: 27px;
+  }
+  .pathwayBody {
+    padding: 28px 15px 56px;
+    min-height: 220px;
+  }
+  .pathway h3 {
+    font-size: 19px;
+  }
+  .pathway p {
+    padding: 0;
+    font-size: 13px;
+  }
+  .pathwayPhoto {
+    aspect-ratio: 1.7;
+  }
+  .pathwayIcon {
+    width: 54px;
+    height: 54px;
+    top: -33px;
+    left: 12px;
+  }
+  .diagram {
+    grid-template-columns: 36% 28% 36%;
+    margin-top: 24px;
+    width: 100%;
+  }
+  .schoolOrb {
+    width: 147px;
+    height: 147px;
+    font-size: 14px;
+    margin-top: 0;
+  }
+  .block {
+    min-height: 100px;
+    gap: 9px;
+  }
+  .blockIcon {
+    width: 45px;
+    height: 45px;
+  }
+  .blockIcon svg {
+    width: 30px;
+  }
+  .connections {
+    display: none;
+  }
+  .block h3 {
+    font-size: 14px;
+  }
+  .block p {
+    font-size: 12px;
+  }
+  .buildingLeavesLeft,
+  .buildingLeavesRight {
+    opacity: 0.3;
+  }
+}
+@media (max-width: 699px) {
+  .container {
+    width: 89%;
+  }
+  .hero {
+    padding-top: 30px;
+  }
+  .heroCopy {
+    width: 100%;
+  }
+  .home .eyebrow {
+    font-size: 9px;
+    letter-spacing: 0.65px;
+    padding: 6px 8px;
+    line-height: 1.5;
+  }
+  .home h1 {
+    font-size: clamp(29px, 7.4vw, 47px);
+    letter-spacing: -1.3px;
+  }
+  .home .intro {
+    font-size: 15px;
+    margin-top: 15px;
+    max-width: 370px;
+  }
+  .actions {
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .primaryButton,
+  .secondaryButton {
+    font-size: 11px;
+    padding: 12px 14px;
+    gap: 6px;
+  }
+  .primaryButton svg {
+    width: 15px;
+  }
+  .heroArtwork {
+    width: 94%;
+    margin-top: 3px;
+  }
+  .heroPhoto {
+    border-radius: 22px;
+    aspect-ratio: 1.32;
+  }
+  .sunWash {
+    width: 150px;
+    height: 120px;
+    left: -15px;
+    top: -10px;
+  }
+  .heroLeaves {
+    right: -29px;
+    width: 70px;
+    top: 20%;
+  }
+  .sunRays {
+    right: -5px;
+    top: -32px;
+    transform: scale(0.75);
+  }
+  .home h2 {
+    font-size: 30px;
+    letter-spacing: -1.1px;
+  }
+  .visionIntro h2 br {
+    display: block;
+  }
+  .vision .eyebrow {
+    padding: 2px 4px;
+  }
+  .visionDescription {
+    font-size: 14px;
+  }
+  .approach {
+    padding: 19px 16px;
+    gap: 14px;
+  }
+  .targetIcon {
+    width: 47px;
+    height: 47px;
+  }
+  .approach p {
+    font-size: 12px;
+  }
+  .pathways {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    margin-top: 28px;
+  }
+  .pathway {
+    border-radius: 18px;
+    max-width: 470px;
+    width: 100%;
+    margin: auto;
+  }
+  .pathwayPhoto {
+    aspect-ratio: 2.05;
+  }
+  .pathwayBody {
+    padding: 28px 21px 24px;
+    min-height: 156px;
+  }
+  .pathway h3 {
+    font-size: 23px;
+  }
+  .pathway p {
+    font-size: 14px;
+    padding-right: 30px;
+    max-width: 380px;
+  }
+  .pathwayIcon {
+    width: 62px;
+    height: 62px;
+    top: -40px;
+    left: 17px;
+  }
+  .cardLink {
+    width: 40px;
+    height: 40px;
+  }
+  .building {
+    padding: 34px 0 45px;
+  }
+  .buildingHeading p:last-child {
+    font-size: 13px;
+    max-width: 310px;
+    margin: 10px auto 0;
+  }
+  .desktopBreak {
+    display: none;
+  }
+  .diagram {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 13px;
+    margin-top: 24px;
+  }
+  .schoolOrb {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 155px;
+    height: 155px;
+    margin: 0 auto 8px;
+    font-size: 15px;
+  }
+  .blockColumn {
+    gap: 13px;
+    height: 100%;
+  }
+  .block {
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: 176px;
+    padding: 16px 12px;
+    gap: 9px;
+    border-radius: 13px;
+  }
+  .blockIcon {
+    width: 45px;
+    height: 45px;
+  }
+  .block h3 {
+    font-size: 15px;
+    max-width: none;
+  }
+  .block p {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .rightBlocks .block {
+    border-left: 0;
+    border-right: 3px solid #00b7cb;
+  }
+  .buildingLeavesLeft,
+  .buildingLeavesRight {
+    width: 80px;
+    height: 160px;
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

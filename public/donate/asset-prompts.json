@@ -1,0 +1,22 @@
+{
+  "generator": "Built-in image generation",
+  "note": "Illustrative imagery for the reference-inspired donation page, not photographs of actual Edutindo participants or equipment.",
+  "prompts": [
+    {
+      "key": "hero",
+      "prompt": "Use case: photorealistic-natural. Asset type: Edutindo education foundation donation-page hero photograph, landscape 4:3. A hopeful smiling Indonesian schoolgirl around 11 years old in a light lavender short-sleeved school uniform and burgundy red school tie, dark hair tied back, seated at a wooden desk with forearms resting together, looking up toward a teacher just outside the image to the left. Several Indonesian classmates in similar uniforms softly out of focus behind her in a simple rural school classroom. Warm daylight from large wooden windows, natural skin texture, candid attentive expressions, compassionate and optimistic editorial photography. Frame from waist upward with girl at center right, entire canvas filled by photograph. No text, labels, logos, graphic elements, borders or watermarks."
+    },
+    {
+      "key": "technology",
+      "prompt": "Use case: product-mockup. Asset type: small transparent-background product cutout for an education donation card. A single realistic open black and silver 13-inch classroom laptop, screen blank dark graphite with faint natural reflection, three-quarter view from front left, keyboard visible. Carefully isolated on genuine transparent background with a subtle soft contact shadow only. Clean premium editorial product photography, full laptop with breathing space, no text, logos, labels or watermark."
+    },
+    {
+      "key": "furniture",
+      "prompt": "Use case: product-mockup. Asset type: small transparent-background product cutout for an education donation card. One modest warm honey-brown wooden school desk with a matching wooden chair, realistic wood grain and sturdy proportions, three-quarter view from front right. Isolated on genuine transparent background with a subtle soft contact shadow only. Premium natural product photography, full desk and chair visible with breathing space. No other objects, no text, logos, labels or watermark."
+    },
+    {
+      "key": "supplies",
+      "prompt": "Use case: product-mockup. Asset type: small transparent-background product cutout for an education donation card. A small stack of three colorful school textbooks, a teal blue science book with a simple green leaf illustration on top, ochre yellow and navy blue book below it. Three-quarter view so the covers and layered pages are visible, realistic paper texture. Isolated on genuine transparent background with a subtle soft contact shadow only. Natural premium product photography, full books visible with breathing space. No readable lettering, no logos, no watermark."
+    }
+  ]
+}

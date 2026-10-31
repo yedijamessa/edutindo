@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
+import { HomeFooter } from "./home-footer"
+import styles from "./home-shell.module.css"
 
 export function Footer() {
     const pathname = usePathname()
@@ -15,8 +17,10 @@ export function Footer() {
         return null
     }
 
+    if (pathname === "/" || pathname === "/about") return <HomeFooter />
+
     return (
-        <footer className="bg-[#0b1d3a] text-white">
+        <footer className={`bg-[#0b1d3a] text-white ${["/contact", "/donate"].includes(pathname) ? styles.contactFooter : ""} ${pathname === "/donate" ? styles.donateFooter : ""}`}>
             <div className="container-custom py-12 md:py-14">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="md:col-span-2">

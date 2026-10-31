@@ -1,0 +1,636 @@
+.page {
+  --navy: #08183c;
+  --blue: #0865ff;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 52px 0 100px;
+  background: #fffaf1;
+  color: var(--navy);
+  font-family: Arial, Helvetica, sans-serif;
+}
+.page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(180deg, #fffaf120, #fffaf1a0 52%, #fffaf1b8),
+    url("/homepage/1-section-bg.png") center top / 100% 100% no-repeat;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.scenery {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 450px;
+  z-index: -1;
+  mask-image: linear-gradient(to bottom, #000 65%, transparent 100%);
+  background:
+    linear-gradient(to bottom, #fffaf100 40%, #fffaf1 100%),
+    linear-gradient(90deg, #fffaf1 15%, #fffaf1c9 53%, #fffaf138),
+    url("/homepage/redesign/landscape.webp") right bottom / auto 100% no-repeat;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.container {
+  position: relative;
+  width: min(1240px, 88.5%);
+  margin: 0 auto;
+  z-index: 1;
+}
+.intro {
+  text-align: center;
+  margin-bottom: 47px;
+}
+.eyebrow {
+  display: table;
+  margin: 0 auto 9px;
+  padding: 9px 23px;
+  border-radius: 30px;
+  color: #ed6609;
+  background: #ffeddb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.intro h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(44px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: -2.7px;
+  line-height: 1.13;
+}
+.heartDivider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 14px 0 13px;
+  color: var(--blue);
+}
+.heartDivider span {
+  width: 84px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--blue));
+}
+.heartDivider span:last-child {
+  transform: rotate(180deg);
+}
+.subtitle {
+  margin: 0;
+  color: #49617f;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.headingDots {
+  position: absolute;
+  top: 55px;
+  left: 5.6%;
+  width: 77px;
+  height: 59px;
+  background: radial-gradient(circle, #61b6ff 2px, transparent 2.5px) 0 0 / 16px
+    16px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.headingLeaves {
+  position: absolute;
+  top: 150px;
+  left: -4px;
+  width: 127px;
+  height: 225px;
+  color: #639c8c;
+  transform: rotate(-25deg);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.sunWash {
+  position: absolute;
+  top: 42px;
+  right: -55px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background:
+    repeating-linear-gradient(140deg, transparent 0 9px, #fffdf450 10px 12px),
+    #ffcb7e75;
+  outline: 1px solid #facb8180;
+  outline-offset: 6px;
+  pointer-events: none;
+}
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.memberCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 213px;
+  padding: 18px 11px 20px;
+  border-radius: 22px;
+  border: 1px solid #e8eef2;
+  background: #ffffffed;
+  box-shadow: 0 13px 30px #45536a0b;
+  color: var(--navy);
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.memberCard:hover {
+  transform: translateY(-3px);
+  border-color: #b3d4ff;
+  box-shadow: 0 17px 35px #255f9c16;
+}
+.memberCard:focus-visible {
+  outline: 3px solid #0865ff;
+  outline-offset: 4px;
+}
+.memberCard.selected {
+  border-color: #438aff;
+  background: linear-gradient(130deg, #f3fbffef, #f9fdff);
+  box-shadow: 0 11px 30px #0075ff0c;
+}
+.selectedBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 15px;
+  right: 14px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+}
+.avatar,
+.largeAvatar {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #e8f4ff;
+}
+.avatar {
+  width: 96px;
+  height: 96px;
+  border: 1px solid #dce7ef;
+  box-shadow: 0 7px 14px #1e3f6010;
+}
+.portrait {
+  object-fit: cover;
+}
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #0075ff;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(145deg, #e4f7ff, #d7e6ff);
+}
+.memberRole {
+  margin-top: 15px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #405b80;
+}
+.memberCard h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(19px, 2.1vw, 25px);
+  line-height: 1.2;
+  margin: 7px 0 0;
+  letter-spacing: -0.75px;
+  font-weight: 700;
+}
+.cardUnderline {
+  display: block;
+  width: 26px;
+  height: 2px;
+  background: #4094ff;
+  margin-top: 12px;
+  border-radius: 2px;
+}
+.detail {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: 32px;
+  padding: 41px 45px;
+  border: 1px solid #e9f0f5;
+  border-radius: 30px;
+  background: #ffffffed;
+  box-shadow: 0 19px 48px #285f7810;
+  scroll-margin-top: 80px;
+}
+.detail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 23% 55%, #e2f4ffb0, transparent 42%),
+    linear-gradient(90deg, #ffffff28, #ffffffaa 42%, #ffffffa0 78%, #ffffff00),
+    url("/homepage/1-section-bg.png") center / cover;
+  opacity: 0.4;
+  pointer-events: none;
+}
+.detailGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 35% 1fr;
+  align-items: center;
+  gap: 50px;
+  min-height: 275px;
+  animation: profile-in 0.25s ease-out;
+}
+.profileVisual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.largeAvatar {
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  border: 6px solid white;
+  box-shadow:
+    0 14px 26px #217fba22,
+    0 0 0 1px #e7f5ff;
+}
+.roleBadge {
+  margin: 12px 0 0;
+  padding: 7px 25px;
+  border: 1px solid #7db8ff;
+  border-radius: 30px;
+  color: #0070f9;
+  background: #ffffffcc;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.profileContent {
+  min-width: 0;
+}
+.profileContent h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(35px, 4.7vw, 58px);
+  line-height: 1.12;
+  letter-spacing: -1.8px;
+  font-weight: 700;
+}
+.credentials {
+  padding: 0;
+  margin: 23px 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+.credentials li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.credentials p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #264a76;
+}
+.credentialIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #e0f3ff;
+  color: var(--blue);
+  flex-shrink: 0;
+}
+.contactRow {
+  border-top: 1px solid #dbe7f2;
+  padding-top: 19px;
+  max-width: 410px;
+}
+.contactLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 11px 26px;
+  min-height: 44px;
+  border: 1px solid #3585ff;
+  border-radius: 30px;
+  background: #ffffff6e;
+  color: #0062ff;
+  font-size: 14px;
+  font-weight: 600;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.contactLink:hover {
+  background: #edf7ff;
+  box-shadow: 0 5px 15px #0075ff18;
+}
+.contactLink:focus-visible {
+  outline: 3px solid #0865ff;
+  outline-offset: 4px;
+}
+.detailDots {
+  position: absolute;
+  top: 31px;
+  left: 34px;
+  width: 90px;
+  height: 64px;
+  background: radial-gradient(circle, #ffb544 2px, transparent 2.7px) 0 0 / 15px
+    15px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.detailLeavesLeft {
+  position: absolute;
+  left: 20px;
+  bottom: 27px;
+  width: 116px;
+  height: 211px;
+  color: #60bade;
+  transform: rotate(-31deg);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.detailLeavesRight {
+  position: absolute;
+  right: -15px;
+  top: 33px;
+  width: 104px;
+  height: 205px;
+  color: #6bb2c5;
+  transform: rotate(30deg);
+  opacity: 0.55;
+  pointer-events: none;
+}
+@keyframes profile-in {
+  from {
+    opacity: 0.3;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-width: 1400px) {
+  .page {
+    padding-top: 60px;
+  }
+  .intro {
+    margin-bottom: 54px;
+  }
+  .memberCard {
+    min-height: 235px;
+  }
+  .avatar {
+    width: 108px;
+    height: 108px;
+  }
+  .detail {
+    padding: 48px 60px;
+  }
+  .largeAvatar {
+    width: 300px;
+  }
+}
+@media (max-width: 1000px) {
+  .container {
+    width: 90%;
+  }
+  .page {
+    padding-top: 43px;
+    padding-bottom: 80px;
+  }
+  .intro {
+    margin-bottom: 35px;
+  }
+  .intro h1 {
+    font-size: 58px;
+  }
+  .subtitle {
+    font-size: 16px;
+  }
+  .memberCard {
+    min-height: 203px;
+    padding-inline: 8px;
+  }
+  .avatar {
+    width: 86px;
+    height: 86px;
+  }
+  .memberRole {
+    font-size: 9px;
+    letter-spacing: 1.7px;
+  }
+  .memberCard h2 {
+    font-size: 21px;
+  }
+  .detail {
+    padding: 35px 30px;
+  }
+  .detailGrid {
+    gap: 32px;
+  }
+  .profileContent h2 {
+    font-size: 43px;
+  }
+  .credentials p {
+    font-size: 14px;
+  }
+}
+@media (max-width: 759px) {
+  .page {
+    padding: 36px 0 80px;
+  }
+  .intro h1 {
+    font-size: clamp(36px, 8vw, 54px);
+    letter-spacing: -1.7px;
+  }
+  .eyebrow {
+    padding: 8px 20px;
+    font-size: 10px;
+    margin-bottom: 13px;
+  }
+  .subtitle {
+    font-size: 15px;
+    max-width: 360px;
+    margin-inline: auto;
+  }
+  .intro {
+    margin-bottom: 29px;
+  }
+  .heartDivider {
+    margin-block: 14px;
+  }
+  .heartDivider span {
+    width: 55px;
+  }
+  .teamGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .memberCard {
+    min-height: 199px;
+    padding: 18px 9px;
+    border-radius: 19px;
+  }
+  .memberCard h2 {
+    font-size: 22px;
+  }
+  .memberRole {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    margin-top: 14px;
+  }
+  .avatar {
+    width: 82px;
+    height: 82px;
+  }
+  .selectedBadge {
+    width: 22px;
+    height: 22px;
+    top: 10px;
+    right: 9px;
+  }
+  .selectedBadge svg {
+    width: 13px;
+  }
+  .cardUnderline {
+    margin-top: 10px;
+  }
+  .detail {
+    padding: 30px 24px;
+    margin-top: 25px;
+    border-radius: 24px;
+  }
+  .detailGrid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .largeAvatar {
+    width: 230px;
+  }
+  .profileContent h2 {
+    text-align: center;
+    font-size: 38px;
+    letter-spacing: -1.1px;
+  }
+  .credentials {
+    margin: 22px 0;
+    gap: 16px;
+  }
+  .credentials li {
+    gap: 13px;
+    align-items: flex-start;
+  }
+  .credentials p {
+    font-size: 14px;
+    padding-top: 8px;
+  }
+  .credentialIcon {
+    width: 39px;
+    height: 39px;
+  }
+  .credentialIcon svg {
+    width: 22px;
+  }
+  .contactRow {
+    text-align: center;
+  }
+  .detailDots {
+    left: 22px;
+    top: 23px;
+    width: 62px;
+    height: 51px;
+    background-size: 13px 13px;
+  }
+  .detailLeavesLeft {
+    width: 90px;
+    height: 170px;
+    left: 8px;
+    top: 95px;
+    bottom: auto;
+  }
+  .detailLeavesRight {
+    width: 70px;
+    height: 140px;
+    top: 150px;
+    opacity: 0.35;
+  }
+  .headingLeaves {
+    top: 155px;
+    width: 75px;
+    height: 155px;
+    left: -20px;
+    opacity: 0.35;
+  }
+  .headingDots {
+    top: 22px;
+    left: 8px;
+    width: 47px;
+    height: 45px;
+    background-size: 13px 13px;
+    opacity: 0.35;
+  }
+  .sunWash {
+    top: 83px;
+    right: -75px;
+    width: 140px;
+    height: 140px;
+    opacity: 0.6;
+  }
+}
+@media (max-width: 379px) {
+  .memberCard h2 {
+    font-size: 19px;
+  }
+  .memberCard {
+    min-height: 198px;
+  }
+  .memberRole {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+  }
+  .detail {
+    padding-inline: 18px;
+  }
+  .largeAvatar {
+    width: 205px;
+  }
+  .profileContent h2 {
+    font-size: 34px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

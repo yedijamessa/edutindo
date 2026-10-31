@@ -1,0 +1,328 @@
+.header {
+  background: #fffaf3f5;
+  border-radius: 0 0 13px 13px;
+  box-shadow: 0 4px 16px #23384d14;
+  border-bottom: 1px solid #fff;
+  backdrop-filter: blur(16px);
+}
+.headerInner {
+  width: min(1100px, 79%);
+  height: 58px;
+  padding: 0;
+  margin: auto;
+}
+.brand {
+  gap: 10px;
+  font-size: 25px;
+  letter-spacing: -0.9px;
+  font-weight: 800;
+  color: #08183c;
+}
+.brandImage {
+  width: 25px;
+  height: 40px;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+.navLink {
+  position: relative;
+  font-size: 13px;
+  color: #415977;
+}
+.navLink[aria-current="page"] {
+  color: #08183c;
+}
+.navLink[aria-current="page"]:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -11px;
+  height: 2px;
+  background: #ff8a1f;
+  border-radius: 2px;
+}
+.support {
+  gap: 6px;
+  background: #0663ff;
+  border-radius: 30px;
+  padding: 0 22px;
+  height: 38px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #ffffff50;
+  box-shadow: 0 4px 12px #0061ff25;
+}
+.support:hover {
+  background: #0052de;
+}
+.footer {
+  position: relative;
+  background: #0b2544;
+  color: #eaf3ff;
+  isolation: isolate;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.footer:before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 45%;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #0b2544, transparent),
+    linear-gradient(0deg, #0b2544d9, #0b254465),
+    url("/homepage/redesign/landscape.webp") right bottom / auto 310px no-repeat;
+  opacity: 0.8;
+}
+.footerWave {
+  position: absolute;
+  left: 0;
+  top: -65px;
+  width: 100%;
+  height: 66px;
+  pointer-events: none;
+}
+.footerInner {
+  position: relative;
+  width: min(1180px, 85%);
+  margin: auto;
+  padding: 18px 0 17px;
+}
+.footerGrid {
+  display: grid;
+  grid-template-columns: 2.4fr 0.8fr 1fr 1.6fr;
+  gap: 38px;
+  align-items: start;
+}
+.footerBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 23px;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.footerBrand img {
+  width: 24px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.tagline {
+  font-size: 11px;
+  color: #a5b9ce;
+  margin: 5px 0 9px;
+}
+.registration {
+  font-size: 10px;
+  color: #8fa9c3;
+  line-height: 1.45;
+}
+.footer nav {
+  padding-top: 12px;
+}
+.footer nav h2 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f6ff;
+  margin: 0 0 12px;
+  letter-spacing: 0;
+}
+.footer nav a {
+  display: block;
+  font-size: 12px;
+  color: #9eb4cb;
+  line-height: 1.65;
+  text-decoration: none;
+}
+.footer a:hover {
+  color: white;
+}
+.footer a:focus-visible {
+  outline: 2px solid #80d3ff;
+  outline-offset: 5px;
+}
+.footerNote {
+  font-family: "Segoe Print", "Bradley Hand", cursive;
+  font-size: 23px;
+  line-height: 1.16;
+  text-align: center;
+  transform: rotate(-8deg);
+  margin: 30px 0 0;
+  color: #f5f7fa;
+}
+.footerNote span {
+  position: relative;
+}
+.footerNote span:after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  left: 0;
+  width: 75px;
+  height: 4px;
+  border-radius: 60%;
+  background: #ff9e36;
+  transform: rotate(-7deg);
+}
+.footerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid #ffffff13;
+  margin-top: 15px;
+  padding-top: 12px;
+  font-size: 10px;
+  color: #849fbd;
+}
+.footerBottom a {
+  font-size: 11px;
+  color: #a6c1da;
+}
+@media (max-width: 1100px) {
+  .headerInner {
+    height: 52px;
+  }
+  .brand {
+    font-size: 23px;
+  }
+  .footerGrid {
+    gap: 28px;
+  }
+  .footerNote {
+    font-size: 21px;
+  }
+}
+@media (max-width: 899px) {
+  .headerInner {
+    width: 88%;
+    height: 62px;
+  }
+  .footerInner {
+    width: 88%;
+  }
+  .footerGrid {
+    grid-template-columns: 1.8fr 1fr 1fr;
+    gap: 25px;
+  }
+  .footerNote {
+    display: none;
+  }
+  .footerWave {
+    top: -45px;
+    height: 46px;
+  }
+}
+@media (max-width: 699px) {
+  .headerInner {
+    width: 89%;
+    height: 60px;
+  }
+  .brand {
+    font-size: 23px;
+  }
+  .brandImage {
+    height: 36px;
+    width: 24px;
+  }
+  .footerInner {
+    width: 89%;
+    padding-top: 25px;
+    padding-bottom: 22px;
+  }
+  .footerGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .foundation {
+    grid-column: 1 / -1;
+  }
+  .footerBrand {
+    font-size: 25px;
+  }
+  .tagline {
+    font-size: 12px;
+  }
+  .registration {
+    font-size: 11px;
+  }
+  .footer nav {
+    padding-top: 0;
+  }
+  .footer nav h2 {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .footer nav a {
+    font-size: 13px;
+    line-height: 2;
+  }
+  .footerBottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 10px;
+    margin-top: 23px;
+    padding-top: 17px;
+  }
+  .footer:before {
+    left: 0;
+    opacity: 0.4;
+  }
+}
+
+/* The contact reference uses a compact, flat footer. */
+.contactFooter > div {
+  width: min(1050px, 76%);
+  padding: 30px 0 22px;
+}
+.contactFooter > div > div:first-child {
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 40px;
+}
+.contactFooter > div > div:first-child > div:first-child {
+  grid-column: auto;
+}
+.contactFooter > div > div:first-child > div:first-child > a {
+  font-size: 16px;
+}
+.contactFooter > div > div:first-child > div:first-child > div {
+  margin-top: 10px;
+}
+.contactFooter p,
+.contactFooter li {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.contactFooter h3 {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.contactFooter > div > div:last-child {
+  margin-top: 20px;
+  padding-top: 14px;
+  font-size: 11px;
+}
+@media (max-width: 699px) {
+  .contactFooter > div {
+    width: 89%;
+    padding-block: 30px 22px;
+  }
+  .contactFooter > div > div:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 25px;
+  }
+  .contactFooter > div > div:first-child > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.donateFooter {
+  background-image:
+    linear-gradient(180deg, #0b1d3ac9, #0b1d3aee),
+    url("/homepage/redesign/landscape.webp");
+  background-size: cover;
+  background-position: center 70%;
+}

@@ -1,0 +1,40 @@
+.photo {
+  object-fit: cover;
+}
+.control {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ffffff50;
+  border-radius: 50%;
+  color: white;
+  background: #0b254475;
+  cursor: pointer;
+}
+.control:hover {
+  background: #0b2544bf;
+}
+.control:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+.previous {
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.next {
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.pause {
+  right: 12px;
+  bottom: 12px;
+  width: 30px;
+  height: 30px;
+}

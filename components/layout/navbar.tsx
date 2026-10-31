@@ -4,7 +4,8 @@ import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { Menu, X, ArrowLeft } from "lucide-react"
+import { Menu, X, ArrowLeft, Heart } from "lucide-react"
+import styles from "./home-shell.module.css"
 import { isCurriculumLessonFocusRoute } from "@/lib/focus-mode-routes"
 import { canManageAdminAccess } from "@/lib/auth-shared"
 import { Button } from "../ui/button"
@@ -29,6 +30,7 @@ export function Navbar() {
     const [isAdminUser, setIsAdminUser] = React.useState(false)
     const [canManageAccessControls, setCanManageAccessControls] = React.useState(false)
     const pathname = usePathname()
+    const usesFoundationShell = ["/", "/about", "/contact", "/donate"].includes(pathname)
     const isCitacitakuRoute = pathname.startsWith("/citacitaku")
     const isLegacyFocusedScienceRoute = /^\/(student|teacher|principal|admin)\/materials\/year-7\/science\/[^/]+(\/[^/]+)?$/.test(pathname)
     const isFocusedScienceRoute = isLegacyFocusedScienceRoute || isCurriculumLessonFocusRoute(pathname)
@@ -75,19 +77,20 @@ export function Navbar() {
     }
 
     return (
-        <header className={cn("sticky top-0 z-50 w-full", headerSurfaceClassName)}>
-            <div className="container-custom flex h-[4.5rem] items-center justify-between">
+        <header className={cn("sticky top-0 z-50 w-full", usesFoundationShell ? styles.header : headerSurfaceClassName)}>
+            <div className={cn("container-custom flex h-[4.5rem] items-center justify-between", usesFoundationShell && styles.headerInner)}>
                 <div className="flex items-center gap-2">
                     {isAdminRoute && <AdminNavMenu canManageAccessControls={canManageAccessControls} />}
-                    <Link href="/" className="group flex items-center">
+                    <Link href="/" className={cn("group flex items-center", usesFoundationShell && styles.brand)} aria-label="Edutindo home">
                         <Image
                             src="/logo-edutindo.png"
                             alt="Edutindo"
                             width={180}
                             height={44}
                             priority
-                            className="h-8 w-auto md:h-9 transition-all group-hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.35)]"
+                            className={usesFoundationShell ? styles.brandImage : "h-8 w-auto md:h-9 transition-all group-hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.35)]"}
                         />
+                        {usesFoundationShell && <span>Edutindo</span>}
                     </Link>
                 </div>
 
@@ -97,8 +100,10 @@ export function Navbar() {
                         <Link
                             key={item.href}
                             href={item.href}
+                            aria-current={pathname === item.href ? "page" : undefined}
                             className={cn(
                                 "text-sm font-medium transition-colors hover:text-slate-900",
+                                usesFoundationShell && styles.navLink,
                                 pathname === item.href
                                     ? "text-slate-900"
                                     : "text-slate-600"
@@ -122,9 +127,9 @@ export function Navbar() {
                             asChild
                             size="sm"
                             variant="default"
-                            className="shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]"
+                            className={cn("shadow-[0_12px_24px_-14px_rgba(37,99,235,0.7)]", usesFoundationShell && styles.support)}
                         >
-                            <Link href="/donate">Support Us</Link>
+                            <Link href="/donate" aria-current={pathname === "/donate" ? "page" : undefined}>{usesFoundationShell && <Heart size={15} fill="currentColor" aria-hidden="true" />}Support Us</Link>
                         </Button>
                     )}
                     <AuthNavActions />
@@ -153,6 +158,8 @@ export function Navbar() {
                         className="rounded-full border border-[#d8cdb7] bg-white/60 p-2 text-slate-700 transition-colors hover:bg-white/85 hover:text-slate-900"
                         onClick={() => setIsOpen(!isOpen)}
                         aria-label="Toggle menu"
+                        aria-expanded={isOpen}
+                        aria-controls="mobile-navigation"
                     >
                         {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                     </button>
@@ -164,7 +171,7 @@ export function Navbar() {
             {/* Mobile Nav */}
             {isOpen && !isDashboardRoute && (
                 <div className="border-t border-[#e1d5be] bg-[#fdf5e3]/98 p-4 md:hidden">
-                    <nav className="flex flex-col space-y-4">
+                    <nav id="mobile-navigation" className="flex flex-col space-y-4" aria-label="Mobile navigation">
                         {showAdminBackButton && (
                             <Button asChild variant="outline" className={cn("w-full", subtleHeaderButtonClassName)}>
                                 <Link href="/admin" onClick={() => setIsOpen(false)}>
