@@ -98,6 +98,23 @@ type TurnstileWindow = Window & {
 const MAX_RECEIPT_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
+async function withDataTimeout<T>(task: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      task,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Donation data is taking too long to load.")),
+          8000,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export default function DonatePage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [recentDonors, setRecentDonors] = useState<Donation[]>([]);
@@ -152,8 +169,8 @@ export default function DonatePage() {
       setLoading(true);
       setLoadError(false);
       const [equipmentResult, donorsResult] = await Promise.allSettled([
-        getEquipmentNeeds("active"),
-        getRecentDonors(5),
+        withDataTimeout(getEquipmentNeeds("active")),
+        withDataTimeout(getRecentDonors(5)),
       ]);
       if (equipmentResult.status === "fulfilled")
         setEquipment(equipmentResult.value);
