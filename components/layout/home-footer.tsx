@@ -52,21 +52,11 @@ export function HomeFooter() {
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/terms">Terms of Service</Link>
           </nav>
-          <p className={styles.footerNote}>
-            Education
-            <br />
-            Lights Brighter
-            <br />
-            <span>Futures</span>
-          </p>
         </div>
         <div className={styles.footerBottom}>
           <p>
             © {new Date().getFullYear()} Yayasan Edutindo. All rights reserved.
           </p>
-          <Link href="/contact">
-            Let&apos;s build a brighter future <span aria-hidden="true">↗</span>
-          </Link>
         </div>
       </div>
     </footer>

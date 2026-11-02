@@ -48,8 +48,8 @@ const CONTACT_CHANNELS = [
   {
     title: "Email Us",
     description: "For general inquiries and collaboration.",
-    value: "hello@edutindo.org",
-    href: "mailto:hello@edutindo.org",
+    value: "admin@edutindo.org",
+    href: "mailto:admin@edutindo.org",
     icon: Mail,
     color: "orange",
     external: false,
@@ -66,8 +66,8 @@ const CONTACT_CHANNELS = [
   {
     title: "Connect on LinkedIn",
     description: "Let’s build a stronger education community.",
-    value: "linkedin.com/company/edutindo",
-    href: "https://www.linkedin.com/company/edutindo/",
+    value: "Edutindo on LinkedIn",
+    href: "https://www.linkedin.com/company/yayasan-edukasi-terang-indonesia-edutindo/",
     icon: Linkedin,
     color: "blue",
     external: true,
