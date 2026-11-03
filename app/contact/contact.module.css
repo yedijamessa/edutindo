@@ -433,7 +433,7 @@
 }
 .contactChannels {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 17px;
   width: 92%;
   margin-inline: auto;
@@ -456,10 +456,6 @@
   transition:
     transform 0.2s,
     box-shadow 0.2s;
-}
-.contactChannel.pink {
-  --tone: #ff0877;
-  --tint: #ffe6f1;
 }
 .contactChannel.blue {
   --tone: #005bff;

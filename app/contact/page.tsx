@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   HandHeart,
   Handshake,
-  Instagram,
   Linkedin,
   LoaderCircle,
   Mail,
@@ -53,15 +52,6 @@ const CONTACT_CHANNELS = [
     icon: Mail,
     color: "orange",
     external: false,
-  },
-  {
-    title: "Follow Us",
-    description: "See our latest updates and stories.",
-    value: "@edutindo",
-    href: "https://www.instagram.com/edutindo/",
-    icon: Instagram,
-    color: "pink",
-    external: true,
   },
   {
     title: "Connect on LinkedIn",
