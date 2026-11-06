@@ -183,7 +183,9 @@ function Leaves({ className }: { className: string }) {
 }
 
 export default function AboutPage() {
-  const [activeIndex, setActiveIndex] = useState(FOUNDERS.length - 1);
+  const [activeIndex, setActiveIndex] = useState(() =>
+    FOUNDERS.findIndex((founder) => founder.name === "Dr Sasza Nabilla"),
+  );
   const detailRef = useRef<HTMLElement>(null);
   const activeFounder = FOUNDERS[activeIndex];
 
